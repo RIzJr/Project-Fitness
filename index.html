@@ -81,6 +81,12 @@ textarea{resize:vertical;min-height:64px}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
 /* settings */
+.onboard{max-width:480px;margin:4vh auto 0;padding-bottom:40px}
+.onboard h1{font-size:38px}
+.obdots{display:flex;gap:6px}.obdots i{flex:1;height:4px;border-radius:99px;background:var(--line)}.obdots i.on{background:var(--accent)}
+.obpick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.obpick button{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:64px}
+.obpick button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 @media (max-width:380px){.tiles{grid-template-columns:repeat(2,1fr)}}
 .tile{background:var(--sunk);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -536,6 +542,7 @@ function renderCheckin(){
 function render(){
   const tb=document.getElementById("tabs");
   if(S.lock){tb.hidden=true;document.getElementById("app").innerHTML=renderLock();return}
+  if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
   tb.hidden=false;
   renderTabs();
   const app=document.getElementById("app");
@@ -844,6 +851,42 @@ function clientCsv(id){const c=S.docs[id];if(!c)return;const cols=[...CLIENT_COL
   const csv=[["Week starting",...cols.map(x=>x[1])].join(","),...c.weeks.map(w=>[w.week,...cols.map(x=>q(w[x[0]]))].join(","))].join("\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`${String(c.name).replace(/[^a-z0-9]+/gi,"-").toLowerCase()}-progress.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 
+
+/* ---------- first-run setup ---------- */
+const HABIT_IDEAS=["Protein at every meal","2 litres of water","8,000+ steps","7+ hours sleep","Ate slowly, stopped at 80% full","10 minutes of mobility","No alcohol","Fruit or veg with every meal"];
+function needsOnboarding(){const p=S.docs.profile||{};return !p.onboarded&&!Object.values(S.docs).some(d=>d&&["day","workout","body","checkin"].includes(d.type))}
+function afterLoad(){if(S.example){S.docs={settings:clone(DEFAULT_SETTINGS)};S.example=false}
+  if(needsOnboarding()){const p=S.docs.profile||{},nm=p.name||activeProf().name;S.onboard={step:0,d:{name:nm==="Me"?"":nm,goal:p.goal||"",activity:p.activity||"",dob:p.dob||"",sex:p.sex||"",height:p.height||"",weight:p.weight||"",habits:[...(settings().habits||[])],targets:null}}}
+  else S.onboard=null}
+function renderOnboard(){const O=S.onboard,d=O.d,N=5;
+  const dots=`<div class="obdots" aria-label="Step ${O.step+1} of ${N}">${[...Array(N)].map((_,i)=>`<i class="${i<=O.step?"on":""}"></i>`).join("")}</div>`;
+  const pick=(k,opts)=>`<div class="obpick">${opts.map(([v,l,sub])=>`<button data-act="obPick" data-k="${k}" data-v="${v}" aria-pressed="${String(d[k])===String(v)}"><b>${l}</b>${sub?`<span class="small muted">${sub}</span>`:""}</button>`).join("")}</div>`;
+  const nav=(next,canSkip)=>`<div class="row" style="justify-content:space-between;margin-top:6px">${O.step?`<button class="btn" data-act="obBack">Back</button>`:`<button class="btn ghost" data-act="obSkip">Skip setup</button>`}<span class="row" style="gap:4px">${canSkip?`<button class="btn ghost" data-act="obNext" data-skip="1">Skip</button>`:""}<button class="btn primary" data-act="obNext">${next||"Next"}</button></span></div>`;
+  let body="";
+  if(O.step===0)body=`<h1>Welcome</h1><p class="sub" style="font-size:15px">Let's set up Project Fitness. It takes about a minute, and you can change everything later in Settings.</p>
+    <label class="field"><span class="label">What should we call you?</span><input id="ob_name" data-act="ob" data-k="name" value="${esc(d.name)}" placeholder="Your first name" autocomplete="given-name"></label>${nav("Let's go")}`;
+  if(O.step===1)body=`<h1>Your goal</h1>${pick("goal",[["lose","Lose fat","Lean out steadily"],["gain","Build muscle","Add size and strength"],["maintain","Maintain","Stay where you are, feel better"],["perform","Performance","Train for a sport or event"]])}
+    <div class="label" style="margin-top:8px">How active are you?</div>${pick("activity",ACT.map(([v,l])=>{const [a,b]=l.split(": ");return [v,a,b||""]}))}${nav()}`;
+  if(O.step===2)body=`<h1>About you</h1><p class="sub" style="font-size:14px">Used to suggest calories and macros. Stored only on this phone.</p>
+    <div class="grid2"><label class="field"><span class="label">Date of birth</span><input id="ob_dob" type="date" data-act="ob" data-k="dob" value="${esc(d.dob)}"></label>
+    <label class="field"><span class="label">Sex (for calorie maths)</span><select id="ob_sex" data-act="ob" data-k="sex"><option value="">Choose</option><option value="m" ${d.sex==="m"?"selected":""}>Male</option><option value="f" ${d.sex==="f"?"selected":""}>Female</option></select></label>
+    <label class="field"><span class="label">Height (cm)</span><input id="ob_height" type="number" step="any" inputmode="decimal" data-act="ob" data-k="height" value="${esc(d.height)}"></label>
+    <label class="field"><span class="label">Weight (kg)</span><input id="ob_weight" type="number" step="any" inputmode="decimal" data-act="ob" data-k="weight" value="${esc(d.weight)}"></label></div>${nav("Next",true)}`;
+  if(O.step===3){const sg=suggestFrom(d,d.weight);if(!d.targets)d.targets=sg?{kcal:sg.kcal,protein:sg.protein,carbs:sg.carbs,fat:sg.fat}:{...DEFAULT_TARGETS};const t=d.targets;
+    body=`<h1>Daily targets</h1><p class="sub" style="font-size:14px">${sg?`Suggested from your details (maintenance about ${sg.tdee.toLocaleString("en-GB")} kcal). Adjust if your coach gave you numbers.`:"Starting numbers. Add your details later in Settings to get personal suggestions, or type your coach's numbers."}</p>
+    <div class="grid2">${MK.map(k=>`<label class="field"><span class="label">${MAC[k].label} (${MAC[k].unit})</span><input id="ob_t_${k}" type="number" step="any" inputmode="numeric" data-act="obT" data-k="${k}" value="${t[k]}"></label>`).join("")}</div>${nav()}`}
+  if(O.step===4)body=`<h1>Daily habits</h1><p class="sub" style="font-size:14px">Pick a few to tick off each day. Small and repeatable works best.</p>
+    <div class="stack" style="gap:2px">${[...new Set([...HABIT_IDEAS,...d.habits])].map(h=>`<label class="habit"><input type="checkbox" data-act="obHabit" data-h="${esc(h)}" ${d.habits.includes(h)?"checked":""}><span>${esc(h)}</span></label>`).join("")}</div>
+    <form class="row" id="obHabitForm" style="flex-wrap:nowrap"><input id="ob_newhabit" placeholder="Add your own" autocomplete="off"><button class="btn" type="submit">Add</button></form>${nav("Finish")}`;
+  return `<div class="onboard stack">${dots}${body}</div>`}
+function finishOnboard(skip){const d=S.onboard.d,name=(d.name||"").trim()||activeProf().name;
+  const pr={...(S.docs.profile||{}),type:"profile",name,onboarded:true};
+  if(!skip){Object.assign(pr,{goal:d.goal,activity:d.activity,dob:d.dob,sex:d.sex,height:d.height?+d.height:"",weight:d.weight?+d.weight:""})}
+  S.onboard=null;save("profile",pr);
+  if(!skip){const st=clone(settings());if(d.targets)st.targets={kcal:+d.targets.kcal||0,protein:+d.targets.protein||0,carbs:+d.targets.carbs||0,fat:+d.targets.fat||0};st.habits=d.habits;save("settings",st);
+    if(d.weight){const k=todayKey();save("body_"+k,{type:"body",date:k,weight:+d.weight})}}
+  activeProf().name=name;saveProf();S.tab="today";render();window.scrollTo(0,0);toast(skip?"You can finish setup any time in Settings":"All set, "+name.split(" ")[0]+". Let's go 💪")}
+
 /* ---------- settings ---------- */
 const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
 const GOALS={lose:"Lose fat",maintain:"Maintain",gain:"Build muscle",perform:"Performance"};
@@ -851,7 +894,8 @@ const ACT=[["1.2","Mostly sitting, little exercise"],["1.375","Light: 1–3 sess
 const initials=n=>String(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
 const latestWeight=()=>{if(S.example)return null;const b=ofType("body").find(x=>x.weight);return b?+b.weight:null};
 function ageFrom(dob){if(!dob)return null;const d=new Date(dob),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n<new Date(n.getFullYear(),d.getMonth(),d.getDate()))a--;return a>0&&a<110?a:null}
-function suggestTargets(){const p=S.docs.profile||{},w=+(latestWeight()||p.weight),h=+p.height,a=ageFrom(p.dob);
+function suggestTargets(){const p=S.docs.profile||{};return suggestFrom(p,latestWeight()||p.weight)}
+function suggestFrom(p,wt){const w=+wt,h=+p.height,a=ageFrom(p.dob);
   if(!w||!h||!a||!p.sex||!p.activity)return null;
   const tdee=(10*w+6.25*h-5*a+(p.sex==="m"?5:-161))*(+p.activity),adj={lose:0.8,maintain:1,gain:1.1,perform:1.05}[p.goal]||1;
   const kcal=Math.round(tdee*adj/10)*10,protein=Math.round(w*(p.goal==="lose"?2.2:2)),fat=Math.round(kcal*0.25/9),carbs=Math.max(0,Math.round((kcal-protein*4-fat*9)/4));
@@ -880,6 +924,7 @@ function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??
     <label class="field"><span class="label">Notes (injuries, preferences, anything to remember)</span><textarea id="pf_notes">${v("notes")}</textarea></label>
     <button class="btn primary" type="submit">Save details</button></form>
     <span class="small muted">Changing weight here also logs a weigh-in for today on the Body tab.</span></section>
+  <section class="panel"><h2>Guided setup</h2><p class="small" style="margin:0">Walk through goal, details, targets and habits again.</p><button class="btn" style="align-self:flex-start" data-act="setupAgain">Run setup again</button></section>
   <section class="panel"><h2>Coach tools</h2><label class="habit"><input type="checkbox" data-act="coachMode" ${p.coach?"checked":""}><span>I'm a coach. Show a Clients view in Check-in.</span></label>
     <span class="small muted">Only on this profile. Clients send you progress reports from their own app, so you never need to open their account.</span></section>
   <section class="panel"><h2>Suggested targets</h2>${s?`<div class="kcal"><span class="small muted">Maintenance ≈ ${s.tdee.toLocaleString("en-GB")} kcal</span><b>${s.kcal.toLocaleString("en-GB")} kcal</b></div>
@@ -926,7 +971,7 @@ function switchUser(id,force){const p=PROF.list.find(x=>x.id===id);if(!p)return;
   PROF.active=id;saveProf();S.lock=null;
   Object.assign(S,{tab:"today",setPage:null,day:todayKey(),results:[],meal:null,searchMsg:"",draftWorkout:null,ciDraft:null,showTargets:false,editFood:null,editHabits:null,openEx:null,exFilter:"",quoteShift:0,confirmDel:null,confirmWipe:false});
   S.docs=exampleDocs();S.example=true;
-  if(S.db)subscribe();else loadLocal();
+  if(S.db)subscribe();else{loadLocal();afterLoad()}
   loadLook();applyLook();render();window.scrollTo(0,0);toast("Now using "+p.name);
 }
 function exportData(){const me=activeProf(),blob=new Blob([JSON.stringify({app:"Project Fitness",version:1,user:me.name,exported:new Date().toISOString(),docs:S.docs},null,1)],{type:"application/json"});
@@ -1006,6 +1051,12 @@ document.addEventListener("click",e=>{
     case "openClient":S.clientOpen=ds.id||null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
     case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}{const prev=clone(S.docs[ds.id]);S.confirmDelClient=null;S.clientOpen=null;remove(ds.id);toast("Client removed",{undo:()=>restoreDoc(ds.id,prev)})}break;
     case "clientCsv":clientCsv(ds.id);break;
+    case "obPick":S.onboard.d[ds.k]=ds.v;if(ds.k==="goal"||ds.k==="activity")S.onboard.d.targets=null;render();break;
+    case "obBack":S.onboard.step=Math.max(0,S.onboard.step-1);render();window.scrollTo(0,0);break;
+    case "obSkip":finishOnboard(true);break;
+    case "obNext":{const O=S.onboard;if(O.step===0&&!O.d.name.trim()){toast("Add your name to continue");document.getElementById("ob_name")?.focus();break}
+      if(O.step===2)O.d.targets=null;if(O.step>=4){finishOnboard(false);break}O.step++;render();window.scrollTo(0,0);break}
+    case "setupAgain":{const p=S.docs.profile||{};S.onboard={step:0,d:{name:p.name||activeProf().name,goal:p.goal||"",activity:p.activity||"",dob:p.dob||"",sex:p.sex||"",height:p.height||"",weight:latestWeight()||p.weight||"",habits:[...(settings().habits||[])],targets:null}};render();window.scrollTo(0,0);break}
     case "setPage":S.setPage=ds.v||null;S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
     case "lockCancel":S.lock=null;render();break;
@@ -1056,6 +1107,8 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="habit"){const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
+  if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
+  if(ds.act==="obHabit"){const H=S.onboard.d.habits;if(t.checked){if(!H.includes(ds.h))H.push(ds.h)}else S.onboard.d.habits=H.filter(x=>x!==ds.h)}
   if(ds.act==="coachMode"){save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),coach:t.checked});if(t.checked){S.ciView="clients"};toast(t.checked?"Clients view added to Check-in":"Coach tools off")}
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
@@ -1071,6 +1124,8 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="woName")S.draftWorkout.name=t.value;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;
     if(LIB_GROUP[exKey(t.value)]||exHistory(t.value).length)render()} // picked from the list: show last time straight away
+  if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
+  if(ds.act==="obT"){S.onboard.d.targets[ds.k]=t.value}
   if(ds.act==="exFilter"){S.exFilter=t.value;render()}
   if(ds.act==="amtQty"||ds.act==="amtG"){const f=dayDoc(S.day).foods[S.editFood];if(!f||!f.base)return;
     const qty=ds.act==="amtG"?(f.unit==="g"?+t.value:+t.value/f.unitG):+t.value;if(!(qty>=0))return;
@@ -1104,6 +1159,7 @@ document.addEventListener("submit",e=>{e.preventDefault();
   if(e.target.id==="pinSetForm"){const pin=document.getElementById("ps_pin").value.trim();if(!/^\d{4}$/.test(pin)){toast("PIN must be 4 digits");return}activeProf().pin=pin;saveProf();render();toast("PIN set");return}
   if(e.target.id==="pinForm"){const L=S.lock,u=PROF.list.find(x=>x.id===L.id),v=document.getElementById("pinIn").value.trim();
     if(u&&v===u.pin){if(L.id===PROF.active){S.lock=null;render()}else switchUser(L.id,true)}else{L.err=true;render();document.getElementById("pinIn")?.focus()}return}
+  if(e.target.id==="obHabitForm"){const inp=document.getElementById("ob_newhabit"),v=inp.value.trim();if(!v)return;const H=S.onboard.d.habits;if(!H.includes(v))H.push(v);render();document.getElementById("ob_newhabit")?.focus();return}
   if(e.target.id==="habAddForm"){const inp=document.getElementById("habNew"),v=inp.value.trim();if(!v){inp.focus();return}
     if(S.editHabits.some(h=>h.name.trim().toLowerCase()===v.toLowerCase())){toast("That habit's already on the list");return}
     S.editHabits.push({name:v,old:null});render();document.getElementById("habNew")?.focus();return}
@@ -1120,10 +1176,11 @@ document.getElementById("reportIn").addEventListener("change",e=>{const f=e.targ
 document.getElementById("importIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importData(f)});
 applyLook();
 if(activeProf().pin)S.lock={id:PROF.active,boot:true};
+if(!window.claude||!window.claude.use){loadLocal();afterLoad()}
 if("serviceWorker" in navigator&&window.isSecureContext&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 render();
 (async function connect(){
-  if(!window.claude||!window.claude.use){loadLocal();render();return}
+  if(!window.claude||!window.claude.use)return;
   try{
     const [db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
     if(!db||!user){loadLocal();render();return}
