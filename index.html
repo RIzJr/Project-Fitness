@@ -76,6 +76,11 @@ textarea{resize:vertical;min-height:64px}
 .steppers button.add{background:var(--c);border-color:var(--c);color:#fff}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
+/* quote */
+.quote{position:relative;background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:16px 48px 16px 16px}
+.quote .label{color:inherit;opacity:.8}
+.quote p{margin:6px 0 0;font-family:var(--display);font-weight:600;font-size:23px;line-height:1.15;text-wrap:balance}
+.quote button{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:9px;border:1px solid currentColor;background:transparent;color:inherit;font-size:17px;line-height:1;opacity:.85}
 /* habits */
 .habit{display:flex;gap:10px;align-items:center;padding:6px 0}
 .habit input{width:22px;height:22px;accent-color:var(--accent);flex:none}
@@ -189,6 +194,10 @@ function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t
 
 const settings=()=>{const s=S.docs.settings||DEFAULT_SETTINGS;return (s.targets&&s.targets.kcal!=null)?s:{...s,targets:DEFAULT_TARGETS}};
 function dayDoc(k){return S.docs["day_"+k]||{type:"day",date:k,foods:[],habits:{}}}
+// the day to change: a clean one while example data is showing, so your first entry replaces the examples
+function editDay(){return S.example?{type:"day",date:S.day,foods:[],habits:{}}:clone(dayDoc(S.day))}
+function macroLeft(){const t=totals(dayDoc(S.day)),tg=settings().targets,l=Math.round(tg.kcal-t.kcal),p=Math.round(tg.protein-t.protein);
+  return (l>=0?l.toLocaleString("en-GB")+" kcal left":Math.abs(l).toLocaleString("en-GB")+" kcal over")+(p>0?", "+p+"g protein to go":", protein hit")}
 function totals(d){const t={kcal:0,protein:0,carbs:0,fat:0};(d.foods||[]).forEach(f=>MK.forEach(k=>t[k]+=+f[k]||0));return t}
 const ofType=t=>Object.entries(S.docs).filter(([,d])=>d&&d.type===t).map(([id,d])=>({id,...d})).sort((a,b)=>a.date<b.date?1:-1);
 
@@ -237,12 +246,13 @@ function renderToday(){
   <header class="top"><div><h1>${isToday?"Today":fmtDay(S.day)}</h1><div class="sub">${isToday?fmtDay(S.day):"Viewing a past day"}</div></div>
     <div class="daynav"><button data-act="prevDay" aria-label="Previous day">‹</button><button data-act="nextDay" aria-label="Next day" ${isToday?"disabled":""}>›</button></div></header>
   <div class="stack">
+  ${quoteCard()}
   <section class="panel"><div class="spread"><h2>Macros</h2><button class="btn ghost" data-act="targets">${S.showTargets?"Done":"Edit targets"}</button></div>
     ${S.showTargets?renderTargets():""}
     <div>${rows}</div>
   </section>
   <section class="panel"><h2>Log food</h2>
-    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="e.g. Tesco meal deal chicken wrap" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""}>Search</button></form>
+    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="Food, brand or barcode" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""}>Search</button></form>
     <div class="row"><button class="btn" data-act="photo" ${S.searching?"disabled":""}>Scan barcode or label</button><button class="btn" data-act="newFood">Add manually</button></div>
     <div class="status" aria-live="polite">${esc(S.searchMsg)}</div>
     ${results?`<div class="stack" style="gap:8px">${results}</div>`:""}
@@ -404,9 +414,37 @@ Use UK products, supermarkets and serving sizes where relevant. Read values stra
 Return ONLY JSON: {"items":[{"name":string,"serving":string,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number}]}
 Give up to 4 likely matches, most likely first. If the input describes one whole meal, return it as one item.`;
 async function getSample(){if(S.sample)return S.sample;if(!window.claude||!window.claude.use)return null;S.sample=await window.claude.use("sample");return S.sample}
+/* ---------- quote of the day ---------- */
+const QUOTES=["Discipline is choosing what you want most over what you want now.","You don't have to be extreme. Just consistent.","Small wins every day beat big plans you never start.","The session you didn't feel like doing counts double.","Strong is built one rep at a time.","Progress, not perfection.","Show up on the days you don't want to. That's where change lives.","Your body keeps score of every choice. Make today's a good one.","Motivation starts the habit. Routine keeps it going.","Hit your protein, hit your steps, get your sleep. Repeat.","Don't count the days. Make the days count.","You're one workout away from a better mood.","Eat like you respect yourself. Train like you love yourself.","Every rep is a vote for the person you're becoming.","Rest is part of the programme, not a break from it.","A little progress each day adds up to big results.","Be stronger than your excuses.","Fall in love with the process and the results will follow.","Earn it in the gym. Keep it in the kitchen.","Consistency turns average into excellent.","The best time to start was yesterday. The next best is now.","Plan your meals before hunger plans them for you.","Add one rep or a little weight. That's how strength is built.","Do it for the person you'll be in six months.","Tired is a feeling, not a reason.","Water, protein, steps, sleep. Master the basics.","Your only competition is who you were yesterday.","Good habits are boring. Results aren't.","The hard part is starting. You've got this.","You can't out-train a bad diet, but you can out-plan it.","Make it a non-negotiable, not a maybe.","Sweat now, shine later.","One bad meal doesn't ruin a week. Get back on track at the next one.","Trust the process on the days the scale doesn't.","Train hard, recover harder.","Build the habit first. The numbers will follow.","A strong body starts with a strong decision.","Do something today that your future self will thank you for.","No zero days.","Slow progress is still progress."];
+const dayIndex=()=>{const d=new Date();return Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(2026,0,1))/864e5)};
+function quoteCard(){if(S.day!==todayKey())return"";const n=QUOTES.length,i=(((dayIndex()+(S.quoteShift||0))%n)+n)%n;
+  return `<section class="quote" aria-label="Quote of the day"><span class="label">Quote of the day</span><p>${esc(QUOTES[i])}</p><button data-act="nextQuote" aria-label="Show another quote">↻</button></section>`}
+
+/* ---------- food search outside Claude: Open Food Facts (free UK food database) ---------- */
+const OFF="https://uk.openfoodfacts.org";
+function offItem(p){const n=p.nutriments||{},name=[p.product_name||p.generic_name,p.brands&&p.brands.split(",")[0]].filter(Boolean).join(" · ");if(!name)return null;
+  const per=n["energy-kcal_serving"]!=null&&p.serving_size?"_serving":"_100g",g=k=>+(n[k+per]||0);
+  let kcal=g("energy-kcal");if(!kcal&&n["energy"+per])kcal=n["energy"+per]/4.184;
+  if(!kcal&&!g("proteins")&&!g("carbohydrates"))return null;
+  return {name,serving:per==="_serving"?p.serving_size:"per 100g",kcal:Math.round(kcal),protein_g:g("proteins"),carbs_g:g("carbohydrates"),fat_g:g("fat")}}
+async function offSearch(q){
+  const code=q.replace(/\s/g,"");
+  if(/^\d{8,14}$/.test(code)){const r=await fetch(`${OFF}/api/v2/product/${code}.json?fields=product_name,generic_name,brands,serving_size,nutriments`);const j=await r.json();const it=j&&j.product&&offItem(j.product);return it?[it]:[]}
+  const r=await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&fields=product_name,generic_name,brands,serving_size,nutriments`);
+  const j=await r.json();return (j.products||[]).map(offItem).filter(Boolean).slice(0,6)}
+async function readBarcode(img){if(!("BarcodeDetector" in window))return null;try{const bd=new BarcodeDetector();const bmp=await createImageBitmap(img);const c=await bd.detect(bmp);return c[0]&&c[0].rawValue||null}catch(e){return null}}
+async function runOffSearch(q,img){
+  S.searching=true;S.results=[];S.searchMsg=img?"Reading the barcode…":"Searching…";render();
+  try{
+    if(img){const code=await readBarcode(img);if(!code){S.searchMsg="Couldn't read a barcode from that photo. Type the numbers under the barcode into search instead.";S.searching=false;render();return}q=code}
+    S.results=await offSearch(q);
+    S.searchMsg=S.results.length?"From Open Food Facts. Tap Add, then Edit to change the amount.":"No match. Try a brand name (e.g. 'Warburtons crumpets'), the barcode number, or add it manually.";
+  }catch(e){S.searchMsg="Search didn't work. Check your connection and try again, or add it manually."}
+  S.searching=false;render();
+}
 async function runSearch(q,img){
   const sample=await getSample();
-  if(!sample){S.searchMsg="Food search needs the page open in Claude while signed in. You can still add food manually.";render();return}
+  if(!sample){return runOffSearch(q,img)}
   S.searching=true;S.results=[];S.searchMsg=img?"Reading your photo…":"Searching…";render();
   try{
     const input=img?FOOD_PROMPT+"\n\nThe attached photo shows a product barcode, nutrition label, packaging or a plate of food. Identify the product or meal and estimate one typical serving."+(q?" Extra note: "+q:""):FOOD_PROMPT+"\n\nFood: "+q;
@@ -439,12 +477,13 @@ document.addEventListener("click",e=>{
       S.editHabits=null;save("settings",st);if(moved){Object.keys(oh).forEach(k=>{if(!(k in nh)&&!H.some(h=>h.old===k&&h.old!==h.name))nh[k]=oh[k]});x.habits=nh;save("day_"+S.day,x)}
       toast("Habits saved");break}
     case "photo":document.getElementById("photoIn").click();break;
-    case "addRes":{const r=S.results[+ds.i];const x=d();x.foods=(x.foods||[]).concat([{name:r.name+(r.serving?" ("+r.serving+")":""),kcal:Math.round(+r.kcal||0),protein:+(+r.protein_g||0).toFixed(1),carbs:+(+r.carbs_g||0).toFixed(1),fat:+(+r.fat_g||0).toFixed(1)}]);
-      S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added. Tap Edit to change the amounts");break}
+    case "nextQuote":S.quoteShift=(S.quoteShift||0)+1;render();break;
+    case "addRes":{const r=S.results[+ds.i];const x=editDay();x.foods=(x.foods||[]).concat([{name:r.name+(r.serving?" ("+r.serving+")":""),kcal:Math.round(+r.kcal||0),protein:+(+r.protein_g||0).toFixed(1),carbs:+(+r.carbs_g||0).toFixed(1),fat:+(+r.fat_g||0).toFixed(1)}]);
+      S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added · "+macroLeft());break}
     case "newFood":S.editFood="new";render();document.getElementById("ef_name")?.focus();break;
     case "editFood":S.editFood=+ds.i;render();document.getElementById("ef_name")?.focus();break;
     case "cancelFood":S.editFood=null;render();break;
-    case "delFood":{const x=d();x.foods.splice(+ds.i,1);S.editFood=null;save("day_"+S.day,x);toast("Deleted");break}
+    case "delFood":{const x=d();x.foods.splice(+ds.i,1);S.editFood=null;save("day_"+S.day,x);toast("Deleted · "+macroLeft());break}
     case "newWo":S.draftWorkout={type:"workout",date:todayKey(),name:"",exercises:[{name:"",sets:[{kg:"",reps:""}]}]};render();break;
     case "repeatWo":{const w=clone(S.docs[ds.id]);w.date=todayKey();w.exercises.forEach(e=>e.sets.forEach(s=>{}));S.draftWorkout=w;render();window.scrollTo(0,0);break}
     case "cancelWo":S.draftWorkout=null;render();break;
@@ -464,7 +503,7 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
-  if(ds.act==="habit"){const x=clone(dayDoc(S.day));x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
+  if(ds.act==="habit"){const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
   if(ds.act==="target"){const st=clone(settings());st.targets[ds.k]=Math.max(0,Math.round(+t.value||0));save("settings",st)}
   if(ds.act==="woDate")S.draftWorkout.date=t.value;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;render()}
@@ -482,8 +521,8 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
 document.addEventListener("submit",e=>{e.preventDefault();
   if(e.target.dataset.form==="food"){const g=id=>document.getElementById(id).value;const name=g("ef_name").trim();if(!name){toast("Give the food a name");return}
     const f={name,protein:+g("ef_protein")||0,carbs:+g("ef_carbs")||0,fat:+g("ef_fat")||0};f.kcal=g("ef_kcal")!==""?Math.round(+g("ef_kcal")):macroKcal(f);
-    const x=clone(dayDoc(S.day));x.foods=x.foods||[];const i=e.target.dataset.i;if(i==="new")x.foods.push(f);else x.foods[+i]=f;
-    S.editFood=null;save("day_"+S.day,x);toast(i==="new"?"Food added":"Changes saved");return}
+    const i=e.target.dataset.i;const x=i==="new"?editDay():clone(dayDoc(S.day));x.foods=x.foods||[];if(i==="new")x.foods.push(f);else x.foods[+i]=f;
+    S.editFood=null;save("day_"+S.day,x);toast((i==="new"?"Added · ":"Saved · ")+macroLeft());return}
   if(e.target.id==="habAddForm"){const inp=document.getElementById("habNew"),v=inp.value.trim();if(!v){inp.focus();return}
     if(S.editHabits.some(h=>h.name.trim().toLowerCase()===v.toLowerCase())){toast("That habit's already on the list");return}
     S.editHabits.push({name:v,old:null});render();document.getElementById("habNew")?.focus();return}
