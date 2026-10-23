@@ -971,12 +971,12 @@ function backupBanner(){if(S.example||(window.Cloud&&Cloud.signedIn&&Cloud.signe
 /* ---------- cloud account & sync (Supabase) ----------
    Fill these two in from your Supabase project (Project Settings → API). The anon key is meant to be public:
    Row Level Security in supabase-setup.sql makes sure each person can only read and write their own data. */
-const CLOUD_URL="";
-const CLOUD_KEY="";
+const CLOUD_URL="https://agcmdqfjyiiolnuvgzbw.supabase.co";
+const CLOUD_KEY="sb_publishable_EeQg53Agaz6608nVONXx3A_2SJ2MFU8";
 const CL={user:null,status:CLOUD_URL?"loading":"off",last:0,err:"",links:null,code:undefined,syncedOnce:false};
 let sbMod=null;const sbClients={};
 async function sbClient(){if(!CLOUD_URL)return null;const pid=PROF.active;
-  try{sbMod=sbMod||import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");const m=await sbMod;
+  try{sbMod=sbMod||import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm");const m=await sbMod;
     if(!sbClients[pid]){const c=m.createClient(CLOUD_URL,CLOUD_KEY,{auth:{storageKey:"pf-sb-"+pid,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});sbClients[pid]=c;
       c.auth.onAuthStateChange((ev,sess)=>{if(PROF.active!==pid)return;CL.user=(sess&&sess.user)||null;
         if(ev==="PASSWORD_RECOVERY"){CL.recover=true;S.tab="settings";S.setPage="cloud";render()}
