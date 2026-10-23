@@ -230,7 +230,7 @@ details summary{cursor:pointer;color:var(--muted)}
 .exhead:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 .exdetail{margin-top:8px;display:flex;flex-direction:column;gap:2px}
 /* tabbar */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:5}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:5}
 nav.tabs button{border:0;background:transparent;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 nav.tabs button[aria-current="page"]{color:var(--accent)}
@@ -362,7 +362,8 @@ const ICONS={
   body:'<svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>',
   checkin:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 2v4M16 2v4M8 13l3 3 5-6"/></svg>',
   settings:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'};
-const TABS=[["today","Today"],["train","Train"],["body","Body"],["recover","Recover"],["checkin","Check-in"],["settings","Settings"]];
+const TABS=[["today","Today"],["train","Train"],["recover","Recover"],["you","You"],["settings","Settings"]];
+ICONS.you='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>';
 ICONS.recover='<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M8.5 11.5h2l1-2 1.5 4 1-2h1.5"/></svg>';
 function renderTabs(){document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" ${S.tab===k?'aria-current="page"':""}>${ICONS[k]}${l}</button>`).join("")}
 
@@ -617,7 +618,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-23-1";
+const APP_VERSION="2026-10-23-2";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -632,6 +633,17 @@ setInterval(()=>{if(!document.hidden)checkUpdate(false)},30*60*1000);
 // keep an unfinished session safe if the app reloads or closes
 function persistDraft(){try{const k="pf-draft:"+PROF.active;if(S.draftWorkout)localStorage.setItem(k,JSON.stringify(S.draftWorkout));else localStorage.removeItem(k)}catch(e){}}
 function restoreDraft(){try{const d=JSON.parse(localStorage.getItem("pf-draft:"+PROF.active)||"null");if(d&&d.exercises){S.draftWorkout=d;S.tab="train"}}catch(e){}}
+
+
+/* ---------- You: check-in, body and (coach) clients ---------- */
+const isCoach=()=>!!(S.docs.profile&&S.docs.profile.coach);
+function renderYou(){const coach=isCoach();let v=S.youView||"checkin";if(v==="clients"&&!coach)v="checkin";
+  const views=[["checkin","Check-in"],["body","Body"]].concat(coach?[["clients","Clients"]]:[]);
+  const n=ofType("client").length;
+  const sub=v==="checkin"?"Week of "+fmtDay(weekStart()):v==="body"?(coach?"Weigh-ins, measurements and photos":"Weigh-ins and progress photos"):`${n} client${n===1?"":"s"}${CL.user?" · linked clients update automatically":""}`;
+  return `${exampleBanner()}<header class="top"><div><h1>You</h1><div class="sub">${sub}</div></div>${v==="clients"?`<button class="btn primary" data-act="importReport">Import report</button>`:""}</header>
+  <div class="seg" role="tablist" aria-label="You" style="margin-bottom:14px;grid-template-columns:repeat(${views.length},1fr)">${views.map(([k,l])=>`<button role="tab" data-act="youView" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join("")}</div>
+  ${v==="body"?renderBody():v==="clients"?renderClients():renderCheckin()}`}
 
 /* ---------- cardio ---------- */
 const CARDIO=["Run","Walk","Cycle","Row","Swim","Cross-trainer","Stairs","HIIT","Sport","Other"];
@@ -743,20 +755,19 @@ function weightStats(list){const all=list.filter(b=>b.weight).slice().reverse();
   const av=rollAvg(all),now=av[av.length-1],wk=addDays(todayKey(),-7),before=all.map((p,i)=>[p,av[i]]).filter(([p])=>p.date<=wk).pop();
   const ch=before?r1(now-before[1]):null,tot=all.length>1?r1(av[av.length-1]-(+all[0].weight)):null;
   return `<div class="tiles">${glanceTile("7-day avg",fmtN(r1(now)),"kg")}${glanceTile("This week",ch==null?"—":(ch>0?"+":"")+fmtN(ch),ch==null?"need a week of data":"kg vs last week")}${glanceTile("Overall",tot==null?"—":(tot>0?"+":"")+fmtN(tot),"kg since "+fmtDay(all[0].date).replace(/^\w+, /,""))}</div>`}
+const MEAS=[["waist","Waist"],["hips","Hips"],["chest","Chest"],["arm","Arm"],["thigh","Thigh"]];
 function renderBody(){
-  const list=ofType("body"),w=list.filter(b=>b.weight);
-  const change=w.length>1?(+w[0].weight-+w[w.length-1].weight):null;
-  const M=[["weight","Weight (kg)"],["waist","Waist (cm)"],["hips","Hips (cm)"],["chest","Chest (cm)"],["arm","Arm (cm)"],["thigh","Thigh (cm)"]];
-  return `${exampleBanner()}<header class="top"><div><h1>Body</h1><div class="sub">Weigh-ins and measurements</div></div></header>
-  <div class="stack"><section class="panel"><h2>Weight trend</h2>${weightStats(list)}${weightChart(list)}
+  const list=ofType("body"),coach=isCoach();
+  const M=[["weight","Weight (kg)"]].concat(coach?MEAS.map(([k,l])=>[k,l+" (cm)"]):[]);
+  return `<div class="stack"><section class="panel"><h2>Weight trend</h2>${weightStats(list)}${weightChart(list)}
     <span class="small muted">Daily weight jumps around with water, salt and food in your gut. Judge progress by the 7-day average line.</span></section>
   ${photoPanel()}
-  <section class="panel"><h2>New entry</h2><form id="bodyForm" class="stack" style="gap:10px">
+  <section class="panel"><h2>${coach?"New entry":"Log a weigh-in"}</h2><form id="bodyForm" class="stack" style="gap:10px">
     <label class="field"><span class="label">Date</span><input type="date" id="bDate" value="${todayKey()}"></label>
     <div class="grid2">${M.map(([k,l])=>`<label class="field"><span class="label">${l}</span><input type="number" step="0.1" inputmode="decimal" id="b_${k}"></label>`).join("")}</div>
     <button class="btn primary" type="submit">Save entry</button></form></section>
   <section class="panel"><h2>History</h2><div class="hist">${(S.bodyAll?list:list.slice(0,10)).map(b=>`<div class="item"><div class="spread"><b style="font-variant-numeric:tabular-nums">${b.weight?fmtN(+b.weight)+" kg":"—"}</b><span class="small muted">${fmtDay(b.date)}</span></div>
-    <div class="spread"><span class="small muted">${M.slice(1).filter(([k])=>b[k]).map(([k,l])=>l.replace(" (cm)","")+" "+b[k]+" cm").join(" · ")||"&nbsp;"}</span><button class="x" data-act="delBody" data-id="${b.id}" aria-label="Delete entry">×</button></div></div>`).join("")||'<p class="muted small" style="margin:0">No entries yet.</p>'}</div>${list.length>10?`<button class="btn ghost" style="align-self:flex-start" data-act="bodyAll">${S.bodyAll?"Show fewer":"Show all "+list.length}</button>`:""}</section></div>`;
+    <div class="spread"><span class="small muted">${coach?MEAS.filter(([k])=>b[k]).map(([k,l])=>l+" "+b[k]+" cm").join(" · ")||"&nbsp;":"&nbsp;"}</span><button class="x" data-act="delBody" data-id="${b.id}" aria-label="Delete entry">×</button></div></div>`).join("")||'<p class="muted small" style="margin:0">No entries yet.</p>'}</div>${list.length>10?`<button class="btn ghost" style="align-self:flex-start" data-act="bodyAll">${S.bodyAll?"Show fewer":"Show all "+list.length}</button>`:""}</section></div>`;
 }
 
 const CQ=[
@@ -785,14 +796,10 @@ function weekGlance(ws){let tiles2;const tw=weekSummary(ws,false),lw=weekSummary
     glanceTile("Sessions",tw.sessions,tw.volume?tw.volume.toLocaleString("en-GB")+" kg volume":"training")];
   return `<section class="panel"><div class="spread"><h2>Your week so far</h2><span class="label">auto</span></div><div class="tiles">${(tiles||tiles2).join("")}</div></section>`}
 function renderCheckin(){
-  const coach=!!(S.docs.profile&&S.docs.profile.coach);
-  if(coach&&S.ciView==="clients")return renderClients();
   const list=ofType("checkin"),ws=weekStart();
   if(!S.ciDraft){const ex=S.docs["ci_"+ws];S.ciDraft=ex&&!S.example?clone(ex):{type:"checkin",date:ws}}
   const c=S.ciDraft,prev=S.docs["ci_"+addDays(ws,-7)],done=CQ.filter(([k])=>c[k]).length;
-  return `${exampleBanner()}<header class="top"><div><h1>Check-in</h1><div class="sub">Week of ${fmtDay(ws)}</div></div></header>
-  ${coach?coachSeg():""}
-  <div class="stack">
+  return `<div class="stack">
   ${prev&&prev.focus?`<section class="panel focusnote"><span class="label">Last week you said you'd focus on</span><p style="margin:0;font-weight:600">${esc(prev.focus)}</p></section>`:""}
   ${weekGlance(ws)}
   <section class="panel"><div class="spread"><h2>How did it go?</h2><span class="label">${done}/${CQ.length}</span></div>
@@ -817,14 +824,15 @@ function render(){
   if(S.lock){tb.hidden=true;document.getElementById("app").innerHTML=renderLock();return}
   if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
   tb.hidden=false;
-  document.getElementById("viewerRoot").innerHTML=S.tab==="body"?photoViewer():S.routine?routineRunner():"";
+  if(S.tab==="body"||S.tab==="checkin"){S.youView=S.tab==="body"?"body":"checkin";S.tab="you"}
+  document.getElementById("viewerRoot").innerHTML=S.tab==="you"&&S.youView==="body"?photoViewer():S.routine?routineRunner():"";
   renderTabs();
   const app=document.getElementById("app");
   const fe=document.activeElement, fid=fe&&fe.id, sel=fe&&fe.selectionStart;
   const qv=document.getElementById("q")?.value;
   // keep anything typed into an open food form when the page redraws (e.g. a search finishing)
   const ff=document.querySelector('form[data-form="food"]'),keep=ff?{i:ff.dataset.i,v:[...ff.querySelectorAll("input")].map(x=>[x.id,x.value])}:null;
-  app.innerHTML=S.tab==="today"?renderToday():S.tab==="train"?renderTrain():S.tab==="body"?renderBody():S.tab==="recover"?renderRecover():S.tab==="checkin"?renderCheckin():renderSettings();
+  app.innerHTML=S.tab==="today"?renderToday():S.tab==="train"?renderTrain():S.tab==="recover"?renderRecover():S.tab==="you"?renderYou():renderSettings();
   if(qv&&document.getElementById("q"))document.getElementById("q").value=qv;
   if(keep){const nf=document.querySelector(`form[data-form="food"][data-i="${keep.i}"]`);if(nf)keep.v.forEach(([id,v])=>{const el=id&&document.getElementById(id);if(el)el.value=v})}
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
@@ -1067,7 +1075,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
     <p class="small" style="margin:0">Creates a summary file you can send by WhatsApp, email or AirDrop. Your coach sees your progress without opening your app.</p>
     <div class="grid2"><label class="field"><span class="label">Period</span><select data-act="shareWeeks">${[4,8,12,26].map(n=>`<option value="${n}" ${sh.weeks===n?"selected":""}>Last ${n} weeks</option>`).join("")}</select></label>
       <label class="habit" style="align-self:end"><input type="checkbox" data-act="shareNotes" ${sh.notes?"checked":""}><span class="small">Include my check-in notes</span></label></div>
-    <div class="small muted"><b style="color:var(--fg)">Shared:</b> weekly average weight and measurements, average calories and protein, days on target, habit %, training sessions and volume, check-in scores${sh.notes?" and notes":""}.<br><b style="color:var(--fg)">Not shared:</b> individual meals, contact details, notes in your profile, PIN.</div>
+    <div class="small muted"><b style="color:var(--fg)">Shared:</b> weekly average weight, average calories and protein, days on target, habit %, training sessions and volume, check-in scores${sh.notes?" and notes":""}.<br><b style="color:var(--fg)">Not shared:</b> individual meals, contact details, notes in your profile, PIN.</div>
     ${CL.user&&CL.links&&CL.links.length?`<div class="small"><b>Shared automatically with:</b> ${CL.links.map(l=>esc(l.coach_name||"your coach")).join(", ")} (updates as you log). Manage in Settings → Cloud account.</div>`:""}
     <button class="btn primary" style="align-self:flex-start" data-act="shareReport">Create and send report</button></section>`}
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
@@ -1082,13 +1090,13 @@ async function shareReport(){const sh=S.share||{weeks:8,notes:true};let pr=S.doc
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"My progress report",text:`${rep.name}'s progress report (Project Fitness)`});return}}catch(e){if(e&&e.name==="AbortError")return}
   const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=fname;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
   toast("Report saved. Send the file to your coach")}
-function coachSeg(){return `<div class="seg" role="tablist" aria-label="Check-in view" style="margin-bottom:14px;grid-template-columns:1fr 1fr">${[["me","My check-in"],["clients","Clients"]].map(([v,l])=>`<button role="tab" data-act="ciView" data-v="${v}" aria-pressed="${(S.ciView||"me")===v}">${l}</button>`).join("")}</div>`}
+function coachSeg(){return `<div class="seg" role="tablist" aria-label="Check-in view" style="margin-bottom:14px;grid-template-columns:1fr 1fr">${[["me","My check-in"],["clients","Clients"]].map(([v,l])=>`<button role="tab" data-act="ciView" data-v="${v}" aria-pressed="${(S.youView||"me")===v}">${l}</button>`).join("")}</div>`}
 function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.kind!=="progress-report"||!Array.isArray(j.weeks))throw 0;
     const id="client_"+String(j.shareId||j.name).replace(/[^a-z0-9_-]/gi,""),old=S.docs[id]||{};
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
-    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
+    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
-const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["readiness","Readiness"],["recovery","Recovery sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
+const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["readiness","Readiness"],["recovery","Recovery sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
   const vals=series.flatMap(sr=>weeks.map(w=>w[sr.key]).filter(v=>v!=null&&v!==""));
   if(!vals.length)return `<p class="small muted" style="margin:0">Nothing logged for this yet.</p>`;
@@ -1105,12 +1113,12 @@ function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=week
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label||series.map(s=>s.label).join(", "))}">${grid}${tgt}${marks}${xl}</svg>${legend}`}
 function renderClients(){if(CL.user&&(!CL.repAt||Date.now()-CL.repAt>60000)){CL.repAt=Date.now();fetchClientReports()}
   const list=ofType("client").sort((a,b)=>String(a.name).localeCompare(String(b.name)));const c=S.clientOpen&&S.docs[S.clientOpen];
-  const head=`<header class="top"><div><h1>Clients</h1><div class="sub">${list.length} client${list.length===1?"":"s"}${CL.user?" · linked clients update automatically":" · reports they've sent you"}</div></div><button class="btn primary" data-act="importReport">Import report</button></header>${coachSeg()}`;
+  const head="";
   if(c)return head+clientDetail(S.clientOpen,c);
   return head+`<div class="stack">${list.length?`<section class="panel" style="padding:4px 16px">${list.map(cl=>{const w=cl.weeks.filter(x=>x.weight!=null),ch=w.length>1?r1(w[w.length-1].weight-w[0].weight):null,last=cl.weeks[cl.weeks.length-1];
       return `<button class="setrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small muted" style="display:block">${esc(GOALS[cl.goal]||"No goal set")} · report ${fmtDay(String(cl.received||cl.date).slice(0,10))}</span></span></span>
         <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none">${w.length?fmtN(w[w.length-1].weight)+" kg":"—"}${ch!=null?`<span class="muted" style="display:block">${ch>0?"+":""}${fmtN(ch)} kg</span>`:""}</span></button>`}).join("")}</section>`
-    :`<section class="panel"><h2>No clients yet</h2><p class="small" style="margin:0">Ask your client to open <b>Check-in</b> in their own app and tap <b>Create and send report</b>. When they send you the file, tap <b>Import report</b> above and choose it.</p></section>`}
+    :`<section class="panel"><h2>No clients yet</h2><p class="small" style="margin:0">Ask your client to open <b>You → Check-in</b> in their own app and tap <b>Create and send report</b>. When they send you the file, tap <b>Import report</b> above and choose it.</p></section>`}
     <section class="panel"><h2>How this protects your clients</h2><p class="small" style="margin:0">You only see what each client chooses to send: weekly summaries, never individual meals or their account. Reports are stored in your app on this phone only. Delete a client here when you stop working together.</p></section></div>`}
 function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=>w.win||w.struggle||w.focus);
   const fv=(w,col)=>col[2]?col[2](w):(w[col[0]]==null||w[col[0]]===""?"—":col[0]==="volume"?Number(w[col[0]]).toLocaleString("en-GB"):fmtN(+w[col[0]]));
@@ -1120,7 +1128,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
     :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check and pain log with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}
     ${c.health&&c.health.pain&&c.health.pain.length?`<div class="hint small"><b>Active pain reported</b>${c.health.pain.map(x=>`<span>${esc(x.area)}${x.side&&x.side!=="n/a"?" ("+esc(x.side)+")":""}: ${x.score}/10${x.kind?", "+esc(x.kind).toLowerCase():""}, since ${fmtDay(x.since)}${x.flags?", warning signs ticked":""}</span>`).join("")}</div>`:""}</section>
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
-  <section class="panel"><h2>Waist</h2>${chartSVG(wk,[{key:"waist",label:"Waist (cm)",color:"var(--fat)"}],{label:"Waist measurement"})}</section>
+  ${measPanel(id,c)}
   <section class="panel"><h2>Calories</h2>${chartSVG(wk,[{key:"kcal",label:"Avg kcal",color:"var(--carb)",bars:true}],{target:t.kcal,zero:true,label:"Average daily calories per week"})}</section>
   <section class="panel"><h2>Protein</h2>${chartSVG(wk,[{key:"protein",label:"Avg protein (g)",color:"var(--protein)",bars:true}],{target:t.protein,zero:true,label:"Average daily protein per week"})}</section>
   <section class="panel"><h2>Training</h2>${chartSVG(wk,[{key:"sessions",label:"Sessions",color:"var(--veg)",bars:true}],{zero:true,label:"Sessions per week"})}</section>
@@ -1132,6 +1140,17 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   ${hasNotes?`<section class="panel"><h2>Their check-in notes</h2><div class="hist">${wk.slice().reverse().filter(w=>w.win||w.struggle||w.focus).map(w=>`<div class="item"><b class="small">${fmtDay(w.week)}</b>
     ${w.win?`<div class="small"><b>Win:</b> ${esc(w.win)}</div>`:""}${w.struggle?`<div class="small"><b>Struggle:</b> ${esc(w.struggle)}</div>`:""}${w.focus?`<div class="small"><b>Focus:</b> ${esc(w.focus)}</div>`:""}</div>`).join("")}</div></section>`:""}
   <section class="panel"><h2>Your consultation notes</h2><textarea id="cnotes" data-act="clientNotes" data-id="${id}" rows="5" placeholder="Private to you, e.g. agreed changes, next review date">${esc(c.notes)}</textarea><span class="small muted">Saved automatically. Never sent to the client.</span></section></div>`}
+
+// measurements a coach takes in person; stored in the coach's own data, never in the client's app
+function measPanel(id,c){const L=(c.measures||[]).slice().sort((a,b)=>a.date<b.date?1:-1),d=S.mDraft&&S.mDraft.id===id?S.mDraft:null;
+  const chart=L.length>1?chartSVG(L.slice().reverse().map(m=>({week:m.date,waist:m.waist,hips:m.hips})),[{key:"waist",label:"Waist",color:"var(--fat)"},{key:"hips",label:"Hips",color:"var(--carb)"}],{label:"Measurements over time"}):"";
+  return `<section class="panel"><div class="spread"><h2>Measurements</h2>${d?"":`<button class="btn ghost" data-act="mNew" data-id="${id}">+ Add</button>`}</div>
+    ${d?`<div class="stack" style="gap:10px;background:var(--sunk);border-radius:10px;padding:12px"><label class="field"><span class="label">Date</span><input type="date" id="m_date" value="${d.date}"></label>
+      <div class="grid2">${MEAS.map(([k,l])=>`<label class="field"><span class="label">${l} (cm)</span><input id="m_${k}" type="number" step="any" inputmode="decimal"></label>`).join("")}<label class="field"><span class="label">Body fat (%)</span><input id="m_bf" type="number" step="any" inputmode="decimal" placeholder="optional"></label></div>
+      <div class="row"><button class="btn primary" data-act="mSave" data-id="${id}">Save</button><button class="btn" data-act="mCancel">Cancel</button></div></div>`:""}
+    ${chart}
+    ${L.length?`<div class="tablewrap"><table class="ctable"><thead><tr><th scope="col">Date</th>${MEAS.map(([,l])=>`<th scope="col">${l}</th>`).join("")}<th scope="col">BF %</th><th scope="col"></th></tr></thead><tbody>${L.map((m,i)=>`<tr><th scope="row">${fmtDay(m.date)}</th>${MEAS.map(([k])=>`<td>${m[k]!=null&&m[k]!==""?fmtN(+m[k]):"—"}</td>`).join("")}<td>${m.bf!=null&&m.bf!==""?fmtN(+m.bf):"—"}</td><td><button class="x" data-act="mDel" data-id="${id}" data-d="${m.date}" aria-label="Delete">×</button></td></tr>`).join("")}</tbody></table></div>`
+      :d?"":`<p class="small muted" style="margin:0">Record measurements when you see ${esc(c.name)} in person. They're kept in your app only.</p>`}</section>`}
 function clientCsv(id){const c=S.docs[id];if(!c)return;const cols=[...CLIENT_COLS.slice(1).map(x=>[x[0],x[1]]),["hips","Hips cm"],["chest","Chest cm"],["arm","Arm cm"],["thigh","Thigh cm"],["sets","Sets"],["win","Win"],["struggle","Struggle"],["focus","Focus"]];
   const q=v=>v==null?"":/[",\n]/.test(String(v))?'"'+String(v).replace(/"/g,'""')+'"':String(v);
   const csv=[["Week starting",...cols.map(x=>x[1])].join(","),...c.weeks.map(w=>[w.week,...cols.map(x=>q(w[x[0]]))].join(","))].join("\n");
@@ -1273,7 +1292,7 @@ const ckey=k=>"pf-"+k+":"+PROF.active;
 function jget(k,d){try{return JSON.parse(lsGet(ckey(k))||"null")??d}catch(e){return d}}
 function jset(k,v){lsSet(ckey(k),JSON.stringify(v))}
 // only redraw when it can't interrupt typing elsewhere
-function cloudRender(changed){if(changed||(S.tab==="settings"&&S.setPage==="cloud")||(S.tab==="checkin"&&S.ciView==="clients"))render()}
+function cloudRender(changed){if(changed||(S.tab==="settings"&&S.setPage==="cloud")||(S.tab==="you"&&S.youView==="clients"))render()}
 const Cloud={signedIn:()=>!!CL.user,
   async init(){const pid=PROF.active;Object.assign(CL,{user:null,links:null,code:undefined,syncedOnce:false,recover:false,err:"",repAt:0});
     if(!CLOUD_URL){CL.status="off";return}CL.status="loading";const c=await sbClient();if(!c||PROF.active!==pid){cloudRender();return}
@@ -1326,7 +1345,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",weeks:j.weeks||[],_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 async function unlinkClient(clientUid){const c=await sbClient();if(!c||!CL.user)return;await c.from("reports").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id);await c.from("coach_links").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id)}
 /* auth */
@@ -1380,7 +1399,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
     ${CL.links&&CL.links.length?`<div class="hist">${CL.links.map(l=>`<div class="item"><div class="spread"><b>${esc(l.coach_name||"Coach")}</b><button class="btn ghost" style="color:var(--protein)" data-act="unlinkCoach" data-id="${l.coach_id}">Stop sharing</button></div>
       <label class="habit"><input type="checkbox" data-act="linkNotes" data-id="${l.coach_id}" ${l.include_notes?"checked":""}><span class="small">Include my check-in notes</span></label></div>`).join("")}</div>`:""}
     <form id="linkForm" class="row" style="flex-wrap:nowrap"><input id="lk_code" placeholder="Coach code, e.g. K7P2QX" autocomplete="off" autocapitalize="characters" maxlength="8"><button class="btn" type="submit">Link</button></form>
-    <span class="small muted">Your coach gets weekly summaries (weight, measurements, nutrition averages, habits, training, check-in scores), updated as you log. Never individual meals, photos or contact details. Stop sharing any time.</span></section>
+    <span class="small muted">Your coach gets weekly summaries (weight, nutrition averages, habits, training, check-in scores), updated as you log. Never individual meals, photos or contact details. Stop sharing any time.</span></section>
   <section class="panel"><h2>Delete my account</h2><p class="small" style="margin:0">Permanently deletes your account and everything stored in it online, including any coach links and shared reports. This can't be undone. <a href="privacy.html" target="_blank" rel="noopener">Privacy notice</a></p>
     <label class="habit"><input type="checkbox" id="delLocal" ${CL.delLocal?"checked":""} data-act="delLocal"><span class="small">Also delete everything on this phone</span></label>
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="deleteAccount">${CL.confirmDel?"Tap again to delete for good":"Delete my account"}</button></section>`}
@@ -1423,10 +1442,10 @@ function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??
     <label class="field"><span class="label">Activity level</span>${sel("pf_act",[["","Choose"],...ACT],p.activity)}</label>
     <label class="field"><span class="label">Notes (injuries, preferences, anything to remember)</span><textarea id="pf_notes">${v("notes")}</textarea></label>
     <button class="btn primary" type="submit">Save details</button></form>
-    <span class="small muted">Changing weight here also logs a weigh-in for today on the Body tab.</span></section>
+    <span class="small muted">Changing weight here also logs a weigh-in for today under You → Body.</span></section>
   ${healthPanel()}
   <section class="panel"><h2>Guided setup</h2><p class="small" style="margin:0">Walk through goal, details, targets and habits again.</p><button class="btn" style="align-self:flex-start" data-act="setupAgain">Run setup again</button></section>
-  <section class="panel"><h2>Coach tools</h2><label class="habit"><input type="checkbox" data-act="coachMode" ${p.coach?"checked":""}><span>I'm a coach. Show a Clients view in Check-in.</span></label>
+  <section class="panel"><h2>Coach tools</h2><label class="habit"><input type="checkbox" data-act="coachMode" ${p.coach?"checked":""}><span>I'm a coach. Show Clients under You, and body measurements.</span></label>
     <span class="small muted">Only on this profile. Clients send you progress reports from their own app, so you never need to open their account.</span></section>
   <section class="panel"><h2>Suggested targets</h2>${s?`<div class="kcal"><span class="small muted">Maintenance ≈ ${s.tdee.toLocaleString("en-GB")} kcal</span><b>${s.kcal.toLocaleString("en-GB")} kcal</b></div>
     <div class="small" style="font-variant-numeric:tabular-nums">Protein ${s.protein}g · Carbs ${s.carbs}g · Fat ${s.fat}g</div>
@@ -1550,7 +1569,13 @@ document.addEventListener("click",e=>{
     case "copyMeal":{const items=(dayDoc(addDays(S.day,-1)).foods||[]).filter(f=>f.meal===ds.m).map(clone);if(items.length)addFoodsToDay(items,"Copied yesterday's "+mealName(ds.m).toLowerCase());break}
     case "favFood":{const f=dayDoc(S.day).foods[+ds.i];if(!f)break;const st=clone(settings()),favs=st.favs||[],k=exKey(f.name),had=favs.some(x=>exKey(x.name)===k);
       st.favs=had?favs.filter(x=>exKey(x.name)!==k):favs.concat([cleanFood(f)]);save("settings",st);toast(had?"Removed from favourites":"★ Saved to favourites. It's now in Quick add");break}
-    case "ciView":S.ciView=ds.v;S.clientOpen=null;render();window.scrollTo(0,0);break;
+    case "mNew":S.mDraft={id:ds.id,date:todayKey()};render();break;
+    case "mCancel":S.mDraft=null;render();break;
+    case "mSave":{const c=S.docs[ds.id];if(!c)break;const m={date:document.getElementById("m_date").value||todayKey()};let any=false;
+      MEAS.concat([["bf"]]).forEach(([k])=>{const v=document.getElementById("m_"+k).value;if(v!==""){m[k]=+v;any=true}});if(!any){toast("Enter at least one measurement");break}
+      const L=(c.measures||[]).filter(x=>x.date!==m.date).concat([m]);S.mDraft=null;save(ds.id,{...c,measures:L});toast("Measurements saved");break}
+    case "mDel":{const c=S.docs[ds.id],prev=clone(c);save(ds.id,{...c,measures:(c.measures||[]).filter(x=>x.date!==ds.d)});toast("Deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
+    case "youView":S.youView=ds.v;S.clientOpen=null;render();window.scrollTo(0,0);break;
     case "shareReport":shareReport();break;
     case "importReport":document.getElementById("reportIn").click();break;
     case "openClient":S.clientOpen=ds.id||null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
@@ -1684,7 +1709,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="hqConsent"){const h=ds.p==="ob"?(S.onboard.d.health||(S.onboard.d.health={})):S.healthDraft;h.consent=t.checked}
   if(ds.act==="shareHealth"){save("profile",{...(S.docs.profile||{}),shareHealth:t.checked});window.Cloud&&CL.user&&pushReports(true)}
   if(ds.act==="habitsOnly"){const p=S.docs.profile||{type:"profile",name:activeProf().name};if(p.minor&&!t.checked){t.checked=true;toast("Numbers stay hidden for under-18s");return}save("profile",{...p,habitsOnly:t.checked});toast(t.checked?"Numbers hidden. Focus on habits and portions":"Calorie and macro numbers shown")}
-  if(ds.act==="coachMode"){save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),coach:t.checked});if(t.checked){S.ciView="clients"};toast(t.checked?"Clients view added to Check-in":"Coach tools off")}
+  if(ds.act==="coachMode"){save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),coach:t.checked});if(t.checked){S.youView="clients"};toast(t.checked?"Clients view added to Check-in":"Coach tools off")}
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
   if(ds.act==="clientNotes"){const c=S.docs[ds.id];if(c)save(ds.id,{...c,notes:t.value})}
@@ -1753,8 +1778,9 @@ document.addEventListener("submit",e=>{e.preventDefault();
     S.editHabits.push({name:v,old:null});render();document.getElementById("habNew")?.focus();return}
   if(e.target.id==="searchForm"){const q=document.getElementById("q").value.trim();if(q){S.meal=/^\d{8,14}$/.test(q.replace(/\s/g,""))?null:estimateMeal(q);runSearch(q)}}
   if(e.target.id==="bodyForm"){const date=document.getElementById("bDate").value||todayKey();const x={type:"body",date};let any=false;
-    ["weight","waist","hips","chest","arm","thigh"].forEach(k=>{const v=document.getElementById("b_"+k).value;if(v!==""){x[k]=+v;any=true}});
-    if(!any){toast("Enter at least one measurement");return}save("body_"+date,x);toast("Entry saved")}
+    const prev=S.docs["body_"+date];if(prev)Object.assign(x,prev,{type:"body",date});
+    ["weight","waist","hips","chest","arm","thigh"].forEach(k=>{const el=document.getElementById("b_"+k);if(el&&el.value!==""){x[k]=+el.value;any=true}});
+    if(!any){toast(isCoach()?"Enter at least one measurement":"Enter your weight");return}save("body_"+date,x);toast("Saved")}
 });
 document.getElementById("photoIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)runSearch(document.getElementById("q")?.value.trim()||"",f)});
 
