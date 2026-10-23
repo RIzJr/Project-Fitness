@@ -81,6 +81,7 @@ textarea{resize:vertical;min-height:64px}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
 /* settings */
+.hint{border:1px solid var(--carb);background:var(--sunk);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
 .code{font-family:var(--display);font-size:40px;font-weight:700;letter-spacing:.18em;text-align:center;background:var(--sunk);border-radius:12px;padding:10px}
 .phgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .phthumb{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -1047,11 +1048,17 @@ const authMsg=e=>{const m=(e&&e.message)||"";return /Invalid login/i.test(m)?"Em
 async function doAuth(kind){const c=await sbClient();if(!c){toast("Can't reach the account service. Check your connection");return}
   const email=(document.getElementById("au_email")||{}).value?.trim(),pw=(document.getElementById("au_pw")||{}).value||"";
   if(!email||!/@/.test(email)){toast("Enter your email");return}
-  if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});toast(error?authMsg(error):"Password reset email sent");return}
+  if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});CL.authHint=null;cloudRender();toast(error?authMsg(error):"Password reset email sent to "+email);return}
   if(pw.length<8){toast("Password must be at least 8 characters");return}
   CL.busy=true;cloudRender();
   const {data,error}=kind==="up"?await c.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname}}):await c.auth.signInWithPassword({email,password:pw});
-  CL.busy=false;if(error){toast(authMsg(error));cloudRender();return}
+  CL.busy=false;
+  if(error){const m=error.message||"";
+    // Supabase answers the same for "no account" and "wrong password", so offer both next steps
+    if(kind==="in"&&/Invalid login/i.test(m)){CL.authHint={type:"nomatch",email,pw};cloudRender();return}
+    if(kind==="up"&&/already registered/i.test(m)){CL.authHint={type:"exists",email};cloudRender();return}
+    toast(authMsg(error));cloudRender();return}
+  CL.authHint=null;
   if(kind==="up"&&!data.session){toast("Check your email to confirm your account, then sign in here");cloudRender();return}
   CL.user=data.user;CL.status="ok";toast("Signed in. Syncing your data");fullSync()}
 async function signOut(){const c=await sbClient();if(c)await c.auth.signOut();["lastpull","synced","dirty","tomb"].forEach(k=>{try{localStorage.removeItem(ckey(k))}catch(e){}});
@@ -1062,8 +1069,12 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
   if(CL.recover)return `<section class="panel"><h2>Set a new password</h2><form id="pwForm" class="stack" style="gap:10px"><input id="au_newpw" type="password" autocomplete="new-password" placeholder="New password (8+ characters)"><button class="btn primary" type="submit">Save password</button></form></section>`;
   if(!CL.user)return `<section class="panel"><h2>${CL.status==="loading"?"Connecting…":CL.status==="offline"?"You're offline":"Sign in or create an account"}</h2>
     <p class="small" style="margin:0">An account backs up ${esc(activeProf().name)}'s data online and keeps it in sync on every phone you sign in on. Your data on this phone is kept and uploaded when you sign in.</p>
-    <form id="authForm" class="stack" style="gap:10px"><label class="field"><span class="label">Email</span><input id="au_email" type="email" autocomplete="email" inputmode="email"></label>
-      <label class="field"><span class="label">Password</span><input id="au_pw" type="password" autocomplete="current-password" placeholder="8+ characters"></label>
+    <form id="authForm" class="stack" style="gap:10px"><label class="field"><span class="label">Email</span><input id="au_email" type="email" autocomplete="email" inputmode="email" value="${esc((CL.authHint&&CL.authHint.email)||"")}"></label>
+      <label class="field"><span class="label">Password</span><input id="au_pw" type="password" autocomplete="current-password" placeholder="8+ characters" value="${esc((CL.authHint&&CL.authHint.pw)||"")}"></label>
+      ${CL.authHint&&CL.authHint.type==="nomatch"?`<div class="hint"><b>We couldn't sign you in with those details.</b><span class="small">New to Project Fitness? Create an account with this email. Already have one? The password may be wrong, so reset it.</span>
+        <div class="row"><button class="btn primary" type="button" data-act="signUp">Create account</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
+      ${CL.authHint&&CL.authHint.type==="exists"?`<div class="hint"><b>You already have an account with this email.</b><span class="small">Sign in with your password instead, or reset it if you've forgotten.</span>
+        <div class="row"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
       <div class="row"><button class="btn primary" type="submit" ${CL.busy?"disabled":""}>Sign in</button><button class="btn" type="button" data-act="signUp" ${CL.busy?"disabled":""}>Create account</button><button class="btn ghost" type="button" data-act="forgotPw">Forgot password?</button></div></form></section>
     <section class="panel"><h2>Privacy</h2><p class="small" style="margin:0">Only you can read your account's data. If you link a coach, they receive weekly summaries only, never individual meals, photos or your contact details. Progress photos never leave this phone.</p></section>`;
   return `<section class="panel"><h2>Signed in</h2><div class="small"><b>${esc(CL.user.email||"")}</b></div>
