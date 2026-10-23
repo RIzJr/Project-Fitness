@@ -254,6 +254,16 @@ nav.tabs .addbtn svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke
 .htile[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 16%,var(--surface));border-color:transparent;color:var(--fg)}
 .htile[aria-pressed="true"] svg{stroke:var(--accent)}
 :root[data-theme="light"] .htile[aria-pressed="true"] svg{stroke:var(--accent)}
+/* search loading */
+.status.busy{display:flex;align-items:center;gap:8px;color:var(--fg)}
+.spin{width:16px;height:16px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--fg) 25%,transparent);border-top-color:var(--accent);display:inline-block;animation:spin .8s linear infinite;flex:none}
+.spin.dark{border-color:color-mix(in srgb,var(--accent-ink) 30%,transparent);border-top-color:var(--accent-ink);vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+.skel{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.skel i{display:block;height:10px;border-radius:99px;background:var(--sunk);animation:pulse 1.2s ease-in-out infinite}
+.skel i:first-child{width:60%}.skel i:last-child{width:85%;height:8px}
+@keyframes pulse{50%{opacity:.45}}
 .updbar{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top,0px));max-width:536px;margin:0 auto;z-index:30;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.2)}
 .updbar button{border:1px solid currentColor;background:transparent;color:inherit;border-radius:9px;padding:6px 12px;font-weight:700}
 .ready{display:flex;gap:14px;align-items:center}
@@ -514,11 +524,12 @@ function renderToday(){
   ${habitTiles}
   <section class="panel" id="logPanel"><h2>Log food</h2>
     <div class="mealpick" role="group" aria-label="Add to meal">${MEALS.map(([k,l])=>`<button data-act="addTo" data-m="${k}" aria-pressed="${(S.addTo||(S.addTo=defaultMeal()))===k}">${l}</button>`).join("")}</div>
-    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="Food, brand or barcode" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""}>Search</button></form>
+    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="Food, brand or barcode" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""} style="min-width:92px">${S.searching?'<span class="spin dark" aria-hidden="true"></span>':"Search"}</button></form>
     <div class="row"><button class="btn" data-act="photo" ${S.searching?"disabled":""}>Scan barcode or label</button><button class="btn" data-act="newFood">Add manually</button></div>
     ${quick}
     ${mealCard()}
-    <div class="status" aria-live="polite">${esc(S.searchMsg)}</div>
+    <div class="status${S.searching?" busy":""}" aria-live="polite">${S.searching?'<span class="spin" aria-hidden="true"></span>':""}${esc(S.searchMsg)}</div>
+    ${S.searching?`<div class="stack" style="gap:8px" aria-hidden="true">${'<div class="skel"><i></i><i></i></div>'.repeat(3)}</div>`:""}
     ${results?`<div class="stack" style="gap:8px">${results}</div>`:""}
     ${S.editFood==="new"?foodForm(null,"new"):""}
   </section>
@@ -705,7 +716,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-23-4";
+const APP_VERSION="2026-10-23-5";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1674,19 +1685,33 @@ function offItem(p){const n=p.nutriments||{},name=[p.product_name||p.generic_nam
   let kcal=g("energy-kcal");if(!kcal&&n["energy"+per])kcal=n["energy"+per]/4.184;
   if(!kcal&&!g("proteins")&&!g("carbohydrates"))return null;
   return {name,serving:per==="_serving"?p.serving_size:"per 100g",kcal:Math.round(kcal),protein_g:g("proteins"),carbs_g:g("carbohydrates"),fat_g:g("fat")}}
+// fetch with a time limit, so a slow server can't leave search hanging
+async function fetchJSON(url,ms){const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);try{const r=await fetch(url,{signal:ac.signal});if(!r.ok)throw new Error("HTTP "+r.status);return await r.json()}finally{clearTimeout(t)}}
+const FIELDS="product_name,generic_name,brands,serving_size,nutriments";
+const searchCache=new Map();
 async function offSearch(q){
-  const code=q.replace(/\s/g,"");
-  if(/^\d{8,14}$/.test(code)){const r=await fetch(`${OFF}/api/v2/product/${code}.json?fields=product_name,generic_name,brands,serving_size,nutriments`);const j=await r.json();const it=j&&j.product&&offItem(j.product);return it?[it]:[]}
-  const r=await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&fields=product_name,generic_name,brands,serving_size,nutriments`);
-  const j=await r.json();return (j.products||[]).map(offItem).filter(Boolean).slice(0,6)}
+  const code=q.replace(/\s/g,""),key=q.trim().toLowerCase();if(searchCache.has(key))return searchCache.get(key);
+  let out=[];
+  if(/^\d{8,14}$/.test(code)){let j=null;for(const ms of [10000,15000]){try{j=await fetchJSON(`${OFF}/api/v2/product/${code}.json?fields=${FIELDS}`,ms);break}catch(e){if(ms===15000)throw e}}
+    const it=j&&j.product&&offItem(j.product);out=it?[it]:[]}
+  else{
+    // 1) Open Food Facts' fast search service; 2) the classic search, retried once if it's slow
+    try{const j=await fetchJSON(`https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=24&langs=en&fields=${FIELDS}`,7000);
+      out=(j.hits||[]).map(h=>offItem({...h,product_name:Array.isArray(h.product_name)?h.product_name[0]:(h.product_name&&typeof h.product_name==="object"?(h.product_name.en||h.product_name.main||Object.values(h.product_name)[0]):h.product_name),brands:Array.isArray(h.brands)?h.brands.join(","):h.brands})).filter(Boolean)}catch(e){out=[]}
+    if(!out.length){let err=null;for(const ms of [12000,18000]){try{const j=await fetchJSON(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=24&fields=${FIELDS}`,ms);out=(j.products||[]).map(offItem).filter(Boolean);err=null;break}catch(e){err=e;S.searchMsg="Still searching… the food database is slow right now";render()}}
+      if(err&&!out.length)throw err}}
+  // de-duplicate and keep the best few
+  const seen=new Set();out=out.filter(x=>{const k=(x.name+"|"+x.kcal).toLowerCase();if(seen.has(k))return false;seen.add(k);return true}).slice(0,8);
+  searchCache.set(key,out);return out}
 async function readBarcode(img){if(!("BarcodeDetector" in window))return null;try{const bd=new BarcodeDetector();const bmp=await createImageBitmap(img);const c=await bd.detect(bmp);return c[0]&&c[0].rawValue||null}catch(e){return null}}
 async function runOffSearch(q,img){
-  S.searching=true;S.results=[];S.searchMsg=img?"Reading the barcode…":"Searching…";render();
+  if(S.searching)return;
+  S.searching=true;S.results=[];S.searchMsg=img?"Reading the barcode…":"Searching the UK food database…";render();
   try{
     if(img){const code=await readBarcode(img);if(!code){S.searchMsg="Couldn't read a barcode from that photo. Type the numbers under the barcode into search instead.";S.searching=false;render();return}q=code}
     S.results=await offSearch(q);
     S.searchMsg=S.results.length?(S.meal?"Branded products from Open Food Facts:":"From Open Food Facts. Tap Add, then Edit to change the amount."):S.meal?"":"No match. Try a brand name (e.g. 'Warburtons crumpets'), the barcode number, or add it manually.";
-  }catch(e){S.searchMsg="Search didn't work. Check your connection and try again, or add it manually."}
+  }catch(e){S.searchMsg=navigator.onLine===false?"You're offline. Use the quick estimates above or add it manually.":e&&e.name==="AbortError"?"The food database didn't answer in time. Try again in a moment, or add it manually.":"Search didn't work. Try again, or add it manually."}
   S.searching=false;render();
 }
 async function runSearch(q,img){
