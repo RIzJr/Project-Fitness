@@ -178,6 +178,8 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .ex{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
 .set{display:grid;grid-template-columns:20px 1fr 1fr 52px 40px 22px;gap:5px;align-items:center}
 .set select{padding:9px 4px;text-align:center}
+.updbar{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top,0px));max-width:536px;margin:0 auto;z-index:30;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.2)}
+.updbar button{border:1px solid currentColor;background:transparent;color:inherit;border-radius:9px;padding:6px 12px;font-weight:700}
 .ready{display:flex;gap:14px;align-items:center}
 .ring{flex:none;width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--sunk) 0);display:grid;place-items:center}
 .ring b{width:60px;height:60px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:var(--display);font-size:26px}
@@ -612,6 +614,25 @@ function rtGo(i){const R=S.routine,rt=ROUTINES.find(x=>x.id===R.id);if(i>=rt.ste
 function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUTINES.find(x=>x.id===R.id),left=(R.end-Date.now())/1000;if(left<=0){rtGo(R.i+1);return}
   const t=document.getElementById("rtTime"),b=document.getElementById("rtBar");if(t)t.textContent=mmss(left);if(b)b.style.width=((1-left/rt.steps[R.i][1])*100).toFixed(1)+"%"}
 
+
+/* ---------- automatic updates ---------- */
+// bumped on every release; the app compares it with the live copy and refreshes itself
+const APP_VERSION="2026-10-23-1";
+function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
+async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
+  try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
+    if(!m||m[1]===APP_VERSION)return;
+    try{const reg=await navigator.serviceWorker?.getRegistration();reg&&reg.update()}catch(e){}
+    if(justOpened&&!busy()){location.reload();return}
+    S.updateReady=m[1];showUpdateBar()}catch(e){}}
+function showUpdateBar(){let el=document.getElementById("updbar");if(!el){el=document.createElement("div");el.id="updbar";el.className="updbar";document.body.appendChild(el)}
+  el.innerHTML=`<span>A new version of the app is ready.</span><button data-act="doUpdate">Refresh</button>`}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkUpdate(true)});
+setInterval(()=>{if(!document.hidden)checkUpdate(false)},30*60*1000);
+// keep an unfinished session safe if the app reloads or closes
+function persistDraft(){try{const k="pf-draft:"+PROF.active;if(S.draftWorkout)localStorage.setItem(k,JSON.stringify(S.draftWorkout));else localStorage.removeItem(k)}catch(e){}}
+function restoreDraft(){try{const d=JSON.parse(localStorage.getItem("pf-draft:"+PROF.active)||"null");if(d&&d.exercises){S.draftWorkout=d;S.tab="train"}}catch(e){}}
+
 /* ---------- cardio ---------- */
 const CARDIO=["Run","Walk","Cycle","Row","Swim","Cross-trainer","Stairs","HIIT","Sport","Other"];
 const effortWord=n=>n<=3?"Easy":n<=6?"Moderate":n<=8?"Hard":"Max";
@@ -791,6 +812,7 @@ function renderCheckin(){
 }
 
 function render(){
+  if(typeof persistDraft==="function")persistDraft();
   const tb=document.getElementById("tabs");
   if(S.lock){tb.hidden=true;document.getElementById("app").innerHTML=renderLock();return}
   if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
@@ -1454,7 +1476,7 @@ function switchUser(id,force){const p=PROF.list.find(x=>x.id===id);if(!p)return;
   PROF.active=id;saveProf();S.lock=null;
   Object.assign(S,{tab:"today",setPage:null,day:todayKey(),results:[],meal:null,searchMsg:"",draftWorkout:null,ciDraft:null,showTargets:false,editFood:null,editHabits:null,openEx:null,exFilter:"",quoteShift:0,confirmDel:null,confirmWipe:false,viewPhoto:null,photosFor:null});
   S.docs=exampleDocs();S.example=true;
-  if(S.db)subscribe();else{loadLocal();afterLoad()}
+  if(S.db)subscribe();else{loadLocal();afterLoad();restoreDraft()}
   loadLook();applyLook();render();window.scrollTo(0,0);toast("Now using "+p.name);
 }
 function exportData(){lsSet("pf-lastbackup:"+PROF.active,String(Date.now()));setTimeout(render,50);const me=activeProf(),blob=new Blob([JSON.stringify({app:"Project Fitness",version:1,user:me.name,exported:new Date().toISOString(),docs:S.docs},null,1)],{type:"application/json"});
@@ -1618,6 +1640,7 @@ document.addEventListener("click",e=>{
     case "rtPrev":rtGo(S.routine.i-1);break;
     case "rtPause":{const R=S.routine;if(R.paused){R.end=Date.now()+R.left;R.paused=false}else{R.left=R.end-Date.now();R.paused=true}render();break}
     case "rtClose":clearInterval(rtGo._i);S.routine=null;render();break;
+    case "doUpdate":persistDraft();location.reload();break;
     case "trainView":S.trainView=ds.v;render();break;
     case "woAll":S.woAll=!S.woAll;render();break;
     case "cAct":S.cDraft.activity=ds.v;render();break;
@@ -1742,7 +1765,8 @@ document.getElementById("phIn").addEventListener("change",e=>{const f=e.target.f
 document.getElementById("importIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importData(f)});
 applyLook();
 if(activeProf().pin)S.lock={id:PROF.active,boot:true};
-if(!window.claude||!window.claude.use){loadLocal();afterLoad()}
+if(!window.claude||!window.claude.use){loadLocal();afterLoad();restoreDraft()}
+setTimeout(()=>checkUpdate(false),4000);
 if("serviceWorker" in navigator&&window.isSecureContext&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 render();
 (async function connect(){
