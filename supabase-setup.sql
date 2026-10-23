@@ -94,3 +94,17 @@ begin
 end $$;
 revoke all on function public.link_coach(text, text) from public;
 grant execute on function public.link_coach(text, text) to authenticated;
+
+-- 6. Let people delete their own account (same as supabase-update-1.sql)
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = public, auth as $$
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  delete from public.reports     where client_id = auth.uid() or coach_id = auth.uid();
+  delete from public.coach_links where client_id = auth.uid() or coach_id = auth.uid();
+  delete from public.coach_codes where coach_id = auth.uid();
+  delete from public.docs        where user_id = auth.uid();
+  delete from auth.users         where id = auth.uid();
+end $$;
+revoke all on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;

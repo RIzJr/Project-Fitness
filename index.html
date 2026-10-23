@@ -81,6 +81,11 @@ textarea{resize:vertical;min-height:64px}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
 /* settings */
+.hq{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.hq:first-child{border-top:0}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:4px;flex:none;width:112px}
+.yn button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 0;font-weight:600;font-size:13px}
+.yn button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .hint{border:1px solid var(--carb);background:var(--sunk);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
 .code{font-family:var(--display);font-size:40px;font-weight:700;letter-spacing:.18em;text-align:center;background:var(--sunk);border-radius:12px;padding:10px}
 .phgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
@@ -313,7 +318,13 @@ const settings=()=>{const s=S.docs.settings||DEFAULT_SETTINGS;return (s.targets&
 function dayDoc(k){return S.docs["day_"+k]||{type:"day",date:k,foods:[],habits:{}}}
 // the day to change: a clean one while example data is showing, so your first entry replaces the examples
 function editDay(){return S.example?{type:"day",date:S.day,foods:[],habits:{}}:clone(dayDoc(S.day))}
-function macroLeft(){const t=totals(dayDoc(S.day)),tg=settings().targets,l=Math.round(tg.kcal-t.kcal),p=Math.round(tg.protein-t.protein);
+// habits-only mode hides calorie and macro numbers everywhere (for anyone better off not counting)
+const NUM=()=>!(S.docs.profile&&S.docs.profile.habitsOnly);
+const kcalFloor=sex=>sex==="f"?1200:sex==="m"?1500:1350;
+function lowKcalWarn(kcal,sex){const f=kcalFloor(sex);if(!(+kcal>0)||+kcal>=f)return"";
+  return `<div class="hint small"><b>That's below the usual safe minimum of ${f.toLocaleString("en-GB")} kcal a day.</b><span>Very low targets can harm health, energy and training. Only use them with your coach or a health professional's guidance.</span></div>`}
+const ML=()=>{const m=macroLeft();return m?" · "+m:""};
+function macroLeft(){if(!NUM())return "";const t=totals(dayDoc(S.day)),tg=settings().targets,l=Math.round(tg.kcal-t.kcal),p=Math.round(tg.protein-t.protein);
   return (l>=0?l.toLocaleString("en-GB")+" kcal left":Math.abs(l).toLocaleString("en-GB")+" kcal over")+(p>0?", "+p+"g protein to go":", protein hit")}
 function totals(d){const t={kcal:0,protein:0,carbs:0,fat:0};(d.foods||[]).forEach(f=>MK.forEach(k=>t[k]+=+f[k]||0));return t}
 const ofType=t=>Object.entries(S.docs).filter(([,d])=>d&&d.type===t).map(([id,d])=>({id,...d})).sort((a,b)=>a.date<b.date?1:-1);
@@ -330,7 +341,7 @@ function renderTabs(){document.getElementById("tabs").innerHTML=TABS.map(([k,l])
 
 function exampleBanner(){return S.example?`<div class="banner"><span>Showing example data. Your first entry replaces it.</span><button class="btn ghost" data-act="clearEx">Start fresh</button></div>`:""}
 
-function foodForm(f,i){
+function foodForm(f,i){if(!NUM())setTimeout(()=>document.querySelectorAll('form[data-form="food"] .macrof').forEach(e=>e.hidden=true),0);
   const v=k=>f&&f[k]!=null&&f[k]!==""?f[k]:"";
   return `<form class="editform" data-form="food" data-i="${i}">
     <label class="field wide"><span class="label">Food</span><input id="ef_name" value="${esc(v("name"))}" placeholder="e.g. Chicken wrap" required></label>
@@ -338,12 +349,12 @@ function foodForm(f,i){
     ${f&&f.base?(f.unit==="g"?`<label class="field wide"><span class="label">Amount eaten (g)</span><input id="ef_g" type="number" step="any" min="0" inputmode="decimal" value="${Math.round(f.qty)}" data-act="amtG"></label>`
       :`<label class="field ${f.unitG?"":"wide"}" style="${f.unitG?"grid-column:span 2":""}"><span class="label">Amount (× ${esc(f.unit)})</span><input id="ef_qty" type="number" step="any" min="0" inputmode="decimal" value="${f.qty}" data-act="amtQty"></label>
         ${f.unitG?`<label class="field" style="grid-column:span 2"><span class="label">Or grams</span><input id="ef_g" type="number" step="any" min="0" inputmode="decimal" value="${Math.round(f.qty*f.unitG)}" data-act="amtG"></label>`:""}`)
-      +`<span class="small muted wide">Change the amount and the macros below update to match.</span>`:""}
-    <label class="field"><span class="label">Protein g</span><input id="ef_protein" type="number" step="any" inputmode="decimal" value="${v("protein")}"></label>
-    <label class="field"><span class="label">Carbs g</span><input id="ef_carbs" type="number" step="any" inputmode="decimal" value="${v("carbs")}"></label>
-    <label class="field"><span class="label">Fat g</span><input id="ef_fat" type="number" step="any" inputmode="decimal" value="${v("fat")}"></label>
-    <label class="field"><span class="label">kcal</span><input id="ef_kcal" type="number" step="any" inputmode="numeric" value="${v("kcal")}" placeholder="auto"></label>
-    <span class="small muted wide">Leave calories blank to work them out from the macros.</span>
+      +`<span class="small muted wide macrof">Change the amount and the macros below update to match.</span>`:""}
+    <label class="field macrof"><span class="label">Protein g</span><input id="ef_protein" type="number" step="any" inputmode="decimal" value="${v("protein")}"></label>
+    <label class="field macrof"><span class="label">Carbs g</span><input id="ef_carbs" type="number" step="any" inputmode="decimal" value="${v("carbs")}"></label>
+    <label class="field macrof"><span class="label">Fat g</span><input id="ef_fat" type="number" step="any" inputmode="decimal" value="${v("fat")}"></label>
+    <label class="field macrof"><span class="label">kcal</span><input id="ef_kcal" type="number" step="any" inputmode="numeric" value="${v("kcal")}" placeholder="auto"></label>
+    <span class="small muted wide macrof">Leave calories blank to work them out from the macros.</span>
     <div class="acts"><button class="btn primary" type="submit">${i==="new"?"Add food":"Save changes"}</button><button class="btn" type="button" data-act="cancelFood">Cancel</button>${i!=="new"?`<button class="btn ghost" type="button" data-act="delFood" data-i="${i}">Delete</button>`:""}</div>
   </form>`}
 function renderToday(){
@@ -359,19 +370,19 @@ function renderToday(){
   const habits=st.habits.map((h,i)=>`<label class="habit"><input type="checkbox" id="hab${i}" data-act="habit" data-h="${esc(h)}" ${d.habits&&d.habits[h]?"checked":""}><span>${esc(h)}</span></label>`).join("");
   const done=st.habits.filter(h=>d.habits&&d.habits[h]).length;
   const foodRow=(f,i)=>S.editFood===i?foodForm(f,i):`<div class="food"><div style="min-width:0"><div class="nm">${esc(f.name)}</div>
-    <div class="meta">${f.base&&f.qty!=null?fmtQty(f)+" · ":""}${Math.round(+f.kcal||0)} kcal · P ${fmtN(+f.protein||0)}g · C ${fmtN(+f.carbs||0)}g · F ${fmtN(+f.fat||0)}g</div></div>
+    <div class="meta">${f.base&&f.qty!=null?fmtQty(f)+(NUM()?" · ":""):""}${NUM()?`${Math.round(+f.kcal||0)} kcal · P ${fmtN(+f.protein||0)}g · C ${fmtN(+f.carbs||0)}g · F ${fmtN(+f.fat||0)}g`:""}</div></div>
     <div class="fbtns"><button class="star" data-act="favFood" data-i="${i}" aria-pressed="${isFav(f)}" aria-label="${isFav(f)?"Remove from":"Add to"} favourites">${isFav(f)?"★":"☆"}</button><button class="btn ghost" data-act="editFood" data-i="${i}" aria-label="Edit ${esc(f.name)}">Edit</button></div></div>`;
   const all=(d.foods||[]).map((f,i)=>[f,i]),yd=dayDoc(addDays(S.day,-1));
   const grp=(k,l,items)=>{const kc=items.reduce((a,[f])=>a+(+f.kcal||0),0),yItems=k?(yd.foods||[]).filter(f=>f.meal===k):[];
-    return `<div class="mealgrp"><div class="spread"><span><b>${l}</b> <span class="small muted">${items.length?Math.round(kc).toLocaleString("en-GB")+" kcal":""}</span></span>
+    return `<div class="mealgrp"><div class="spread"><span><b>${l}</b> <span class="small muted">${items.length&&NUM()?Math.round(kc).toLocaleString("en-GB")+" kcal":""}</span></span>
       ${k?`<span class="row" style="gap:0;flex-wrap:nowrap">${!items.length&&yItems.length?`<button class="btn ghost" style="font-size:13px" data-act="copyMeal" data-m="${k}">Same as yesterday</button>`:""}<button class="btn ghost" data-act="addTo" data-m="${k}" data-focus="1" aria-label="Add to ${l}">+ Add</button></span>`:""}</div>
       ${items.map(([f,i])=>foodRow(f,i)).join("")}</div>`};
   const other=all.filter(([f])=>!MEALS.some(m=>m[0]===f.meal));
   const foods=MEALS.map(([k,l])=>grp(k,l,all.filter(([f])=>f.meal===k))).join("")+(other.length?grp(null,"Other",other):"");
   S.quick=quickFoods();
-  const quick=S.quick.length?`<div class="label" style="margin-top:2px">Quick add</div><div class="chiprow">${S.quick.map((x,i)=>`<button class="qchip" data-act="quickAdd" data-i="${i}">${x.fav?"★ ":""}${esc(x.f.name)} <span class="muted">${Math.round(+x.f.kcal||0)}</span></button>`).join("")}</div>`:"";
+  const quick=S.quick.length?`<div class="label" style="margin-top:2px">Quick add</div><div class="chiprow">${S.quick.map((x,i)=>`<button class="qchip" data-act="quickAdd" data-i="${i}">${x.fav?"★ ":""}${esc(x.f.name)}${NUM()?` <span class="muted">${Math.round(+x.f.kcal||0)}</span>`:""}</button>`).join("")}</div>`:"";
   const results=S.results.map((r,i)=>`<div class="result"><div style="min-width:0"><div class="nm" style="font-weight:600">${esc(r.name)}</div>
-    <div class="meta small muted">${r.serving?esc(r.serving)+" · ":""}${Math.round(r.kcal||0)} kcal · P ${Math.round(r.protein_g||0)}g · C ${Math.round(r.carbs_g||0)}g · F ${Math.round(r.fat_g||0)}g</div></div>
+    <div class="meta small muted">${r.serving?esc(r.serving):""}${NUM()?`${r.serving?" · ":""}${Math.round(r.kcal||0)} kcal · P ${Math.round(r.protein_g||0)}g · C ${Math.round(r.carbs_g||0)}g · F ${Math.round(r.fat_g||0)}g`:""}</div></div>
     <button class="btn primary" data-act="addRes" data-i="${i}">Add</button></div>`).join("");
   const isToday=S.day===todayKey();
   return `${exampleBanner()}${isToday?backupBanner():""}
@@ -379,10 +390,11 @@ function renderToday(){
     <div class="daynav"><button data-act="prevDay" aria-label="Previous day">‹</button><button data-act="nextDay" aria-label="Next day" ${isToday?"disabled":""}>›</button></div></header>
   <div class="stack">
   ${quoteCard()}
-  <section class="panel"><div class="spread"><h2>Macros</h2><button class="btn ghost" data-act="targets">${S.showTargets?"Done":"Edit targets"}</button></div>
+  ${NUM()?`<section class="panel"><div class="spread"><h2>Macros</h2><button class="btn ghost" data-act="targets">${S.showTargets?"Done":"Edit targets"}</button></div>
     ${S.showTargets?renderTargets():""}
     <div>${rows}</div>
-  </section>
+  </section>`:`<section class="panel"><h2>Today</h2><div class="tiles">${glanceTile("Meals logged",MEALS.filter(([k])=>(d.foods||[]).some(f=>f.meal===k)).length+"/4","")}${glanceTile("Habits",(st.habits||[]).filter(h=>d.habits&&d.habits[h]).length+"/"+(st.habits||[]).length,"")}</div>
+    <span class="small muted">Numbers are hidden (habits-only mode). Focus on regular meals, protein with each meal, and how you feel.</span></section>`}
   <section class="panel" id="logPanel"><h2>Log food</h2>
     <div class="mealpick" role="group" aria-label="Add to meal">${MEALS.map(([k,l])=>`<button data-act="addTo" data-m="${k}" aria-pressed="${(S.addTo||(S.addTo=defaultMeal()))===k}">${l}</button>`).join("")}</div>
     <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="Food, brand or barcode" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""}>Search</button></form>
@@ -393,7 +405,7 @@ function renderToday(){
     ${results?`<div class="stack" style="gap:8px">${results}</div>`:""}
     ${S.editFood==="new"?foodForm(null,"new"):""}
   </section>
-  <section class="panel"><div class="spread"><h2>${isToday?"Today's food":"Food this day"}</h2><span class="label">${all.length?Math.round(tot.kcal).toLocaleString("en-GB")+" kcal":""}</span></div>
+  <section class="panel"><div class="spread"><h2>${isToday?"Today's food":"Food this day"}</h2><span class="label">${all.length&&NUM()?Math.round(tot.kcal).toLocaleString("en-GB")+" kcal":""}</span></div>
     ${all.length?"":`<p class="muted small" style="margin:0">Nothing logged yet. Pick a meal above, then search, tap a quick add, or add manually.</p>`}
     <div class="stack" style="gap:0">${foods}</div>
   </section>
@@ -411,7 +423,7 @@ function renderHabitEditor(){const H=S.editHabits;
     <span class="small muted">Renaming a habit keeps today's tick. Removed habits drop off the daily list; past days aren't changed.</span>
     <div class="row"><button class="btn primary" data-act="saveHabits">Save habits</button><button class="btn" data-act="cancelHabits">Cancel</button></div></div>`}
 function renderTargets(){const st=settings(),t=st.targets,mk=macroKcal(t);
-  return `<div class="stack" style="gap:10px;background:var(--sunk);border-radius:10px;padding:12px">
+  return `<div class="stack" style="gap:10px;background:var(--sunk);border-radius:10px;padding:12px">${lowKcalWarn(t.kcal,(S.docs.profile||{}).sex)}
     <div class="grid2">${MK.map(k=>`<label class="field"><span class="label">${MAC[k].label} (${MAC[k].unit}/day)</span><input type="number" min="0" step="1" inputmode="numeric" id="tg_${k}" data-act="target" data-k="${k}" value="${t[k]}"></label>`).join("")}</div>
     <div class="spread small"><span class="muted">Your macros add up to <b style="color:var(--fg)">${mk.toLocaleString("en-GB")} kcal</b></span>${mk!==+t.kcal?`<button class="btn ghost" data-act="matchKcal">Use ${mk.toLocaleString("en-GB")}</button>`:""}</div>
     </div>`}
@@ -529,19 +541,25 @@ const CQ=[
   ["energy","Energy","How were your energy levels day to day?","Drained","Full of energy"],
   ["sleep","Sleep","How well did you sleep?","Poorly","Really well"],
   ["stress","Stress","How stressed did you feel?","Calm","Very stressed"],
-  ["hunger","Appetite & cravings","How hard were hunger and cravings to manage?","Easy","Very hard"]];
+  ["hunger","Appetite & cravings","How hard were hunger and cravings to manage?","Easy","Very hard"],
+  ["foodrel","Food & body","How relaxed did you feel around food and your body this week?","Very anxious","Relaxed"]];
 function weekStart(){const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return keyOf(d)}
 function glanceTile(label,val,sub,tone){return `<div class="tile"><span class="label">${label}</span><b>${val}</b>${sub?`<span class="small ${tone||"muted"}">${sub}</span>`:""}</div>`}
-function weekGlance(ws){const tw=weekSummary(ws,false),lw=weekSummary(addDays(ws,-7),false),tg=settings().targets;
+function weekGlance(ws){let tiles2;const tw=weekSummary(ws,false),lw=weekSummary(addDays(ws,-7),false),tg=settings().targets;
   const wd=tw.weight!=null&&lw.weight!=null?r1(tw.weight-lw.weight):null;
-  const tiles=[
+  const tiles=NUM()?null:[
+    glanceTile("Weight kg",tw.weight!=null?fmtN(tw.weight):"—",wd!=null?(wd>0?"+":"")+fmtN(wd)+" kg vs last week":"log a weigh-in"),
+    glanceTile("Days logged",tw.daysLogged+"/7","food diary"),
+    glanceTile("Habits",tw.habitsPct!=null?tw.habitsPct+"%":"—","of daily ticks"),
+    glanceTile("Sessions",tw.sessions,"training")];
+  if(!tiles)tiles2=[
     glanceTile("Weight kg",tw.weight!=null?fmtN(tw.weight):"—",wd!=null?(wd>0?"+":"")+fmtN(wd)+" kg vs last week":tw.weight!=null?"first weigh-in week":"log a weigh-in"),
     glanceTile("Avg calories",tw.kcal!=null?tw.kcal.toLocaleString("en-GB"):"—",tw.kcal!=null?"target "+Number(tg.kcal).toLocaleString("en-GB"):"no food logged"),
     glanceTile("Avg protein",tw.protein!=null?tw.protein+"g":"—",tw.protein!=null?(tw.protein>=tg.protein*.9?"on target":"target "+tg.protein+"g"):"",tw.protein!=null&&tw.protein>=tg.protein*.9?"good":"muted"),
     glanceTile("Days on target",tw.daysLogged?`${tw.onTarget||0}/${tw.daysLogged}`:"—",tw.daysLogged?`${tw.daysLogged} day${tw.daysLogged===1?"":"s"} logged`:""),
     glanceTile("Habits",tw.habitsPct!=null?tw.habitsPct+"%":"—","of daily ticks"),
     glanceTile("Sessions",tw.sessions,tw.volume?tw.volume.toLocaleString("en-GB")+" kg volume":"training")];
-  return `<section class="panel"><div class="spread"><h2>Your week so far</h2><span class="label">auto</span></div><div class="tiles">${tiles.join("")}</div></section>`}
+  return `<section class="panel"><div class="spread"><h2>Your week so far</h2><span class="label">auto</span></div><div class="tiles">${(tiles||tiles2).join("")}</div></section>`}
 function renderCheckin(){
   const coach=!!(S.docs.profile&&S.docs.profile.coach);
   if(coach&&S.ciView==="clients")return renderClients();
@@ -556,7 +574,8 @@ function renderCheckin(){
   <section class="panel"><div class="spread"><h2>How did it go?</h2><span class="label">${done}/${CQ.length}</span></div>
     ${CQ.map(([k,l,q,lo,hi])=>`<div class="ciq"><div><b>${l}</b><div class="small muted">${q}</div></div>
       <div class="scale" role="group" aria-label="${l}">${[1,2,3,4,5].map(n=>`<button data-act="ciScale" data-k="${k}" data-n="${n}" aria-pressed="${c[k]===n}">${n}</button>`).join("")}</div>
-      <div class="anchors"><span>1 · ${lo}</span><span>${hi} · 5</span></div></div>`).join("")}</section>
+      <div class="anchors"><span>1 · ${lo}</span><span>${hi} · 5</span></div>
+      ${k==="foodrel"&&c.foodrel&&c.foodrel<=2?`<div class="hint small"><b>Thanks for being honest. That sounds hard.</b><span>It's worth talking to your coach or GP. Beat, the UK eating disorder charity, offers free, confidential support at beateatingdisorders.org.uk. You can also switch on habits-only mode in Settings → Targets & habits to hide calorie numbers.</span></div>`:""}</div>`).join("")}</section>
   <section class="panel"><h2>Reflect</h2>
     <label class="field"><span class="label">Biggest win this week</span><textarea id="ci_win" data-act="ciText" data-k="win" placeholder="e.g. Hit my protein 6 days out of 7">${esc(c.win)}</textarea></label>
     <label class="field"><span class="label">What got in the way?</span><textarea id="ci_struggle" data-act="ciText" data-k="struggle" placeholder="e.g. Late finishes at work, skipped Thursday">${esc(c.struggle)}</textarea></label>
@@ -707,8 +726,8 @@ function estimateMeal(q){const parts=q.toLowerCase().replace(/[()]/g," ").split(
 const mealTotals=items=>items.reduce((t,it)=>{const s=scaleFood(it.base,it.qty);Object.keys(t).forEach(k=>t[k]+=s[k]);return t},{kcal:0,protein:0,carbs:0,fat:0});
 const fmtQty=it=>it.unit==="g"?`${Math.round(it.qty)}g`:`${fmtN(it.qty)} × ${it.unit}`;
 function mealCard(){const M=S.meal;if(!M)return"";const t=mealTotals(M.items);
-  return `<div class="meal"><div class="spread"><span class="label">Quick estimate</span><span class="small" style="font-variant-numeric:tabular-nums"><b>${Math.round(t.kcal)} kcal</b> · P ${Math.round(t.protein)} · C ${Math.round(t.carbs)} · F ${Math.round(t.fat)}</span></div>
-    ${M.items.map((it,i)=>{const s=scaleFood(it.base,it.qty);return `<div class="mrow"><div style="min-width:0"><div style="font-weight:600">${esc(it.name)}</div><div class="small muted">${fmtQty(it)} · ${s.kcal} kcal · P ${fmtN(s.protein)}g</div></div>
+  return `<div class="meal"><div class="spread"><span class="label">Quick estimate</span><span class="small" style="font-variant-numeric:tabular-nums">${NUM()?`<b>${Math.round(t.kcal)} kcal</b> · P ${Math.round(t.protein)} · C ${Math.round(t.carbs)} · F ${Math.round(t.fat)}`:""}</span></div>
+    ${M.items.map((it,i)=>{const s=scaleFood(it.base,it.qty);return `<div class="mrow"><div style="min-width:0"><div style="font-weight:600">${esc(it.name)}</div><div class="small muted">${fmtQty(it)}${NUM()?` · ${s.kcal} kcal · P ${fmtN(s.protein)}g`:""}</div></div>
       <div class="steppers" style="grid-column:auto"><button data-act="mealQty" data-i="${i}" data-d="-0.5" aria-label="Less ${esc(it.name)}">−</button><button class="add" style="--c:var(--accent)" data-act="mealQty" data-i="${i}" data-d="0.5" aria-label="More ${esc(it.name)}">+</button></div></div>`}).join("")}
     ${M.missed.length?`<div class="small muted">Not in the quick list: ${M.missed.map(esc).join(", ")}. Check the online results below, or add it manually.</div>`:""}
     <div class="row"><button class="btn primary" data-act="addMeal">Add ${M.items.length>1?"all "+M.items.length+" items":"it"}</button><button class="btn ghost" data-act="clearMeal">Dismiss</button></div></div>`}
@@ -725,7 +744,7 @@ function quickFoods(){const favs=settings().favs||[],seen=new Set(favs.map(f=>ex
   const rec=[...cnt.values()].sort((a,b)=>b.n-a.n).slice(0,Math.max(0,12-favs.length)).map(x=>({f:x.f,fav:false}));
   return [...favs.map(f=>({f,fav:true})),...rec]}
 function addFoodsToDay(foods,msg){const id="day_"+S.day,prev=S.docs[id]?clone(S.docs[id]):null,x=editDay();
-  x.foods=(x.foods||[]).concat(foods);save(id,x);toast(msg+" · "+macroLeft(),{undo:()=>restoreDoc(id,prev)})}
+  x.foods=(x.foods||[]).concat(foods);save(id,x);toast(msg+ML(),{undo:()=>restoreDoc(id,prev)})}
 
 /* ---------- quote of the day ---------- */
 const QUOTES=[["I hated every minute of training, but I said, 'Don't quit. Suffer now and live the rest of your life as a champion.'", "Muhammad Ali"], ["I've failed over and over and over again in my life. And that is why I succeed.", "Michael Jordan"], ["Rest at the end, not in the middle.", "Kobe Bryant"], ["Everything negative – pressure, challenges – is all an opportunity for me to rise.", "Kobe Bryant"], ["Only the disciplined ones in life are free. If you are undisciplined, you are a slave to your moods and your passions.", "Eliud Kipchoge"], ["No human is limited.", "Eliud Kipchoge"], ["The last three or four reps is what makes the muscle grow.", "Arnold Schwarzenegger"], ["Luck has nothing to do with it, because I have spent many, many hours, countless hours, on the court working for my one moment in time.", "Serena Williams"], ["I am building a fire, and every day I train, I add more fuel. At just the right moment, I light the match.", "Mia Hamm"], ["To give anything less than your best is to sacrifice the gift.", "Steve Prefontaine"], ["You miss 100% of the shots you don't take.", "Wayne Gretzky"], ["Champions keep playing until they get it right.", "Billie Jean King"], ["Talent without working hard is nothing.", "Cristiano Ronaldo"], ["You can't put a limit on anything. The more you dream, the farther you get.", "Michael Phelps"], ["I'd rather regret the risks that didn't work out than the chances I didn't take at all.", "Simone Biles"], ["Fatigue makes cowards of us all.", "Vince Lombardi"], ["Don't let what you cannot do interfere with what you can do.", "John Wooden"], ["Start where you are. Use what you have. Do what you can.", "Arthur Ashe"], ["We all have dreams. But in order to make dreams come into reality, it takes an awful lot of determination, dedication, self-discipline, and effort.", "Jesse Owens"], ["Discipline is doing what you hate to do, but doing it like you love it.", "Mike Tyson"], ["The man who can drive himself further once the effort gets painful is the man who will win.", "Roger Bannister"], ["The moment of victory is much too short to live for that and nothing else.", "Martina Navratilova"], ["Ability is what you're capable of doing. Motivation determines what you do. Attitude determines how well you do it.", "Lou Holtz"], ["Success isn't always about greatness. It's about consistency. Consistent hard work leads to success. Greatness will come.", "Dwayne Johnson"], ["You are in danger of living a life so comfortable and soft, that you will die without ever realising your true potential.", "David Goggins"], ["Knowing is not enough, we must apply. Willing is not enough, we must do.", "Bruce Lee"], ["Pain is inevitable. Suffering is optional.", "Haruki Murakami"], ["We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "Will Durant, on Aristotle"], ["Waste no more time arguing about what a good man should be. Be one.", "Marcus Aurelius"], ["We suffer more often in imagination than in reality.", "Seneca"], ["No man is free who is not master of himself.", "Epictetus"], ["The journey of a thousand miles begins with a single step.", "Lao Tzu"], ["Discipline is the bridge between goals and accomplishment.", "Jim Rohn"], ["Take care of your body. It's the only place you have to live.", "Jim Rohn"], ["Strength does not come from physical capacity. It comes from an indomitable will.", "Mahatma Gandhi"], ["It is not the mountain we conquer, but ourselves.", "Sir Edmund Hillary"], ["Hard work beats talent when talent doesn't work hard.", "Tim Notke"], ["The difference between the impossible and the possible lies in a person's determination.", "Tommy Lasorda"], ["It's not whether you get knocked down; it's whether you get up.", "Vince Lombardi"], ["Make each day your masterpiece.", "John Wooden"]];
@@ -824,7 +843,8 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
     ${CL.user&&CL.links&&CL.links.length?`<div class="small"><b>Shared automatically with:</b> ${CL.links.map(l=>esc(l.coach_name||"your coach")).join(", ")} (updates as you log). Manage in Settings → Cloud account.</div>`:""}
     <button class="btn primary" style="align-self:flex-start" data-act="shareReport">Create and send report</button></section>`}
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:settings().targets,generated:new Date().toISOString(),weeks}}
+  const health=pr.shareHealth&&pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:null;
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,health,generated:new Date().toISOString(),weeks}}
 async function shareReport(){const sh=S.share||{weeks:8,notes:true};let pr=S.docs.profile||{type:"profile",name:activeProf().name};
   if(!pr.shareId){pr={...pr,shareId:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)};save("profile",pr)}
   const rep=buildReport(sh.weeks,sh.notes,pr.shareId);
@@ -837,9 +857,9 @@ function coachSeg(){return `<div class="seg" role="tablist" aria-label="Check-in
 function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.kind!=="progress-report"||!Array.isArray(j.weeks))throw 0;
     const id="client_"+String(j.shareId||j.name).replace(/[^a-z0-9_-]/gi,""),old=S.docs[id]||{};
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
-    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,notes:old.notes||"",weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
+    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
-const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"]];
+const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
   const vals=series.flatMap(sr=>weeks.map(w=>w[sr.key]).filter(v=>v!=null&&v!==""));
   if(!vals.length)return `<p class="small muted" style="margin:0">Nothing logged for this yet.</p>`;
@@ -867,6 +887,8 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   const fv=(w,col)=>col[2]?col[2](w):(w[col[0]]==null||w[col[0]]===""?"—":col[0]==="volume"?Number(w[col[0]]).toLocaleString("en-GB"):fmtN(+w[col[0]]));
   return `<div class="stack"><section class="panel"><div class="spread"><button class="btn ghost" style="padding:4px 0" data-act="openClient" data-id="">‹ All clients</button><button class="btn ghost" style="color:var(--protein)" data-act="delClient" data-id="${id}">${S.confirmDelClient===id?"Tap to confirm":"Remove"}</button></div>
     <div class="who-row"><span class="avatar big">${esc(initials(c.name))}</span><div><b style="font-size:18px">${esc(c.name)}</b><div class="small muted">${esc(GOALS[c.goal]||"No goal set")} · targets ${t.kcal?Number(t.kcal).toLocaleString("en-GB")+" kcal, "+t.protein+"g protein":"not shared"}<br>${wk.length} weeks · last report ${fmtDay(String(c.received||c.date).slice(0,10))}</div></div></div></section>
+  <section class="panel"><h2>Health check</h2>${c.health?(c.health.flagged?`<div class="hint"><b>Answered yes to ${c.health.yes.length} question${c.health.yes.length===1?"":"s"}</b> (${fmtDay(c.health.date)}). Ask them to get GP clearance before increasing intensity.<ul class="small" style="margin:4px 0 0;padding-left:18px">${c.health.yes.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:`<div class="small good"><b>All clear</b> (${fmtDay(c.health.date)})</div>`)
+    :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check result with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}</section>
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
   <section class="panel"><h2>Waist</h2>${chartSVG(wk,[{key:"waist",label:"Waist (cm)",color:"var(--fat)"}],{label:"Waist measurement"})}</section>
   <section class="panel"><h2>Calories</h2>${chartSVG(wk,[{key:"kcal",label:"Avg kcal",color:"var(--carb)",bars:true}],{target:t.kcal,zero:true,label:"Average daily calories per week"})}</section>
@@ -891,7 +913,7 @@ function needsOnboarding(){const p=S.docs.profile||{};return !p.onboarded&&!Obje
 function afterLoad(){setTimeout(()=>Cloud.init(),0);if(S.example){S.docs={settings:clone(DEFAULT_SETTINGS)};S.example=false}
   if(needsOnboarding()){const p=S.docs.profile||{},nm=p.name||activeProf().name;S.onboard={step:0,d:{name:nm==="Me"?"":nm,goal:p.goal||"",activity:p.activity||"",dob:p.dob||"",sex:p.sex||"",height:p.height||"",weight:p.weight||"",habits:[...(settings().habits||[])],targets:null}}}
   else S.onboard=null}
-function renderOnboard(){const O=S.onboard,d=O.d,N=5;
+function renderOnboard(){const O=S.onboard,d=O.d,N=6;
   const dots=`<div class="obdots" aria-label="Step ${O.step+1} of ${N}">${[...Array(N)].map((_,i)=>`<i class="${i<=O.step?"on":""}"></i>`).join("")}</div>`;
   const pick=(k,opts)=>`<div class="obpick">${opts.map(([v,l,sub])=>`<button data-act="obPick" data-k="${k}" data-v="${v}" aria-pressed="${String(d[k])===String(v)}"><b>${l}</b>${sub?`<span class="small muted">${sub}</span>`:""}</button>`).join("")}</div>`;
   const nav=(next,canSkip)=>`<div class="row" style="justify-content:space-between;margin-top:6px">${O.step?`<button class="btn" data-act="obBack">Back</button>`:`<button class="btn ghost" data-act="obSkip">Skip setup</button>`}<span class="row" style="gap:4px">${canSkip?`<button class="btn ghost" data-act="obNext" data-skip="1">Skip</button>`:""}<button class="btn primary" data-act="obNext">${next||"Next"}</button></span></div>`;
@@ -905,21 +927,51 @@ function renderOnboard(){const O=S.onboard,d=O.d,N=5;
     <label class="field"><span class="label">Sex (for calorie maths)</span><select id="ob_sex" data-act="ob" data-k="sex"><option value="">Choose</option><option value="m" ${d.sex==="m"?"selected":""}>Male</option><option value="f" ${d.sex==="f"?"selected":""}>Female</option></select></label>
     <label class="field"><span class="label">Height (cm)</span><input id="ob_height" type="number" step="any" inputmode="decimal" data-act="ob" data-k="height" value="${esc(d.height)}"></label>
     <label class="field"><span class="label">Weight (kg)</span><input id="ob_weight" type="number" step="any" inputmode="decimal" data-act="ob" data-k="weight" value="${esc(d.weight)}"></label></div>${nav("Next",true)}`;
-  if(O.step===3){const sg=suggestFrom(d,d.weight);if(!d.targets)d.targets=sg?{kcal:sg.kcal,protein:sg.protein,carbs:sg.carbs,fat:sg.fat}:{...DEFAULT_TARGETS};const t=d.targets;
+  if(O.step===3)body=`<h1>Health check</h1>${healthForm(d.health||(d.health={}),"ob")}${nav("Next",true)}`;
+  if(O.step===4&&d.minor)body=`<h1>Daily targets</h1><div class="hint"><b>Project Fitness is designed for adults.</b><span class="small">As you're under 18, please use it with a parent or guardian's permission and your coach's guidance. Calorie and macro numbers are switched off. Focus on regular meals, good sleep and enjoying training.</span></div>${nav()}`;
+  else if(O.step===4){const sg=suggestFrom(d,d.weight);if(!d.targets)d.targets=sg?{kcal:sg.kcal,protein:sg.protein,carbs:sg.carbs,fat:sg.fat}:{...DEFAULT_TARGETS};const t=d.targets;
     body=`<h1>Daily targets</h1><p class="sub" style="font-size:14px">${sg?`Suggested from your details (maintenance about ${sg.tdee.toLocaleString("en-GB")} kcal). Adjust if your coach gave you numbers.`:"Starting numbers. Add your details later in Settings to get personal suggestions, or type your coach's numbers."}</p>
-    <div class="grid2">${MK.map(k=>`<label class="field"><span class="label">${MAC[k].label} (${MAC[k].unit})</span><input id="ob_t_${k}" type="number" step="any" inputmode="numeric" data-act="obT" data-k="${k}" value="${t[k]}"></label>`).join("")}</div>${nav()}`}
-  if(O.step===4)body=`<h1>Daily habits</h1><p class="sub" style="font-size:14px">Pick a few to tick off each day. Small and repeatable works best.</p>
+    <div class="grid2">${MK.map(k=>`<label class="field"><span class="label">${MAC[k].label} (${MAC[k].unit})</span><input id="ob_t_${k}" type="number" step="any" inputmode="numeric" data-act="obT" data-k="${k}" value="${t[k]}"></label>`).join("")}</div><div id="obWarn">${lowKcalWarn(t.kcal,d.sex)}</div>${sg&&sg.capped?`<span class="small muted">Your goal would have gone lower, so this is set at the safe minimum.</span>`:""}${nav()}`}
+  if(O.step===5)body=`<h1>Daily habits</h1><p class="sub" style="font-size:14px">Pick a few to tick off each day. Small and repeatable works best.</p>
     <div class="stack" style="gap:2px">${[...new Set([...HABIT_IDEAS,...d.habits])].map(h=>`<label class="habit"><input type="checkbox" data-act="obHabit" data-h="${esc(h)}" ${d.habits.includes(h)?"checked":""}><span>${esc(h)}</span></label>`).join("")}</div>
     <form class="row" id="obHabitForm" style="flex-wrap:nowrap"><input id="ob_newhabit" placeholder="Add your own" autocomplete="off"><button class="btn" type="submit">Add</button></form>${nav("Finish")}`;
   return `<div class="onboard stack">${dots}${body}</div>`}
 function finishOnboard(skip){const d=S.onboard.d,name=(d.name||"").trim()||activeProf().name;
   const pr={...(S.docs.profile||{}),type:"profile",name,onboarded:true};
-  if(!skip){Object.assign(pr,{goal:d.goal,activity:d.activity,dob:d.dob,sex:d.sex,height:d.height?+d.height:"",weight:d.weight?+d.weight:""})}
+  if(!skip){Object.assign(pr,{goal:d.goal,activity:d.activity,dob:d.dob,sex:d.sex,height:d.height?+d.height:"",weight:d.weight?+d.weight:""});
+    if(d.health&&HEALTH_Q.every(([k])=>d.health[k])&&d.health.consent)pr.health=healthRecord(d.health);
+    if(d.minor){pr.minor=true;pr.habitsOnly=true}}
   S.onboard=null;save("profile",pr);
-  if(!skip){const st=clone(settings());if(d.targets)st.targets={kcal:+d.targets.kcal||0,protein:+d.targets.protein||0,carbs:+d.targets.carbs||0,fat:+d.targets.fat||0};st.habits=d.habits;save("settings",st);
+  if(!skip){const st=clone(settings());if(d.targets&&!d.minor)st.targets={kcal:+d.targets.kcal||0,protein:+d.targets.protein||0,carbs:+d.targets.carbs||0,fat:+d.targets.fat||0};st.habits=d.habits;save("settings",st);
     if(d.weight){const k=todayKey();save("body_"+k,{type:"body",date:k,weight:+d.weight})}}
   activeProf().name=name;saveProf();S.tab="today";render();window.scrollTo(0,0);toast(skip?"You can finish setup any time in Settings":"All set, "+name.split(" ")[0]+". Let's go 💪")}
 
+
+
+/* ---------- health check (based on the general questions of the PAR-Q+) ---------- */
+const HEALTH_Q=[
+  ["heart","Has a doctor ever said you have a heart condition or high blood pressure?"],
+  ["chest","Do you get chest pain at rest, during daily activities, or when you exercise?"],
+  ["dizzy","Do you lose balance because of dizziness, or have you lost consciousness in the last 12 months?"],
+  ["chronic","Have you been diagnosed with another long-term medical condition (other than heart disease or high blood pressure)?"],
+  ["meds","Are you currently taking prescribed medication for a long-term medical condition?"],
+  ["joint","Do you have a bone, joint or muscle problem (now or in the last 12 months) that could get worse with more exercise?"],
+  ["supervised","Has a doctor ever said you should only exercise under medical supervision?"],
+  ["pregnant","Are you pregnant, or have you given birth in the last 6 months?"]];
+function healthForm(h,prefix){const yes=HEALTH_Q.filter(([k])=>h[k]==="yes"),done=HEALTH_Q.every(([k])=>h[k]);
+  return `<p class="sub" style="font-size:14px;margin:0">A quick safety check before you train. Answer honestly. It's a screening questionnaire, not a medical assessment.</p>
+    <div class="stack" style="gap:0">${HEALTH_Q.map(([k,q])=>`<div class="hq"><span class="small">${q}</span><div class="yn" role="group" aria-label="${esc(q)}">${["no","yes"].map(v=>`<button data-act="hq" data-p="${prefix}" data-k="${k}" data-v="${v}" aria-pressed="${h[k]===v}">${v==="yes"?"Yes":"No"}</button>`).join("")}</div></div>`).join("")}</div>
+    ${yes.length?`<div class="hint"><b>Please check with your GP before starting or increasing exercise.</b><span class="small">You answered yes to ${yes.length} question${yes.length===1?"":"s"}. Let your coach know too. Stop and get medical help straight away if you have chest pain, faint, or feel severely breathless while exercising.</span></div>`
+      :done?`<div class="small good">All clear. If anything changes, update this in Settings → Profile & account.</div>`:""}
+    <label class="habit"><input type="checkbox" data-act="hqConsent" data-p="${prefix}" ${h.consent?"checked":""}><span class="small">I agree to these answers being stored in Project Fitness. They're health information, kept on this phone (and my account if I sign in), and only shared with a coach if I choose to.</span></label>`}
+const healthRecord=h=>({answers:Object.fromEntries(HEALTH_Q.map(([k])=>[k,h[k]])),date:todayKey(),flagged:HEALTH_Q.some(([k])=>h[k]==="yes"),consent:true});
+function healthPanel(){const p=S.docs.profile||{},hr=p.health,draft=S.healthDraft;
+  if(draft)return `<section class="panel"><h2>Health check</h2>${healthForm(draft,"set")}<div class="row"><button class="btn primary" data-act="hqSave">Save health check</button><button class="btn" data-act="hqCancel">Cancel</button></div></section>`;
+  const old=hr&&hr.date<addDays(todayKey(),-365);
+  return `<section class="panel"><h2>Health check</h2>
+    <div class="small">${!hr?"Not done yet.":hr.flagged?`<b style="color:var(--protein)">Check with your GP</b> before increasing exercise (done ${fmtDay(hr.date)}).`:`<span class="good"><b>All clear</b></span> (done ${fmtDay(hr.date)}).`}${old?" It's over a year old, so please update it.":""}</div>
+    <button class="btn${!hr||old?" primary":""}" style="align-self:flex-start" data-act="hqStart">${hr?"Update health check":"Do the health check"}</button>
+    ${hr?`<label class="habit"><input type="checkbox" data-act="shareHealth" ${p.shareHealth?"checked":""}><span class="small">Share my health check result with my coach (in progress reports)</span></label>`:""}</section>`}
 
 /* ---------- training templates ---------- */
 function renderTemplates(){const T=ofType("template").sort((a,b)=>String(a.name).localeCompare(String(b.name)));
@@ -961,17 +1013,18 @@ function addPhotoFile(file){const img=new Image(),url=URL.createObjectURL(file);
   img.onerror=()=>{URL.revokeObjectURL(url);toast("Couldn't open that image")};img.src=url}
 /* ---------- backup reminder ---------- */
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
-function backupBanner(){if(S.example||(window.Cloud&&Cloud.signedIn&&Cloud.signedIn()))return"";const pid=PROF.active,now=Date.now();
+function backupBanner(){if(S.example)return"";const cloud=!!(window.Cloud&&Cloud.signedIn&&Cloud.signedIn()),pid=PROF.active,now=Date.now();
   if(!lsGet("pf-firstuse:"+pid))lsSet("pf-firstuse:"+pid,String(now));
   const last=+lsGet("pf-lastbackup:"+pid)||+lsGet("pf-firstuse:"+pid),snooze=+lsGet("pf-backupsnooze:"+pid)||0,n=Object.values(S.docs).filter(d=>d&&["day","workout","body","checkin"].includes(d.type)).length;
-  if(n<5||now<snooze||now-last<14*864e5)return"";
+  if(n<5||now<snooze||now-last<(cloud?30:14)*864e5)return"";
   const days=Math.floor((now-last)/864e5),never=!lsGet("pf-lastbackup:"+pid);
-  return `<div class="banner"><span>💾 ${never?"You haven't backed up yet.":`Last backup was ${days} days ago.`} Your data only lives on this phone.</span><span class="row" style="gap:2px"><button class="btn ghost" data-act="exportData">Back up now</button><button class="btn ghost" data-act="snoozeBackup">Later</button></span></div>`}
+  return `<div class="banner"><span>💾 ${never?"You haven't backed up yet.":`Last backup was ${days} days ago.`} ${cloud?"Your account keeps a copy, but a monthly download is a good extra safety net.":"Your data only lives on this phone."}</span><span class="row" style="gap:2px"><button class="btn ghost" data-act="exportData">Back up now</button><button class="btn ghost" data-act="snoozeBackup">Later</button></span></div>`}
 
 
 /* ---------- cloud account & sync (Supabase) ----------
    Fill these two in from your Supabase project (Project Settings → API). The anon key is meant to be public:
    Row Level Security in supabase-setup.sql makes sure each person can only read and write their own data. */
+const PRIVACY_VERSION="2026-10-23";
 const CLOUD_URL="https://agcmdqfjyiiolnuvgzbw.supabase.co";
 const CLOUD_KEY="sb_publishable_EeQg53Agaz6608nVONXx3A_2SJ2MFU8";
 const CL={user:null,status:CLOUD_URL?"loading":"off",last:0,err:"",links:null,code:undefined,syncedOnce:false};
@@ -1040,7 +1093,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,notes:old.notes||"",weeks:j.weeks||[],_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",weeks:j.weeks||[],_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 async function unlinkClient(clientUid){const c=await sbClient();if(!c||!CL.user)return;await c.from("reports").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id);await c.from("coach_links").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id)}
 /* auth */
@@ -1050,17 +1103,24 @@ async function doAuth(kind){const c=await sbClient();if(!c){toast("Can't reach t
   if(!email||!/@/.test(email)){toast("Enter your email");return}
   if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});CL.authHint=null;cloudRender();toast(error?authMsg(error):"Password reset email sent to "+email);return}
   if(pw.length<8){toast("Password must be at least 8 characters");return}
+  if(kind==="up"&&!(document.getElementById("au_consent")||{}).checked){CL.authHint=CL.authHint||{email,pw};CL.authHint.email=email;CL.authHint.pw=pw;toast("Tick the box to agree to the privacy notice first");document.getElementById("au_consent")?.focus();return}
   CL.busy=true;cloudRender();
-  const {data,error}=kind==="up"?await c.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname}}):await c.auth.signInWithPassword({email,password:pw});
+  const {data,error}=kind==="up"?await c.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname,data:{privacy_version:PRIVACY_VERSION,privacy_accepted_at:new Date().toISOString()}}}):await c.auth.signInWithPassword({email,password:pw});
   CL.busy=false;
   if(error){const m=error.message||"";
     // Supabase answers the same for "no account" and "wrong password", so offer both next steps
     if(kind==="in"&&/Invalid login/i.test(m)){CL.authHint={type:"nomatch",email,pw};cloudRender();return}
     if(kind==="up"&&/already registered/i.test(m)){CL.authHint={type:"exists",email};cloudRender();return}
     toast(authMsg(error));cloudRender();return}
-  CL.authHint=null;
+  CL.authHint=null;if(kind==="up")save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),consent:{privacy:PRIVACY_VERSION,at:new Date().toISOString()}});
   if(kind==="up"&&!data.session){toast("Check your email to confirm your account, then sign in here");cloudRender();return}
   CL.user=data.user;CL.status="ok";toast("Signed in. Syncing your data");fullSync()}
+async function deleteAccount(){const c=await sbClient();if(!c||!CL.user)return;const {error}=await c.rpc("delete_my_account");
+  if(error){toast(/function|not find|schema/i.test(error.message)?"Account deletion isn't set up on the server yet. Ask your coach to run the update":"Couldn't delete: "+error.message);return}
+  try{await c.auth.signOut()}catch(e){}["lastpull","synced","dirty","tomb"].forEach(k=>{try{localStorage.removeItem(ckey(k))}catch(e){}});try{localStorage.removeItem("pf-sb-"+PROF.active)}catch(e){}
+  Object.assign(CL,{user:null,status:"signedout",links:null,code:undefined});
+  if(CL.delLocal){S.docs={settings:clone(DEFAULT_SETTINGS),profile:{type:"profile",name:activeProf().name}};saveLocal();try{const rows=await phTx("readonly",st=>st.index("user").getAllKeys(IDBKeyRange.only(PROF.active)));await phTx("readwrite",st=>{rows.forEach(k=>st.delete(k))})}catch(e){}S.photosFor=null;afterLoad()}
+  render();toast("Your account has been deleted")}
 async function signOut(){const c=await sbClient();if(c)await c.auth.signOut();["lastpull","synced","dirty","tomb"].forEach(k=>{try{localStorage.removeItem(ckey(k))}catch(e){}});
   Object.assign(CL,{user:null,status:"signedout",links:null,code:undefined});render();toast("Signed out. Your data stays on this phone")}
 function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coach&&CL.user&&CL.code===undefined&&!CL.codeLoading){CL.codeLoading=true;loadCode().finally(()=>CL.codeLoading=false)}
@@ -1075,6 +1135,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
         <div class="row"><button class="btn primary" type="button" data-act="signUp">Create account</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
       ${CL.authHint&&CL.authHint.type==="exists"?`<div class="hint"><b>You already have an account with this email.</b><span class="small">Sign in with your password instead, or reset it if you've forgotten.</span>
         <div class="row"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
+      <label class="habit"><input type="checkbox" id="au_consent" ${CL.consent?"checked":""} data-act="auConsent"><span class="small">New accounts: I've read the <a href="privacy.html" target="_blank" rel="noopener">privacy notice</a> and agree to my data being stored in my account.</span></label>
       <div class="row"><button class="btn primary" type="submit" ${CL.busy?"disabled":""}>Sign in</button><button class="btn" type="button" data-act="signUp" ${CL.busy?"disabled":""}>Create account</button><button class="btn ghost" type="button" data-act="forgotPw">Forgot password?</button></div></form></section>
     <section class="panel"><h2>Privacy</h2><p class="small" style="margin:0">Only you can read your account's data. If you link a coach, they receive weekly summaries only, never individual meals, photos or your contact details. Progress photos never leave this phone.</p></section>`;
   return `<section class="panel"><h2>Signed in</h2><div class="small"><b>${esc(CL.user.email||"")}</b></div>
@@ -1086,7 +1147,10 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
     ${CL.links&&CL.links.length?`<div class="hist">${CL.links.map(l=>`<div class="item"><div class="spread"><b>${esc(l.coach_name||"Coach")}</b><button class="btn ghost" style="color:var(--protein)" data-act="unlinkCoach" data-id="${l.coach_id}">Stop sharing</button></div>
       <label class="habit"><input type="checkbox" data-act="linkNotes" data-id="${l.coach_id}" ${l.include_notes?"checked":""}><span class="small">Include my check-in notes</span></label></div>`).join("")}</div>`:""}
     <form id="linkForm" class="row" style="flex-wrap:nowrap"><input id="lk_code" placeholder="Coach code, e.g. K7P2QX" autocomplete="off" autocapitalize="characters" maxlength="8"><button class="btn" type="submit">Link</button></form>
-    <span class="small muted">Your coach gets weekly summaries (weight, measurements, nutrition averages, habits, training, check-in scores), updated as you log. Never individual meals, photos or contact details. Stop sharing any time.</span></section>`}
+    <span class="small muted">Your coach gets weekly summaries (weight, measurements, nutrition averages, habits, training, check-in scores), updated as you log. Never individual meals, photos or contact details. Stop sharing any time.</span></section>
+  <section class="panel"><h2>Delete my account</h2><p class="small" style="margin:0">Permanently deletes your account and everything stored in it online, including any coach links and shared reports. This can't be undone. <a href="privacy.html" target="_blank" rel="noopener">Privacy notice</a></p>
+    <label class="habit"><input type="checkbox" id="delLocal" ${CL.delLocal?"checked":""} data-act="delLocal"><span class="small">Also delete everything on this phone</span></label>
+    <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="deleteAccount">${CL.confirmDel?"Tap again to delete for good":"Delete my account"}</button></section>`}
 
 /* ---------- settings ---------- */
 const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
@@ -1097,10 +1161,12 @@ const latestWeight=()=>{if(S.example)return null;const b=ofType("body").find(x=>
 function ageFrom(dob){if(!dob)return null;const d=new Date(dob),n=new Date();let a=n.getFullYear()-d.getFullYear();if(n<new Date(n.getFullYear(),d.getMonth(),d.getDate()))a--;return a>0&&a<110?a:null}
 function suggestTargets(){const p=S.docs.profile||{};return suggestFrom(p,latestWeight()||p.weight)}
 function suggestFrom(p,wt){const w=+wt,h=+p.height,a=ageFrom(p.dob);
-  if(!w||!h||!a||!p.sex||!p.activity)return null;
-  const tdee=(10*w+6.25*h-5*a+(p.sex==="m"?5:-161))*(+p.activity),adj={lose:0.8,maintain:1,gain:1.1,perform:1.05}[p.goal]||1;
-  const kcal=Math.round(tdee*adj/10)*10,protein=Math.round(w*(p.goal==="lose"?2.2:2)),fat=Math.round(kcal*0.25/9),carbs=Math.max(0,Math.round((kcal-protein*4-fat*9)/4));
-  return {kcal,protein,carbs,fat,tdee:Math.round(tdee)}}
+  if(!w||!h||!a||!p.sex||!p.activity||a<18)return null;
+  const bmr=10*w+6.25*h-5*a+(p.sex==="m"?5:-161),tdee=bmr*(+p.activity),adj={lose:0.8,maintain:1,gain:1.1,perform:1.05}[p.goal]||1;
+  // never suggest below the sex-based minimum or below resting needs (BMR)
+  const floor=Math.max(kcalFloor(p.sex),Math.ceil(bmr/10)*10),raw=Math.round(tdee*adj/10)*10,capped=raw<floor;
+  const kcal=Math.max(raw,floor),protein=Math.round(w*(p.goal==="lose"?2.2:2)),fat=Math.round(kcal*0.25/9),carbs=Math.max(0,Math.round((kcal-protein*4-fat*9)/4));
+  return {kcal,protein,carbs,fat,tdee:Math.round(tdee),capped,floor}}
 function renderSettings(){const pg=S.setPage,me=activeProf(),pr=S.docs.profile||{};
   if(!pg)return `<header class="top"><div><h1>Settings</h1><div class="sub">Using as ${esc(me.name)}</div></div></header>
     <div class="stack"><section class="panel"><div class="who-row"><span class="avatar big">${esc(initials(me.name))}</span><div style="min-width:0"><b style="font-size:17px">${esc(me.name)}</b><div class="small muted">${esc([GOALS[pr.goal],pr.email].filter(Boolean).join(" · ")||"Add your details in Profile & account")}</div></div></div>
@@ -1125,12 +1191,13 @@ function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??
     <label class="field"><span class="label">Notes (injuries, preferences, anything to remember)</span><textarea id="pf_notes">${v("notes")}</textarea></label>
     <button class="btn primary" type="submit">Save details</button></form>
     <span class="small muted">Changing weight here also logs a weigh-in for today on the Body tab.</span></section>
+  ${healthPanel()}
   <section class="panel"><h2>Guided setup</h2><p class="small" style="margin:0">Walk through goal, details, targets and habits again.</p><button class="btn" style="align-self:flex-start" data-act="setupAgain">Run setup again</button></section>
   <section class="panel"><h2>Coach tools</h2><label class="habit"><input type="checkbox" data-act="coachMode" ${p.coach?"checked":""}><span>I'm a coach. Show a Clients view in Check-in.</span></label>
     <span class="small muted">Only on this profile. Clients send you progress reports from their own app, so you never need to open their account.</span></section>
   <section class="panel"><h2>Suggested targets</h2>${s?`<div class="kcal"><span class="small muted">Maintenance ≈ ${s.tdee.toLocaleString("en-GB")} kcal</span><b>${s.kcal.toLocaleString("en-GB")} kcal</b></div>
     <div class="small" style="font-variant-numeric:tabular-nums">Protein ${s.protein}g · Carbs ${s.carbs}g · Fat ${s.fat}g</div>
-    <span class="small muted">A starting point using the Mifflin-St Jeor formula and the goal above. Review after 2–3 weeks of weigh-ins.</span>
+    <span class="small muted">A starting point using the Mifflin-St Jeor formula and the goal above. Suggestions never go below ${s.floor.toLocaleString("en-GB")} kcal${s.capped?" (your goal would have gone lower, so it's been raised to this safe minimum)":""}. Review after 2–3 weeks of weigh-ins.</span>
     <button class="btn" style="align-self:flex-start" data-act="applySuggest">Use these as my targets</button>`
     :`<p class="small muted" style="margin:0">Fill in date of birth, sex, height, weight and activity level, then save, to get suggested calories and macros.</p>`}</section>`}
 function setUsers(){const me=activeProf();
@@ -1146,7 +1213,10 @@ function setUsers(){const me=activeProf();
     ${me.pin?`<button class="btn ghost" style="align-self:flex-start" data-act="clearPin">Remove PIN</button>`:""}
     <span class="small muted">A PIN stops someone casually opening another person's profile on a shared phone. It's basic protection, not bank-level security.</span></section>
   <section class="panel"><h2>Friends on their own phones</h2><p class="small" style="margin:0">Send them your app's web address. When they open it on their phone, it starts fresh and their data stays on their phone, separate from yours.</p></section>`}
-function setTargets(){return `<section class="panel"><h2>Nutrition targets</h2>${renderTargets()}</section>
+function setTargets(){const p=S.docs.profile||{};return `<section class="panel"><h2>Habits-only mode</h2>
+    <label class="habit"><input type="checkbox" data-act="habitsOnly" ${p.habitsOnly?"checked":""}><span>Hide calorie and macro numbers</span></label>
+    <span class="small muted">${p.minor?"Always on for under-18s.":"Food logging still works, but you see meals, portions and habits instead of numbers. Useful if counting feels stressful, or if your coach suggests it."}</span></section>
+  ${p.habitsOnly?"":`<section class="panel"><h2>Nutrition targets</h2>${renderTargets()}</section>`}
   <section class="panel"><div class="spread"><h2>Daily habits</h2>${S.editHabits?"":`<button class="btn ghost" data-act="editHabits">Edit</button>`}</div>
     ${S.editHabits?renderHabitEditor():`<div class="small" style="line-height:1.9">${settings().habits.map(esc).join("<br>")||'<span class="muted">No habits yet.</span>'}</div>`}</section>`}
 function setData(){const me=activeProf(),n=Object.values(S.docs).filter(d=>d&&d.type&&!["settings","profile"].includes(d.type)).length;
@@ -1256,7 +1326,9 @@ document.addEventListener("click",e=>{
     case "obBack":S.onboard.step=Math.max(0,S.onboard.step-1);render();window.scrollTo(0,0);break;
     case "obSkip":finishOnboard(true);break;
     case "obNext":{const O=S.onboard;if(O.step===0&&!O.d.name.trim()){toast("Add your name to continue");document.getElementById("ob_name")?.focus();break}
-      if(O.step===2)O.d.targets=null;if(O.step>=4){finishOnboard(false);break}O.step++;render();window.scrollTo(0,0);break}
+      if(O.step===2){O.d.targets=null;const a=ageFrom(O.d.dob);O.d.minor=a!=null&&a<18}
+      if(O.step===3&&!ds.skip){const h=O.d.health||{};if(HEALTH_Q.some(([k])=>!h[k])){toast("Answer each question with yes or no, or tap Skip");break}if(!h.consent){toast("Tick the box to agree to your answers being stored");break}}
+      if(O.step>=5){finishOnboard(false);break}O.step++;render();window.scrollTo(0,0);break}
     case "setupAgain":{const p=S.docs.profile||{};S.onboard={step:0,d:{name:p.name||activeProf().name,goal:p.goal||"",activity:p.activity||"",dob:p.dob||"",sex:p.sex||"",height:p.height||"",weight:latestWeight()||p.weight||"",habits:[...(settings().habits||[])],targets:null}};render();window.scrollTo(0,0);break}
     case "bodyAll":S.bodyAll=!S.bodyAll;render();break;
     case "pose":S.pose=ds.v;render();break;
@@ -1267,11 +1339,17 @@ document.addEventListener("click",e=>{
     case "delPhoto":if(!S.viewPhoto.confirm){S.viewPhoto.confirm=true;render();break}phTx("readwrite",st=>st.delete(ds.id)).then(()=>{S.viewPhoto=null;S.photosFor=null;render();toast("Photo deleted")});break;
     case "snoozeBackup":lsSet("pf-backupsnooze:"+PROF.active,String(Date.now()+3*864e5));render();break;
     case "signUp":doAuth("up");break;
+    case "deleteAccount":if(!CL.confirmDel){CL.confirmDel=true;render();setTimeout(()=>{CL.confirmDel=false;cloudRender()},6000);break}CL.confirmDel=false;deleteAccount();break;
     case "forgotPw":doAuth("forgot");break;
     case "signOut":signOut();break;
     case "syncNow":fullSync();break;
     case "newCode":makeCode();break;
     case "unlinkCoach":unlinkCoach(ds.id);break;
+    case "hq":{const h=ds.p==="ob"?(S.onboard.d.health||(S.onboard.d.health={})):S.healthDraft;h[ds.k]=ds.v;render();break}
+    case "hqStart":S.healthDraft={...(((S.docs.profile||{}).health||{}).answers||{})};render();break;
+    case "hqCancel":S.healthDraft=null;render();break;
+    case "hqSave":{const h=S.healthDraft;if(HEALTH_Q.some(([k])=>!h[k])){toast("Answer each question with yes or no");break}if(!h.consent){toast("Tick the box to agree to your answers being stored");break}
+      S.healthDraft=null;const rec=healthRecord(h);save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),health:rec});toast(rec.flagged?"Saved. Please check with your GP before increasing exercise":"Saved. All clear");break}
     case "setPage":S.setPage=ds.v||null;S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
     case "lockCancel":S.lock=null;render();break;
@@ -1292,11 +1370,11 @@ document.addEventListener("click",e=>{
     case "addRes":{const r=S.results[+ds.i];const id0="day_"+S.day,prev0=S.docs[id0]?clone(S.docs[id0]):null;const x=editDay();const m={kcal:Math.round(+r.kcal||0),protein:r1(+r.protein_g||0),carbs:r1(+r.carbs_g||0),fat:r1(+r.fat_g||0)};
       const per100=r.serving==="per 100g",it=per100?{name:r.name,unit:"g",unitG:1,qty:100,base:{kcal:m.kcal/100,protein:m.protein/100,carbs:m.carbs/100,fat:m.fat/100}}:{name:r.name,unit:r.serving||"serving",unitG:(String(r.serving||"").match(/(\d+(?:\.\d+)?)\s*g\b/)||[])[1]*1||null,qty:1,base:m};
       x.foods=(x.foods||[]).concat([{...it,...m,meal:S.addTo}]);S.meal=null;
-      S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added to "+mealName(S.addTo)+" · "+macroLeft(),{undo:()=>restoreDoc(id0,prev0)});break}
+      S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added to "+mealName(S.addTo)+ML(),{undo:()=>restoreDoc(id0,prev0)});break}
     case "newFood":S.editFood="new";render();document.getElementById("ef_name")?.focus();break;
     case "editFood":S.editFood=+ds.i;render();document.getElementById("ef_name")?.focus();break;
     case "cancelFood":S.editFood=null;render();break;
-    case "delFood":{const id="day_"+S.day,prev=clone(dayDoc(S.day)),x=d();x.foods.splice(+ds.i,1);S.editFood=null;save(id,x);toast("Deleted · "+macroLeft(),{undo:()=>restoreDoc(id,prev)});break}
+    case "delFood":{const id="day_"+S.day,prev=clone(dayDoc(S.day)),x=d();x.foods.splice(+ds.i,1);S.editFood=null;save(id,x);toast("Deleted"+ML(),{undo:()=>restoreDoc(id,prev)});break}
     case "tplStart":startTemplate(ds.id);break;
     case "tplFromDraft":saveTemplate(S.draftWorkout.name,S.draftWorkout.exercises);break;
     case "tplFromWo":{const w=S.docs[ds.id];if(w)saveTemplate(w.name,w.exercises);break}
@@ -1328,7 +1406,12 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="habit"){const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
   if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
   if(ds.act==="obHabit"){const H=S.onboard.d.habits;if(t.checked){if(!H.includes(ds.h))H.push(ds.h)}else S.onboard.d.habits=H.filter(x=>x!==ds.h)}
+  if(ds.act==="auConsent"){CL.consent=t.checked}
+  if(ds.act==="delLocal"){CL.delLocal=t.checked}
   if(ds.act==="linkNotes"){setNotes(ds.id,t.checked)}
+  if(ds.act==="hqConsent"){const h=ds.p==="ob"?(S.onboard.d.health||(S.onboard.d.health={})):S.healthDraft;h.consent=t.checked}
+  if(ds.act==="shareHealth"){save("profile",{...(S.docs.profile||{}),shareHealth:t.checked});window.Cloud&&CL.user&&pushReports(true)}
+  if(ds.act==="habitsOnly"){const p=S.docs.profile||{type:"profile",name:activeProf().name};if(p.minor&&!t.checked){t.checked=true;toast("Numbers stay hidden for under-18s");return}save("profile",{...p,habitsOnly:t.checked});toast(t.checked?"Numbers hidden. Focus on habits and portions":"Calorie and macro numbers shown")}
   if(ds.act==="coachMode"){save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),coach:t.checked});if(t.checked){S.ciView="clients"};toast(t.checked?"Clients view added to Check-in":"Coach tools off")}
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
@@ -1345,7 +1428,7 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;
     if(LIB_GROUP[exKey(t.value)]||exHistory(t.value).length)render()} // picked from the list: show last time straight away
   if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
-  if(ds.act==="obT"){S.onboard.d.targets[ds.k]=t.value}
+  if(ds.act==="obT"){S.onboard.d.targets[ds.k]=t.value;if(ds.k==="kcal"){const w=document.getElementById("obWarn");if(w)w.innerHTML=lowKcalWarn(t.value,S.onboard.d.sex)}}
   if(ds.act==="exFilter"){S.exFilter=t.value;render()}
   if(ds.act==="amtQty"||ds.act==="amtG"){const f=dayDoc(S.day).foods[S.editFood];if(!f||!f.base)return;
     const qty=ds.act==="amtG"?(f.unit==="g"?+t.value:+t.value/f.unitG):+t.value;if(!(qty>=0))return;
@@ -1364,7 +1447,7 @@ document.addEventListener("submit",e=>{e.preventDefault();
     f.meal=document.getElementById("ef_meal").value;
     if(f.base){const qe=document.getElementById("ef_qty"),ge=document.getElementById("ef_g");f.qty=f.unit==="g"?(+(ge&&ge.value)||0):(+(qe&&qe.value)||0)}
     const i=e.target.dataset.i;const x=i==="new"?editDay():clone(dayDoc(S.day));x.foods=x.foods||[];if(i==="new")x.foods.push(f);else x.foods[+i]=f;
-    S.editFood=null;save("day_"+S.day,x);toast((i==="new"?"Added · ":"Saved · ")+macroLeft());return}
+    S.editFood=null;save("day_"+S.day,x);toast((i==="new"?"Added":"Saved")+ML());return}
   if(e.target.id==="authForm"){doAuth("in");return}
   if(e.target.id==="linkForm"){const v=document.getElementById("lk_code").value.trim().toUpperCase();if(v.length<4){toast("Enter your coach's code");return}linkCoach(v);return}
   if(e.target.id==="pwForm"){const pw=document.getElementById("au_newpw").value;if(pw.length<8){toast("Password must be at least 8 characters");return}

@@ -1,6 +1,6 @@
 // Project Fitness service worker: works offline, always tries for the newest version first.
-const CACHE = "pf-v2";
-const CORE = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
+const CACHE = "pf-v3";
+const CORE = ["./", "./index.html", "./privacy.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)));
