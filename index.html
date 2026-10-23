@@ -1230,6 +1230,7 @@ function setAbout(){return `<section class="panel"><h2>Project Fitness</h2>
   <p class="small" style="margin:0">Users on one phone are kept separate. For clients to log on their own phones while you see their progress, the app would need real accounts and an online database. That's a later upgrade.</p>
   <h2 style="margin-top:6px">Install as an app</h2>
   <p class="small" style="margin:0"><b>iPhone:</b> open the app's web address in Safari, tap Share, then Add to Home Screen.<br><b>Android:</b> open it in Chrome, tap ⋮, then Install app (or Add to Home screen).<br>It then opens full screen with its own icon and works offline.</p>
+  <a class="btn" style="align-self:flex-start;text-decoration:none" href="privacy.html" target="_blank" rel="noopener">Read the privacy notice</a>
   <p class="small muted" style="margin:0">Food data: built-in UK list and Open Food Facts. Calorie suggestions: Mifflin-St Jeor.</p></section>`}
 function renderLock(){const L=S.lock,p=PROF.list.find(x=>x.id===L.id)||{},others=PROF.list.filter(x=>x.id!==L.id);
   return `<div class="stack" style="max-width:340px;margin:10vh auto 0"><div style="text-align:center"><span class="avatar big" style="margin:0 auto">${esc(initials(p.name))}</span><h1 style="margin-top:12px">${esc(p.name)}</h1><div class="sub">Enter PIN to open this profile</div></div>
