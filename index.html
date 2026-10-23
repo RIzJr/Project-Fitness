@@ -410,15 +410,16 @@ function renderTrain(){
       <div class="set"><span></span><span class="label">kg</span><span class="label">Reps</span><span class="label" style="text-align:center">Done</span><span></span></div>
       ${ex.sets.map((s,si)=>`<div class="set"><span class="n">${si+1}</span><input type="number" inputmode="decimal" step="0.5" id="kg${ei}_${si}" value="${s.kg??""}" data-act="setKg" data-ei="${ei}" data-si="${si}"><input type="number" inputmode="numeric" id="rp${ei}_${si}" value="${s.reps??""}" data-act="setReps" data-ei="${ei}" data-si="${si}"><button class="done" data-act="setDone" data-ei="${ei}" data-si="${si}" aria-pressed="${!!s.done}" aria-label="Set ${si+1} done, start rest timer">✓</button><button class="x" data-act="delSet" data-ei="${ei}" data-si="${si}" aria-label="Remove set">×</button></div>`).join("")}
       <button class="btn ghost" style="align-self:flex-start" data-act="addSet" data-ei="${ei}">+ Add set</button></div>`).join("")}
-    <div class="row"><button class="btn" data-act="addEx">+ Add exercise</button><button class="btn primary" data-act="saveWo">Save session</button></div></section>`}
+    <div class="row"><button class="btn" data-act="addEx">+ Add exercise</button><button class="btn primary" data-act="saveWo">Save session</button></div>
+    <button class="btn ghost" style="align-self:flex-start;padding-left:0" data-act="tplFromDraft">Save as template</button></section>`}
   const hist=wo.map(w=>{const sets=w.exercises.reduce((s,e)=>s+e.sets.length,0);const vol=w.exercises.reduce((s,e)=>s+e.sets.reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0),0);
     return `<div class="item"><div class="spread"><b>${esc(w.name||"Session")}</b><span class="small muted">${fmtDay(w.date)}</span></div>
     <div class="small muted" style="font-variant-numeric:tabular-nums">${w.exercises.length} exercises · ${sets} sets · ${Math.round(vol).toLocaleString("en-GB")} kg volume</div>
     <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${e.sets.map(s=>`${fmtN(+s.kg||0)}×${s.reps||0}`).join(", ")}`).join("<br>")}</div>
-    <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`}).join("");
+    <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="tplFromWo" data-id="${w.id}">Save as template</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`}).join("");
   return `${exampleBanner()}<header class="top"><div><h1>Train</h1><div class="sub">Sessions, sets and volume</div></div>${dw?"":`<button class="btn primary" data-act="newWo">New session</button>`}</header>
   <datalist id="exlib">${exOptions()}</datalist>
-  <div class="stack">${editor}${renderExercises()}<section class="panel"><h2>Session history</h2><div class="hist">${hist||'<p class="muted small" style="margin:0">No sessions yet. Tap New session to log your first workout.</p>'}</div></section></div>`;
+  <div class="stack">${dw?"":renderTemplates()}${editor}${renderExercises()}<section class="panel"><h2>Session history</h2><div class="hist">${hist||'<p class="muted small" style="margin:0">No sessions yet. Tap New session to log your first workout.</p>'}</div></section></div>`;
 }
 
 /* ---------- exercise library + per-exercise history ---------- */
@@ -887,6 +888,23 @@ function finishOnboard(skip){const d=S.onboard.d,name=(d.name||"").trim()||activ
     if(d.weight){const k=todayKey();save("body_"+k,{type:"body",date:k,weight:+d.weight})}}
   activeProf().name=name;saveProf();S.tab="today";render();window.scrollTo(0,0);toast(skip?"You can finish setup any time in Settings":"All set, "+name.split(" ")[0]+". Let's go 💪")}
 
+
+/* ---------- training templates ---------- */
+function renderTemplates(){const T=ofType("template").sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  return `<section class="panel"><div class="spread"><h2>Templates</h2>${T.length?`<span class="label">${T.length}</span>`:""}</div>
+    ${T.length?`<div class="hist">${T.map(t=>`<div class="item spread"><span style="min-width:0"><b>${esc(t.name)}</b><span class="small muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.exercises.map(e=>esc(e.name)).join(" · ")}</span></span>
+      <span class="row" style="gap:0;flex-wrap:nowrap;flex:none"><button class="btn primary" data-act="tplStart" data-id="${t.id}">Start</button><button class="x" data-act="tplDel" data-id="${t.id}" aria-label="Delete template ${esc(t.name)}">×</button></span></div>`).join("")}</div>`
+    :`<p class="small muted" style="margin:0">Save any session as a template (e.g. "Upper A") and start it in one tap next time, with last session's weights filled in.</p>`}</section>`}
+function saveTemplate(name,exercises){name=String(name||"").trim();if(!name){toast("Give the session a name first, e.g. Upper A");document.getElementById("woName")?.focus();return}
+  const ex=exercises.filter(e=>String(e.name||"").trim()).map(e=>({name:e.name.trim(),sets:Math.max(1,e.sets.length),reps:(e.sets.find(x=>x.reps)||{}).reps||""}));
+  if(!ex.length){toast("Add at least one exercise first");return}
+  const old=ofType("template").find(t=>exKey(t.name)===exKey(name)),id=old?old.id:"tpl_"+Date.now(),prev=old?clone(S.docs[id]):null;
+  save(id,{type:"template",date:todayKey(),name,exercises:ex});toast((old?"Updated":"Saved")+" template "+name,{undo:()=>restoreDoc(id,prev)})}
+function startTemplate(id){const t=S.docs[id];if(!t)return;
+  S.draftWorkout={type:"workout",date:todayKey(),name:t.name,exercises:t.exercises.map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];
+    return {name:e.name,sets:[...Array(e.sets)].map((_,i)=>{const ls=last[i]||last[last.length-1];return ls?{kg:ls.kg,reps:ls.reps}:{kg:"",reps:e.reps||""}})}})};
+  render();window.scrollTo(0,0);toast("Last session's weights filled in. Beat them if you can")}
+
 /* ---------- settings ---------- */
 const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
 const GOALS={lose:"Lose fat",maintain:"Maintain",gain:"Build muscle",perform:"Performance"};
@@ -1082,6 +1100,10 @@ document.addEventListener("click",e=>{
     case "editFood":S.editFood=+ds.i;render();document.getElementById("ef_name")?.focus();break;
     case "cancelFood":S.editFood=null;render();break;
     case "delFood":{const id="day_"+S.day,prev=clone(dayDoc(S.day)),x=d();x.foods.splice(+ds.i,1);S.editFood=null;save(id,x);toast("Deleted · "+macroLeft(),{undo:()=>restoreDoc(id,prev)});break}
+    case "tplStart":startTemplate(ds.id);break;
+    case "tplFromDraft":saveTemplate(S.draftWorkout.name,S.draftWorkout.exercises);break;
+    case "tplFromWo":{const w=S.docs[ds.id];if(w)saveTemplate(w.name,w.exercises);break}
+    case "tplDel":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Template deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "newWo":S.draftWorkout={type:"workout",date:todayKey(),name:"",exercises:[{name:"",sets:[{kg:"",reps:""}]}]};render();break;
     case "repeatWo":{const w=clone(S.docs[ds.id]);w.date=todayKey();w.exercises.forEach(e=>e.sets.forEach(s=>{}));S.draftWorkout=w;render();window.scrollTo(0,0);break}
     case "cancelWo":S.draftWorkout=null;render();break;
