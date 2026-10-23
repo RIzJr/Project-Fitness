@@ -81,6 +81,18 @@ textarea{resize:vertical;min-height:64px}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
 /* settings */
+.phgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.phthumb{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
+.phthumb img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:9px;background:var(--sunk)}
+.phthumb span{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phthumb:focus-visible img{outline:2px solid var(--accent);outline-offset:2px}
+.viewer{position:fixed;inset:0;z-index:20;background:#000;color:#fff;display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
+.vbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0}
+.vbar .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.4)}
+.vimgs{flex:1;min-height:0;display:grid;gap:6px}.vimgs.two{grid-template-columns:1fr 1fr}
+.vimgs figure{margin:0;min-height:0;display:flex;flex-direction:column;gap:4px}
+.vimgs img{flex:1;min-height:0;width:100%;object-fit:contain}
+.vimgs figcaption{font-size:12px;text-align:center;opacity:.8}
 .onboard{max-width:480px;margin:4vh auto 0;padding-bottom:40px}
 .onboard h1{font-size:38px}
 .obdots{display:flex;gap:6px}.obdots i{flex:1;height:4px;border-radius:99px;background:var(--line)}.obdots i.on{background:var(--accent)}
@@ -211,6 +223,8 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
 <div class="wrap" id="app"></div>
 <nav class="tabs" id="tabs" aria-label="Sections"></nav>
 <div class="restbar" id="restbar" role="timer" aria-live="off" hidden></div>
+<div id="viewerRoot"></div>
+<input type="file" id="phIn" accept="image/*" hidden>
 <div class="toast" id="toast" hidden></div>
 <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
 <input type="file" id="lookIn" accept="image/*" hidden>
@@ -357,7 +371,7 @@ function renderToday(){
     <div class="meta small muted">${r.serving?esc(r.serving)+" · ":""}${Math.round(r.kcal||0)} kcal · P ${Math.round(r.protein_g||0)}g · C ${Math.round(r.carbs_g||0)}g · F ${Math.round(r.fat_g||0)}g</div></div>
     <button class="btn primary" data-act="addRes" data-i="${i}">Add</button></div>`).join("");
   const isToday=S.day===todayKey();
-  return `${exampleBanner()}
+  return `${exampleBanner()}${isToday?backupBanner():""}
   <header class="top"><div><h1>${isToday?"Today":fmtDay(S.day)}</h1><div class="sub">${PROF.list.length>1?esc(activeProf().name)+" · ":""}${isToday?fmtDay(S.day):"Viewing a past day"}</div></div>
     <div class="daynav"><button data-act="prevDay" aria-label="Previous day">‹</button><button data-act="nextDay" aria-label="Next day" ${isToday?"disabled":""}>›</button></div></header>
   <div class="stack">
@@ -468,31 +482,42 @@ function renderExercises(){
     ${map.size>5?`<input id="exFilter" data-act="exFilter" placeholder="Find an exercise" value="${esc(S.exFilter||"")}" autocomplete="off">`:""}
     <div class="hist">${rows||'<p class="muted small" style="margin:0">No match.</p>'}</div></section>`}
 
+// 7-day average: for each weigh-in, the mean of weigh-ins in the 7 days up to it
+function rollAvg(pts){return pts.map(p=>{const from=addDays(p.date,-6),win=pts.filter(q=>q.date>=from&&q.date<=p.date);return win.reduce((a,q)=>a+(+q.weight),0)/win.length})}
 function weightChart(list){
-  const pts=list.filter(b=>b.weight).slice(0,12).reverse(); if(pts.length<2)return `<p class="muted small" style="margin:0">Log at least two weigh-ins to see your trend.</p>`;
-  const W=320,H=140,L=34,R=10,T=12,B=22,ws=pts.map(p=>+p.weight);let lo=Math.floor(Math.min(...ws)-.5),hi=Math.ceil(Math.max(...ws)+.5);
-  const x=i=>L+i*(W-L-R)/(pts.length-1),y=v=>T+(hi-v)*(H-T-B)/(hi-lo);
-  const line=pts.map((p,i)=>`${x(i).toFixed(1)},${y(+p.weight).toFixed(1)}`).join(" ");
-  const area=`${x(0)},${H-B} ${line} ${x(pts.length-1)},${H-B}`;
-  const ticks=[lo,(lo+hi)/2,hi].map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${fmtN(v)}</text>`).join("");
+  const all=list.filter(b=>b.weight).slice().reverse(),cut=addDays(todayKey(),-90),pts=all.filter(p=>p.date>=cut);
+  if(pts.length<2)return `<p class="muted small" style="margin:0">Log at least two weigh-ins to see your trend. Weighing 3–7 times a week, first thing in the morning, gives the clearest picture.</p>`;
+  const avg=rollAvg(all).slice(all.length-pts.length),ws=pts.map(p=>+p.weight);
+  const W=320,H=150,L=34,R=10,T=12,B=22;let lo=Math.floor(Math.min(...ws)-.5),hi=Math.ceil(Math.max(...ws)+.5);
+  const d0=new Date(pts[0].date).getTime(),span=Math.max(1,new Date(pts[pts.length-1].date).getTime()-d0);
+  const x=p=>L+(new Date(p.date).getTime()-d0)/span*(W-L-R),y=v=>T+(hi-v)*(H-T-B)/(hi-lo);
+  const ticks=[lo,(lo+hi)/2,hi].map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--line)"/><text x="${L-6}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${fmtN(v)}</text>`).join("");
+  const dots=pts.map(p=>`<circle cx="${x(p).toFixed(1)}" cy="${y(+p.weight).toFixed(1)}" r="2.6" fill="var(--muted)" opacity=".55"><title>${fmtDay(p.date)}: ${fmtN(+p.weight)} kg</title></circle>`).join("");
+  const line=pts.map((p,i)=>`${i?"L":"M"}${x(p).toFixed(1)},${y(avg[i]).toFixed(1)}`).join("");
   const last=pts[pts.length-1];
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Bodyweight trend">${ticks}
-    <polygon points="${area}" fill="var(--accent)" opacity=".12"/><polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>
-    <circle cx="${x(pts.length-1)}" cy="${y(+last.weight)}" r="4" fill="var(--accent)"/>
-    <text x="${L}" y="${H-6}" font-size="10" fill="var(--muted)">${fmtDay(pts[0].date)}</text><text x="${W-R}" y="${H-6}" font-size="10" fill="var(--muted)" text-anchor="end">${fmtDay(last.date)}</text></svg>`;
-}
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Bodyweight with 7-day average">${ticks}${dots}
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(last).toFixed(1)}" cy="${y(avg[avg.length-1]).toFixed(1)}" r="4" fill="var(--accent)"/>
+    <text x="${L}" y="${H-6}" font-size="10" fill="var(--muted)">${fmtDay(pts[0].date)}</text><text x="${W-R}" y="${H-6}" font-size="10" fill="var(--muted)" text-anchor="end">${fmtDay(last.date)}</text></svg>
+    <div class="legend"><span><i style="background:var(--accent)"></i>7-day average</span><span><i style="background:var(--muted);border-radius:50%"></i>Daily weigh-ins</span></div>`}
+function weightStats(list){const all=list.filter(b=>b.weight).slice().reverse();if(!all.length)return"";
+  const av=rollAvg(all),now=av[av.length-1],wk=addDays(todayKey(),-7),before=all.map((p,i)=>[p,av[i]]).filter(([p])=>p.date<=wk).pop();
+  const ch=before?r1(now-before[1]):null,tot=all.length>1?r1(av[av.length-1]-(+all[0].weight)):null;
+  return `<div class="tiles">${glanceTile("7-day avg",fmtN(r1(now)),"kg")}${glanceTile("This week",ch==null?"—":(ch>0?"+":"")+fmtN(ch),ch==null?"need a week of data":"kg vs last week")}${glanceTile("Overall",tot==null?"—":(tot>0?"+":"")+fmtN(tot),"kg since "+fmtDay(all[0].date).replace(/^\w+, /,""))}</div>`}
 function renderBody(){
   const list=ofType("body"),w=list.filter(b=>b.weight);
   const change=w.length>1?(+w[0].weight-+w[w.length-1].weight):null;
   const M=[["weight","Weight (kg)"],["waist","Waist (cm)"],["hips","Hips (cm)"],["chest","Chest (cm)"],["arm","Arm (cm)"],["thigh","Thigh (cm)"]];
   return `${exampleBanner()}<header class="top"><div><h1>Body</h1><div class="sub">Weigh-ins and measurements</div></div></header>
-  <div class="stack"><section class="panel"><div class="spread"><h2>Weight trend</h2>${change!==null?`<span class="label">${change<=0?"":"+"}${change.toFixed(1)} kg overall</span>`:""}</div>${weightChart(list)}</section>
+  <div class="stack"><section class="panel"><h2>Weight trend</h2>${weightStats(list)}${weightChart(list)}
+    <span class="small muted">Daily weight jumps around with water, salt and food in your gut. Judge progress by the 7-day average line.</span></section>
+  ${photoPanel()}
   <section class="panel"><h2>New entry</h2><form id="bodyForm" class="stack" style="gap:10px">
     <label class="field"><span class="label">Date</span><input type="date" id="bDate" value="${todayKey()}"></label>
     <div class="grid2">${M.map(([k,l])=>`<label class="field"><span class="label">${l}</span><input type="number" step="0.1" inputmode="decimal" id="b_${k}"></label>`).join("")}</div>
     <button class="btn primary" type="submit">Save entry</button></form></section>
-  <section class="panel"><h2>History</h2><div class="hist">${list.map(b=>`<div class="item"><div class="spread"><b style="font-variant-numeric:tabular-nums">${b.weight?fmtN(+b.weight)+" kg":"—"}</b><span class="small muted">${fmtDay(b.date)}</span></div>
-    <div class="spread"><span class="small muted">${M.slice(1).filter(([k])=>b[k]).map(([k,l])=>l.replace(" (cm)","")+" "+b[k]+" cm").join(" · ")||"&nbsp;"}</span><button class="x" data-act="delBody" data-id="${b.id}" aria-label="Delete entry">×</button></div></div>`).join("")||'<p class="muted small" style="margin:0">No entries yet.</p>'}</div></section></div>`;
+  <section class="panel"><h2>History</h2><div class="hist">${(S.bodyAll?list:list.slice(0,10)).map(b=>`<div class="item"><div class="spread"><b style="font-variant-numeric:tabular-nums">${b.weight?fmtN(+b.weight)+" kg":"—"}</b><span class="small muted">${fmtDay(b.date)}</span></div>
+    <div class="spread"><span class="small muted">${M.slice(1).filter(([k])=>b[k]).map(([k,l])=>l.replace(" (cm)","")+" "+b[k]+" cm").join(" · ")||"&nbsp;"}</span><button class="x" data-act="delBody" data-id="${b.id}" aria-label="Delete entry">×</button></div></div>`).join("")||'<p class="muted small" style="margin:0">No entries yet.</p>'}</div>${list.length>10?`<button class="btn ghost" style="align-self:flex-start" data-act="bodyAll">${S.bodyAll?"Show fewer":"Show all "+list.length}</button>`:""}</section></div>`;
 }
 
 const CQ=[
@@ -545,6 +570,7 @@ function render(){
   if(S.lock){tb.hidden=true;document.getElementById("app").innerHTML=renderLock();return}
   if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
   tb.hidden=false;
+  document.getElementById("viewerRoot").innerHTML=S.tab==="body"?photoViewer():"";
   renderTabs();
   const app=document.getElementById("app");
   const fe=document.activeElement, fid=fe&&fe.id, sel=fe&&fe.selectionStart;
@@ -905,6 +931,37 @@ function startTemplate(id){const t=S.docs[id];if(!t)return;
     return {name:e.name,sets:[...Array(e.sets)].map((_,i)=>{const ls=last[i]||last[last.length-1];return ls?{kg:ls.kg,reps:ls.reps}:{kg:"",reps:e.reps||""}})}})};
   render();window.scrollTo(0,0);toast("Last session's weights filled in. Beat them if you can")}
 
+
+/* ---------- progress photos: stored only on this phone (IndexedDB), never shared or backed up ---------- */
+let phDBp=null;
+function phDB(){return phDBp||(phDBp=new Promise((res,rej)=>{const r=indexedDB.open("pf-photos",1);r.onupgradeneeded=()=>{const st=r.result.createObjectStore("photos",{keyPath:"id"});st.createIndex("user","user")};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
+function phTx(mode,fn){return phDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction("photos",mode),st=tx.objectStore("photos"),out=fn(st);tx.oncomplete=()=>res(out&&out.result!==undefined?out.result:out);tx.onerror=()=>rej(tx.error)}))}
+async function phLoad(){const user=PROF.active;try{const rows=await phTx("readonly",st=>st.index("user").getAll(IDBKeyRange.only(user)));
+    (S.photos||[]).forEach(p=>URL.revokeObjectURL(p.url));S.photos=rows.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.id.localeCompare(a.id)).map(r=>({...r,url:URL.createObjectURL(r.blob)}));S.photosFor=user}catch(e){S.photos=[];S.photosFor=user;S.photoErr=true}render()}
+function photoPanel(){if(S.photosFor!==PROF.active){phLoad();return `<section class="panel"><h2>Progress photos</h2><p class="small muted" style="margin:0">Loading…</p></section>`}
+  const P=S.photos||[],pose=S.pose||"Front";
+  return `<section class="panel"><div class="spread"><h2>Progress photos</h2>${P.length?`<span class="label">${P.length}</span>`:""}</div>
+    <div class="row" style="flex-wrap:nowrap"><div class="seg" style="flex:1" role="group" aria-label="Pose">${["Front","Side","Back"].map(v=>`<button data-act="pose" data-v="${v}" aria-pressed="${pose===v}">${v}</button>`).join("")}</div><button class="btn primary" data-act="addPhoto">Add photo</button></div>
+    ${P.length?`<div class="phgrid">${P.map(ph=>`<button class="phthumb" data-act="viewPhoto" data-id="${ph.id}" aria-label="${ph.pose} photo, ${fmtDay(ph.date)}"><img src="${ph.url}" alt=""><span>${fmtDay(ph.date).replace(/^\w+, /,"")} · ${ph.pose}</span></button>`).join("")}</div>`:""}
+    <span class="small muted">${S.photoErr?"Photos aren't available in this browser.":"Photos stay on this phone only. They're never included in reports, backups or sync. Same pose, same lighting, every 2–4 weeks works best."}</span></section>`}
+function photoViewer(){const v=S.viewPhoto;if(!v)return"";const P=S.photos||[],ph=P.find(x=>x.id===v.id);if(!ph)return"";
+  const first=P.filter(x=>x.pose===ph.pose).slice(-1)[0],cmp=v.compare&&first&&first.id!==ph.id;
+  return `<div class="viewer" role="dialog" aria-label="Progress photo"><div class="vbar"><b>${fmtDay(ph.date)} · ${ph.pose}</b><button class="btn" data-act="closePhoto">Close</button></div>
+    <div class="vimgs ${cmp?"two":""}">${cmp?`<figure><img src="${first.url}" alt="First ${ph.pose} photo"><figcaption>${fmtDay(first.date)}</figcaption></figure>`:""}<figure><img src="${ph.url}" alt="${ph.pose} photo"><figcaption>${fmtDay(ph.date)}</figcaption></figure></div>
+    <div class="vbar">${first&&first.id!==ph.id?`<button class="btn" data-act="comparePhoto">${cmp?"Show single":"Compare with first "+ph.pose.toLowerCase()}</button>`:"<span></span>"}<button class="btn" style="color:var(--protein)" data-act="delPhoto" data-id="${ph.id}">${v.confirm?"Tap to delete":"Delete"}</button></div></div>`}
+function addPhotoFile(file){const img=new Image(),url=URL.createObjectURL(file);
+  img.onload=()=>{const max=1400,sc=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
+    c.toBlob(async blob=>{try{await phTx("readwrite",st=>st.put({id:"ph"+Date.now(),user:PROF.active,date:todayKey(),pose:S.pose||"Front",blob}));S.photosFor=null;toast("Photo saved on this phone")}catch(e){toast("Couldn't save the photo. Storage may be full")}render()},"image/jpeg",0.82)};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast("Couldn't open that image")};img.src=url}
+/* ---------- backup reminder ---------- */
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+function backupBanner(){if(S.example||(window.Cloud&&Cloud.signedIn&&Cloud.signedIn()))return"";const pid=PROF.active,now=Date.now();
+  if(!lsGet("pf-firstuse:"+pid))lsSet("pf-firstuse:"+pid,String(now));
+  const last=+lsGet("pf-lastbackup:"+pid)||+lsGet("pf-firstuse:"+pid),snooze=+lsGet("pf-backupsnooze:"+pid)||0,n=Object.values(S.docs).filter(d=>d&&["day","workout","body","checkin"].includes(d.type)).length;
+  if(n<5||now<snooze||now-last<14*864e5)return"";
+  const days=Math.floor((now-last)/864e5),never=!lsGet("pf-lastbackup:"+pid);
+  return `<div class="banner"><span>💾 ${never?"You haven't backed up yet.":`Last backup was ${days} days ago.`} Your data only lives on this phone.</span><span class="row" style="gap:2px"><button class="btn ghost" data-act="exportData">Back up now</button><button class="btn ghost" data-act="snoozeBackup">Later</button></span></div>`}
+
 /* ---------- settings ---------- */
 const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
 const GOALS={lose:"Lose fat",maintain:"Maintain",gain:"Build muscle",perform:"Performance"};
@@ -987,12 +1044,12 @@ function renderLock(){const L=S.lock,p=PROF.list.find(x=>x.id===L.id)||{},others
 function switchUser(id,force){const p=PROF.list.find(x=>x.id===id);if(!p)return;
   if(p.pin&&!force){S.lock={id,boot:!!(S.lock&&S.lock.boot)};render();setTimeout(()=>document.getElementById("pinIn")?.focus(),0);return}
   PROF.active=id;saveProf();S.lock=null;
-  Object.assign(S,{tab:"today",setPage:null,day:todayKey(),results:[],meal:null,searchMsg:"",draftWorkout:null,ciDraft:null,showTargets:false,editFood:null,editHabits:null,openEx:null,exFilter:"",quoteShift:0,confirmDel:null,confirmWipe:false});
+  Object.assign(S,{tab:"today",setPage:null,day:todayKey(),results:[],meal:null,searchMsg:"",draftWorkout:null,ciDraft:null,showTargets:false,editFood:null,editHabits:null,openEx:null,exFilter:"",quoteShift:0,confirmDel:null,confirmWipe:false,viewPhoto:null,photosFor:null});
   S.docs=exampleDocs();S.example=true;
   if(S.db)subscribe();else{loadLocal();afterLoad()}
   loadLook();applyLook();render();window.scrollTo(0,0);toast("Now using "+p.name);
 }
-function exportData(){const me=activeProf(),blob=new Blob([JSON.stringify({app:"Project Fitness",version:1,user:me.name,exported:new Date().toISOString(),docs:S.docs},null,1)],{type:"application/json"});
+function exportData(){lsSet("pf-lastbackup:"+PROF.active,String(Date.now()));setTimeout(render,50);const me=activeProf(),blob=new Blob([JSON.stringify({app:"Project Fitness",version:1,user:me.name,exported:new Date().toISOString(),docs:S.docs},null,1)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`project-fitness-${me.name.replace(/[^a-z0-9]+/gi,"-").toLowerCase()}-${todayKey()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function persistAll(){if(S.col)Object.entries(S.docs).forEach(([id,d])=>S.col.doc(id).set(clone(d)).catch(()=>{}));else saveLocal()}
 function importData(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||typeof j.docs!=="object"||!j.docs)throw 0;
@@ -1075,6 +1132,14 @@ document.addEventListener("click",e=>{
     case "obNext":{const O=S.onboard;if(O.step===0&&!O.d.name.trim()){toast("Add your name to continue");document.getElementById("ob_name")?.focus();break}
       if(O.step===2)O.d.targets=null;if(O.step>=4){finishOnboard(false);break}O.step++;render();window.scrollTo(0,0);break}
     case "setupAgain":{const p=S.docs.profile||{};S.onboard={step:0,d:{name:p.name||activeProf().name,goal:p.goal||"",activity:p.activity||"",dob:p.dob||"",sex:p.sex||"",height:p.height||"",weight:latestWeight()||p.weight||"",habits:[...(settings().habits||[])],targets:null}};render();window.scrollTo(0,0);break}
+    case "bodyAll":S.bodyAll=!S.bodyAll;render();break;
+    case "pose":S.pose=ds.v;render();break;
+    case "addPhoto":document.getElementById("phIn").click();break;
+    case "viewPhoto":S.viewPhoto={id:ds.id};render();break;
+    case "closePhoto":S.viewPhoto=null;render();break;
+    case "comparePhoto":S.viewPhoto.compare=!S.viewPhoto.compare;render();break;
+    case "delPhoto":if(!S.viewPhoto.confirm){S.viewPhoto.confirm=true;render();break}phTx("readwrite",st=>st.delete(ds.id)).then(()=>{S.viewPhoto=null;S.photosFor=null;render();toast("Photo deleted")});break;
+    case "snoozeBackup":lsSet("pf-backupsnooze:"+PROF.active,String(Date.now()+3*864e5));render();break;
     case "setPage":S.setPage=ds.v||null;S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
     case "lockCancel":S.lock=null;render();break;
@@ -1195,6 +1260,7 @@ document.getElementById("photoIn").addEventListener("change",e=>{const f=e.targe
 /* ---------- boot ---------- */
 document.getElementById("lookIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)loadPhoto(f)});
 document.getElementById("reportIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importReport(f)});
+document.getElementById("phIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)addPhotoFile(f)});
 document.getElementById("importIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importData(f)});
 applyLook();
 if(activeProf().pin)S.lock={id:PROF.active,boot:true};
