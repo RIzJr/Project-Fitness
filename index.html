@@ -76,6 +76,9 @@ textarea{resize:vertical;min-height:64px}
 .steppers button.add{background:var(--c);border-color:var(--c);color:#fff}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
+/* quick estimate */
+.meal{border:1px solid var(--accent);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.mrow{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:8px}
 /* quote */
 .quote{position:relative;background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:16px 48px 16px 16px}
 .quote .label{color:inherit;opacity:.8}
@@ -216,10 +219,14 @@ function foodForm(f,i){
   const v=k=>f&&f[k]!=null&&f[k]!==""?f[k]:"";
   return `<form class="editform" data-form="food" data-i="${i}">
     <label class="field wide"><span class="label">Food</span><input id="ef_name" value="${esc(v("name"))}" placeholder="e.g. Chicken wrap" required></label>
-    <label class="field"><span class="label">Protein g</span><input id="ef_protein" type="number" step="0.1" inputmode="decimal" value="${v("protein")}"></label>
-    <label class="field"><span class="label">Carbs g</span><input id="ef_carbs" type="number" step="0.1" inputmode="decimal" value="${v("carbs")}"></label>
-    <label class="field"><span class="label">Fat g</span><input id="ef_fat" type="number" step="0.1" inputmode="decimal" value="${v("fat")}"></label>
-    <label class="field"><span class="label">kcal</span><input id="ef_kcal" type="number" step="1" inputmode="numeric" value="${v("kcal")}" placeholder="auto"></label>
+    ${f&&f.base?(f.unit==="g"?`<label class="field wide"><span class="label">Amount eaten (g)</span><input id="ef_g" type="number" step="any" min="0" inputmode="decimal" value="${Math.round(f.qty)}" data-act="amtG"></label>`
+      :`<label class="field ${f.unitG?"":"wide"}" style="${f.unitG?"grid-column:span 2":""}"><span class="label">Amount (× ${esc(f.unit)})</span><input id="ef_qty" type="number" step="any" min="0" inputmode="decimal" value="${f.qty}" data-act="amtQty"></label>
+        ${f.unitG?`<label class="field" style="grid-column:span 2"><span class="label">Or grams</span><input id="ef_g" type="number" step="any" min="0" inputmode="decimal" value="${Math.round(f.qty*f.unitG)}" data-act="amtG"></label>`:""}`)
+      +`<span class="small muted wide">Change the amount and the macros below update to match.</span>`:""}
+    <label class="field"><span class="label">Protein g</span><input id="ef_protein" type="number" step="any" inputmode="decimal" value="${v("protein")}"></label>
+    <label class="field"><span class="label">Carbs g</span><input id="ef_carbs" type="number" step="any" inputmode="decimal" value="${v("carbs")}"></label>
+    <label class="field"><span class="label">Fat g</span><input id="ef_fat" type="number" step="any" inputmode="decimal" value="${v("fat")}"></label>
+    <label class="field"><span class="label">kcal</span><input id="ef_kcal" type="number" step="any" inputmode="numeric" value="${v("kcal")}" placeholder="auto"></label>
     <span class="small muted wide">Leave calories blank to work them out from the macros.</span>
     <div class="acts"><button class="btn primary" type="submit">${i==="new"?"Add food":"Save changes"}</button><button class="btn" type="button" data-act="cancelFood">Cancel</button>${i!=="new"?`<button class="btn ghost" type="button" data-act="delFood" data-i="${i}">Delete</button>`:""}</div>
   </form>`}
@@ -236,7 +243,7 @@ function renderToday(){
   const habits=st.habits.map((h,i)=>`<label class="habit"><input type="checkbox" id="hab${i}" data-act="habit" data-h="${esc(h)}" ${d.habits&&d.habits[h]?"checked":""}><span>${esc(h)}</span></label>`).join("");
   const done=st.habits.filter(h=>d.habits&&d.habits[h]).length;
   const foods=(d.foods||[]).map((f,i)=>S.editFood===i?foodForm(f,i):`<div class="food"><div style="min-width:0"><div class="nm">${esc(f.name)}</div>
-    <div class="meta">${Math.round(+f.kcal||0)} kcal · P ${fmtN(+f.protein||0)}g · C ${fmtN(+f.carbs||0)}g · F ${fmtN(+f.fat||0)}g</div></div>
+    <div class="meta">${f.base&&f.qty!=null?fmtQty(f)+" · ":""}${Math.round(+f.kcal||0)} kcal · P ${fmtN(+f.protein||0)}g · C ${fmtN(+f.carbs||0)}g · F ${fmtN(+f.fat||0)}g</div></div>
     <button class="btn ghost" data-act="editFood" data-i="${i}" aria-label="Edit ${esc(f.name)}">Edit</button></div>`).join("")||(S.editFood==="new"?"":`<p class="muted small" style="margin:0">Nothing logged yet. Search a food, scan a label, or add one manually.</p>`);
   const results=S.results.map((r,i)=>`<div class="result"><div style="min-width:0"><div class="nm" style="font-weight:600">${esc(r.name)}</div>
     <div class="meta small muted">${r.serving?esc(r.serving)+" · ":""}${Math.round(r.kcal||0)} kcal · P ${Math.round(r.protein_g||0)}g · C ${Math.round(r.carbs_g||0)}g · F ${Math.round(r.fat_g||0)}g</div></div>
@@ -254,6 +261,7 @@ function renderToday(){
   <section class="panel"><h2>Log food</h2>
     <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="Food, brand or barcode" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""}>Search</button></form>
     <div class="row"><button class="btn" data-act="photo" ${S.searching?"disabled":""}>Scan barcode or label</button><button class="btn" data-act="newFood">Add manually</button></div>
+    ${mealCard()}
     <div class="status" aria-live="polite">${esc(S.searchMsg)}</div>
     ${results?`<div class="stack" style="gap:8px">${results}</div>`:""}
     ${S.editFood==="new"?foodForm(null,"new"):""}
@@ -403,8 +411,11 @@ function render(){
   const app=document.getElementById("app");
   const fe=document.activeElement, fid=fe&&fe.id, sel=fe&&fe.selectionStart;
   const qv=document.getElementById("q")?.value;
+  // keep anything typed into an open food form when the page redraws (e.g. a search finishing)
+  const ff=document.querySelector('form[data-form="food"]'),keep=ff?{i:ff.dataset.i,v:[...ff.querySelectorAll("input")].map(x=>[x.id,x.value])}:null;
   app.innerHTML=S.tab==="today"?renderToday():S.tab==="train"?renderTrain():S.tab==="body"?renderBody():renderCheckin();
   if(qv&&document.getElementById("q"))document.getElementById("q").value=qv;
+  if(keep){const nf=document.querySelector(`form[data-form="food"][data-i="${keep.i}"]`);if(nf)keep.v.forEach(([id,v])=>{const el=id&&document.getElementById(id);if(el)el.value=v})}
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
 }
 
@@ -414,6 +425,127 @@ Use UK products, supermarkets and serving sizes where relevant. Read values stra
 Return ONLY JSON: {"items":[{"name":string,"serving":string,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number}]}
 Give up to 4 likely matches, most likely first. If the input describes one whole meal, return it as one item.`;
 async function getSample(){if(S.sample)return S.sample;if(!window.claude||!window.claude.use)return null;S.sample=await window.claude.use("sample");return S.sample}
+
+/* ---------- built-in UK food list for instant estimates ----------
+   [name, search words, portion name, portion grams, kcal, protein, carbs, fat per 100g]
+   Typical UK values (labels / McCance & Widdowson). Edit or add your own lines here. */
+const FOOD_DB=[
+["Egg","egg,eggs,boiled egg,poached egg","egg",58,143,12.6,0.7,9.9],
+["Fried egg","fried egg","egg",60,196,13.6,0.9,15.3],
+["Scrambled eggs","scrambled egg,scrambled eggs","serving (2 eggs)",120,170,11.5,1.5,13],
+["Egg white","egg white,egg whites","egg white",33,52,10.9,0.7,0.2],
+["Semi-skimmed milk","milk,semi skimmed milk,semi-skimmed milk","glass (200ml)",206,46,3.5,4.8,1.7],
+["Whole milk","whole milk,full fat milk","glass (200ml)",206,64,3.4,4.7,3.6],
+["Skimmed milk","skimmed milk,skim milk","glass (200ml)",206,34,3.4,5,0.1],
+["Greek yoghurt 0%","greek yoghurt,greek yogurt,fat free yoghurt,0% yoghurt","pot (170g)",170,54,10.3,3,0],
+["Greek yoghurt (full fat)","full fat greek yoghurt,full fat yoghurt","pot (170g)",170,133,5,4,10],
+["Skyr","skyr","pot (150g)",150,63,11,4,0.2],
+["Cottage cheese","cottage cheese","half tub (150g)",150,90,11,3.5,3.5],
+["Cheddar","cheese,cheddar","slice (30g)",30,416,25,0.1,34.9],
+["Mozzarella","mozzarella","portion (30g)",30,250,18.5,2,19],
+["Butter","butter","portion (10g)",10,744,0.6,0.6,82.2],
+["Chicken breast","chicken,chicken breast","breast (150g cooked)",150,165,31,0,3.6],
+["Chicken thigh","chicken thigh,chicken thighs","thigh (90g cooked)",90,209,26,0,10.9],
+["Steak","steak,sirloin,sirloin steak,rump steak","steak (200g cooked)",200,206,29,0,9.6],
+["Beef mince 5%","mince,beef mince,lean mince,5% mince","portion (125g raw)",125,137,21.5,0,5],
+["Beef mince 20%","20% mince,beef mince 20%","portion (125g raw)",125,254,17,0,20],
+["Turkey mince","turkey mince","portion (125g raw)",125,115,23,0,2],
+["Salmon","salmon,salmon fillet","fillet (120g cooked)",120,206,22,0,13],
+["Tuna (tinned, in water)","tuna,tinned tuna","tin (110g drained)",110,108,25,0,1],
+["Cod","cod,white fish","fillet (140g cooked)",140,105,23,0,0.9],
+["Prawns","prawns,prawn,shrimp","portion (100g)",100,70,15.5,0,0.8],
+["Bacon","bacon,back bacon,bacon rasher","rasher (25g grilled)",25,287,23,0.5,21.6],
+["Pork sausage","sausage,sausages","sausage (45g grilled)",45,290,14,8,22],
+["Ham","ham,sliced ham","slice (25g)",25,110,18,1.3,3.5],
+["Tofu","tofu","portion (100g)",100,120,13,1.5,7],
+["Whey protein","whey,protein shake,protein powder,whey protein,scoop of protein","scoop (30g)",30,400,78,8,6],
+["Protein bar","protein bar","bar (60g)",60,350,33,33,13],
+["White rice (cooked)","rice,white rice,boiled rice","portion (180g)",180,130,2.7,28,0.3],
+["Brown rice (cooked)","brown rice","portion (180g)",180,123,2.7,25.6,1],
+["Microwave rice","microwave rice,rice pouch,uncle bens","pouch (250g)",250,150,3.3,31,1.6],
+["Pasta (cooked)","pasta,spaghetti,penne,fusilli","portion (200g cooked)",200,158,5.8,31,0.9],
+["Oats","oats,porridge,porridge oats,oatmeal","portion (40g)",40,375,11,60,8],
+["Wholemeal bread","bread,toast,wholemeal bread,wholemeal toast,brown bread","slice (40g)",40,230,10,39,2.5],
+["White bread","white bread,white toast","slice (40g)",40,235,8,46,1.6],
+["Bagel","bagel,bagels","bagel (85g)",85,260,10,50,1.5],
+["Tortilla wrap","wrap,wraps,tortilla","wrap (62g)",62,300,8.5,50,7],
+["Crumpet","crumpet,crumpets","crumpet (55g)",55,176,6,34,0.9],
+["Potato (boiled)","potato,potatoes,boiled potatoes,new potatoes","medium (175g)",175,77,1.8,17,0.1],
+["Jacket potato","jacket potato,baked potato","medium (180g)",180,93,2.5,21,0.1],
+["Mashed potato","mash,mashed potato","portion (180g)",180,104,1.8,15.5,4.3],
+["Sweet potato","sweet potato,sweet potatoes","medium (150g)",150,90,2,21,0.2],
+["Oven chips","chips,oven chips,fries","portion (150g)",150,210,3.5,32,7],
+["Egg noodles (cooked)","noodles,egg noodles","portion (180g)",180,138,4.5,25,2],
+["Couscous (cooked)","couscous","portion (150g)",150,112,3.8,23,0.2],
+["Quinoa (cooked)","quinoa","portion (150g)",150,120,4.4,21.3,1.9],
+["Cornflakes","cornflakes,cereal","bowl (30g)",30,378,7,84,0.9],
+["Weetabix","weetabix","biscuit (19g)",19,362,12,69,2],
+["Granola","granola","portion (45g)",45,450,9,60,18],
+["Rice cake","rice cake,rice cakes","rice cake (9g)",9,380,8,80,3],
+["Baked beans","beans,baked beans","half tin (207g)",207,78,4.7,12.9,0.2],
+["Chickpeas","chickpeas,chick peas","half tin (120g drained)",120,115,7,13.5,2.6],
+["Lentils (cooked)","lentils,dal,dahl","portion (150g)",150,116,9,20,0.4],
+["Kidney beans","kidney beans","half tin (120g drained)",120,100,7,14,0.5],
+["Hummus","hummus,houmous","tbsp (30g)",30,280,7,10,23],
+["Banana","banana,bananas","medium (120g)",120,89,1.1,23,0.3],
+["Apple","apple,apples","medium (150g)",150,52,0.3,14,0.2],
+["Orange","orange,oranges","medium (160g)",160,47,0.9,12,0.1],
+["Berries","berries,blueberries,raspberries,mixed berries","handful (80g)",80,57,0.7,14,0.3],
+["Strawberries","strawberries","handful (80g)",80,32,0.7,7.7,0.3],
+["Grapes","grapes","handful (80g)",80,69,0.7,18,0.2],
+["Avocado","avocado,avo","half (75g)",75,190,1.9,1.9,19.5],
+["Broccoli","broccoli,tenderstem","portion (80g)",80,24,3.1,1.1,0.8],
+["Spinach","spinach","portion (80g)",80,25,2.8,1.6,0.8],
+["Salad","salad,mixed salad,lettuce,side salad","portion (80g)",80,17,1,2.5,0.2],
+["Tomato","tomato,tomatoes","medium (85g)",85,18,0.9,3.1,0.3],
+["Carrots","carrot,carrots","portion (80g)",80,41,0.9,7.9,0.2],
+["Peas","peas,garden peas","portion (80g)",80,69,6,9.7,0.9],
+["Sweetcorn","sweetcorn,corn","portion (80g)",80,80,2.6,15,1.2],
+["Mushrooms","mushroom,mushrooms","portion (80g)",80,22,3.1,0.5,0.3],
+["Onion","onion,onions","portion (80g)",80,36,1.2,7.9,0.2],
+["Peppers","pepper,peppers","portion (80g)",80,26,1,4.5,0.3],
+["Mixed veg","veg,vegetables,mixed veg,stir fry veg","portion (80g)",80,40,2.5,6,0.5],
+["Peanut butter","peanut butter,pb","tbsp (15g)",15,588,25,13,50],
+["Almonds","almonds,nuts,mixed nuts","handful (30g)",30,600,21,7,52],
+["Olive oil","olive oil,oil","tbsp (14g)",14,884,0,0,100],
+["Mayonnaise","mayo,mayonnaise","tbsp (15g)",15,680,1,1.3,75],
+["Ketchup","ketchup,tomato sauce","tbsp (15g)",15,110,1.2,25,0.1],
+["Honey","honey","tsp (7g)",7,304,0.3,82,0],
+["Sugar","sugar","tsp (4g)",4,400,0,100,0],
+["Dark chocolate","dark chocolate,chocolate","square (10g)",10,580,8,33,42],
+["Crisps","crisps","bag (25g)",25,528,6,52,32],
+["Pizza","pizza","slice (100g)",100,266,11,33,10],
+["Beef burger","burger,beef burger,burger patty","patty (113g cooked)",113,230,24,1,15],
+["Latte","latte,flat white,cappuccino","medium (350ml)",350,49,3.3,4.8,1.7],
+["Orange juice","orange juice,juice,oj","glass (200ml)",200,45,0.6,10,0.1],
+["Beer","beer,lager,pint","pint (568ml)",568,43,0.5,3.6,0],
+["Wine","wine,red wine,white wine","glass (175ml)",175,83,0.1,2.6,0],
+["Coca-Cola","coke,cola,coca cola","can (330ml)",330,42,0,10.6,0]
+].map(([name,words,unit,unitG,kcal,p,c,f])=>({name,words:words.split(","),unit,unitG,per:{kcal:kcal*unitG/100,protein:p*unitG/100,carbs:c*unitG/100,fat:f*unitG/100}}));
+const NUMW={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,half:0.5,"½":0.5,quarter:0.25,couple:2};
+const r1=n=>Math.round(n*10)/10;
+function scaleFood(base,qty){const o={};["kcal","protein","carbs","fat"].forEach(k=>o[k]=k==="kcal"?Math.round(base[k]*qty):r1(base[k]*qty));return o}
+function matchFood(part){let best=null,len=0;
+  FOOD_DB.forEach(f=>f.words.forEach(w=>{const re=new RegExp("(^|[^a-z])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(e?s)?($|[^a-z])");if(w.length>len&&re.test(part)){best=f;len=w.length}}));return best}
+// "2 eggs and beans on toast" -> [{food, qty}], plus parts it couldn't match
+function estimateMeal(q){const parts=q.toLowerCase().replace(/[()]/g," ").split(/\s*(?:,|\+|&|\band\b|\bwith\b|\bon\b|\bplus\b)\s*/).map(x=>x.trim()).filter(Boolean);
+  const items=[],missed=[];
+  parts.forEach(pt=>{const f=matchFood(pt);if(!f){missed.push(pt);return}
+    let qty=1,m;
+    if((m=pt.match(/(\d+(?:\.\d+)?)\s*(g|grams?|ml)\b/)))qty=+m[1]/f.unitG;
+    else if((m=pt.match(/^(\d+(?:\.\d+)?)\s*x?\b/))||(m=pt.match(/\bx\s*(\d+(?:\.\d+)?)\b/)))qty=+m[1];
+    else if((m=pt.match(/^(a|an|one|two|three|four|five|six|half|½|quarter|couple)\b/)))qty=NUMW[m[1]];
+    items.push({name:f.name,unit:f.unit,unitG:f.unitG,base:f.per,qty:r1(qty)})});
+  return items.length?{q,items,missed}:null}
+const mealTotals=items=>items.reduce((t,it)=>{const s=scaleFood(it.base,it.qty);Object.keys(t).forEach(k=>t[k]+=s[k]);return t},{kcal:0,protein:0,carbs:0,fat:0});
+const fmtQty=it=>it.unit==="g"?`${Math.round(it.qty)}g`:`${fmtN(it.qty)} × ${it.unit}`;
+function mealCard(){const M=S.meal;if(!M)return"";const t=mealTotals(M.items);
+  return `<div class="meal"><div class="spread"><span class="label">Quick estimate</span><span class="small" style="font-variant-numeric:tabular-nums"><b>${Math.round(t.kcal)} kcal</b> · P ${Math.round(t.protein)} · C ${Math.round(t.carbs)} · F ${Math.round(t.fat)}</span></div>
+    ${M.items.map((it,i)=>{const s=scaleFood(it.base,it.qty);return `<div class="mrow"><div style="min-width:0"><div style="font-weight:600">${esc(it.name)}</div><div class="small muted">${fmtQty(it)} · ${s.kcal} kcal · P ${fmtN(s.protein)}g</div></div>
+      <div class="steppers" style="grid-column:auto"><button data-act="mealQty" data-i="${i}" data-d="-0.5" aria-label="Less ${esc(it.name)}">−</button><button class="add" style="--c:var(--accent)" data-act="mealQty" data-i="${i}" data-d="0.5" aria-label="More ${esc(it.name)}">+</button></div></div>`}).join("")}
+    ${M.missed.length?`<div class="small muted">Not in the quick list: ${M.missed.map(esc).join(", ")}. Check the online results below, or add it manually.</div>`:""}
+    <div class="row"><button class="btn primary" data-act="addMeal">Add ${M.items.length>1?"all "+M.items.length+" items":"it"}</button><button class="btn ghost" data-act="clearMeal">Dismiss</button></div></div>`}
+
 /* ---------- quote of the day ---------- */
 const QUOTES=["Discipline is choosing what you want most over what you want now.","You don't have to be extreme. Just consistent.","Small wins every day beat big plans you never start.","The session you didn't feel like doing counts double.","Strong is built one rep at a time.","Progress, not perfection.","Show up on the days you don't want to. That's where change lives.","Your body keeps score of every choice. Make today's a good one.","Motivation starts the habit. Routine keeps it going.","Hit your protein, hit your steps, get your sleep. Repeat.","Don't count the days. Make the days count.","You're one workout away from a better mood.","Eat like you respect yourself. Train like you love yourself.","Every rep is a vote for the person you're becoming.","Rest is part of the programme, not a break from it.","A little progress each day adds up to big results.","Be stronger than your excuses.","Fall in love with the process and the results will follow.","Earn it in the gym. Keep it in the kitchen.","Consistency turns average into excellent.","The best time to start was yesterday. The next best is now.","Plan your meals before hunger plans them for you.","Add one rep or a little weight. That's how strength is built.","Do it for the person you'll be in six months.","Tired is a feeling, not a reason.","Water, protein, steps, sleep. Master the basics.","Your only competition is who you were yesterday.","Good habits are boring. Results aren't.","The hard part is starting. You've got this.","You can't out-train a bad diet, but you can out-plan it.","Make it a non-negotiable, not a maybe.","Sweat now, shine later.","One bad meal doesn't ruin a week. Get back on track at the next one.","Trust the process on the days the scale doesn't.","Train hard, recover harder.","Build the habit first. The numbers will follow.","A strong body starts with a strong decision.","Do something today that your future self will thank you for.","No zero days.","Slow progress is still progress."];
 const dayIndex=()=>{const d=new Date();return Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(2026,0,1))/864e5)};
@@ -438,7 +570,7 @@ async function runOffSearch(q,img){
   try{
     if(img){const code=await readBarcode(img);if(!code){S.searchMsg="Couldn't read a barcode from that photo. Type the numbers under the barcode into search instead.";S.searching=false;render();return}q=code}
     S.results=await offSearch(q);
-    S.searchMsg=S.results.length?"From Open Food Facts. Tap Add, then Edit to change the amount.":"No match. Try a brand name (e.g. 'Warburtons crumpets'), the barcode number, or add it manually.";
+    S.searchMsg=S.results.length?(S.meal?"Branded products from Open Food Facts:":"From Open Food Facts. Tap Add, then Edit to change the amount."):S.meal?"":"No match. Try a brand name (e.g. 'Warburtons crumpets'), the barcode number, or add it manually.";
   }catch(e){S.searchMsg="Search didn't work. Check your connection and try again, or add it manually."}
   S.searching=false;render();
 }
@@ -462,7 +594,7 @@ document.addEventListener("click",e=>{
   const d=()=>clone(dayDoc(S.day));
   switch(a){
     case "clearEx":S.docs={settings:S.docs.settings||DEFAULT_SETTINGS};S.example=false;S.ciDraft=null;if(S.col)S.col.doc("settings").set(clone(S.docs.settings)).catch(()=>{});else saveLocal();render();break;
-    case "prevDay":S.day=addDays(S.day,-1);S.results=[];S.editFood=null;render();break;
+    case "prevDay":S.day=addDays(S.day,-1);S.results=[];S.meal=null;S.editFood=null;render();break;
     case "nextDay":if(S.day<todayKey()){S.day=addDays(S.day,1);S.results=[];S.editFood=null;render()}break;
     case "matchKcal":{const st=clone(settings());st.targets.kcal=macroKcal(st.targets);save("settings",st);break}
     case "targets":S.showTargets=!S.showTargets;render();break;
@@ -477,8 +609,13 @@ document.addEventListener("click",e=>{
       S.editHabits=null;save("settings",st);if(moved){Object.keys(oh).forEach(k=>{if(!(k in nh)&&!H.some(h=>h.old===k&&h.old!==h.name))nh[k]=oh[k]});x.habits=nh;save("day_"+S.day,x)}
       toast("Habits saved");break}
     case "photo":document.getElementById("photoIn").click();break;
+    case "mealQty":{const it=S.meal.items[+ds.i];it.qty=Math.max(0.5,r1(it.qty+(+ds.d)));render();break}
+    case "clearMeal":S.meal=null;render();break;
+    case "addMeal":{const x=editDay();x.foods=(x.foods||[]).concat(S.meal.items.map(it=>({...it,...scaleFood(it.base,it.qty)})));S.meal=null;S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added · "+macroLeft());break}
     case "nextQuote":S.quoteShift=(S.quoteShift||0)+1;render();break;
-    case "addRes":{const r=S.results[+ds.i];const x=editDay();x.foods=(x.foods||[]).concat([{name:r.name+(r.serving?" ("+r.serving+")":""),kcal:Math.round(+r.kcal||0),protein:+(+r.protein_g||0).toFixed(1),carbs:+(+r.carbs_g||0).toFixed(1),fat:+(+r.fat_g||0).toFixed(1)}]);
+    case "addRes":{const r=S.results[+ds.i];const x=editDay();const m={kcal:Math.round(+r.kcal||0),protein:r1(+r.protein_g||0),carbs:r1(+r.carbs_g||0),fat:r1(+r.fat_g||0)};
+      const per100=r.serving==="per 100g",it=per100?{name:r.name,unit:"g",unitG:1,qty:100,base:{kcal:m.kcal/100,protein:m.protein/100,carbs:m.carbs/100,fat:m.fat/100}}:{name:r.name,unit:r.serving||"serving",unitG:(String(r.serving||"").match(/(\d+(?:\.\d+)?)\s*g\b/)||[])[1]*1||null,qty:1,base:m};
+      x.foods=(x.foods||[]).concat([{...it,...m}]);S.meal=null;
       S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added · "+macroLeft());break}
     case "newFood":S.editFood="new";render();document.getElementById("ef_name")?.focus();break;
     case "editFood":S.editFood=+ds.i;render();document.getElementById("ef_name")?.focus();break;
@@ -513,6 +650,11 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;
     if(LIB_GROUP[exKey(t.value)]||exHistory(t.value).length)render()} // picked from the list: show last time straight away
   if(ds.act==="exFilter"){S.exFilter=t.value;render()}
+  if(ds.act==="amtQty"||ds.act==="amtG"){const f=dayDoc(S.day).foods[S.editFood];if(!f||!f.base)return;
+    const qty=ds.act==="amtG"?(f.unit==="g"?+t.value:+t.value/f.unitG):+t.value;if(!(qty>=0))return;
+    if(ds.act==="amtQty"&&f.unitG){const g=document.getElementById("ef_g");if(g)g.value=Math.round(qty*f.unitG)}
+    if(ds.act==="amtG"&&f.unit!=="g"){const qn=document.getElementById("ef_qty");if(qn)qn.value=r1(qty*4)/4===qty?qty:Math.round(qty*100)/100}
+    const sc=scaleFood(f.base,qty);["protein","carbs","fat","kcal"].forEach(k=>{document.getElementById("ef_"+k).value=sc[k]})}
   if(ds.act==="setKg")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].kg=t.value;
   if(ds.act==="setReps")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].reps=t.value;
   if(ds.act==="ciText")S.ciDraft[ds.k]=t.value;
@@ -520,13 +662,15 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
 });
 document.addEventListener("submit",e=>{e.preventDefault();
   if(e.target.dataset.form==="food"){const g=id=>document.getElementById(id).value;const name=g("ef_name").trim();if(!name){toast("Give the food a name");return}
-    const f={name,protein:+g("ef_protein")||0,carbs:+g("ef_carbs")||0,fat:+g("ef_fat")||0};f.kcal=g("ef_kcal")!==""?Math.round(+g("ef_kcal")):macroKcal(f);
+    const old=e.target.dataset.i!=="new"?dayDoc(S.day).foods[+e.target.dataset.i]:null;
+    const f={...(old&&old.base?{base:old.base,unit:old.unit,unitG:old.unitG,qty:old.qty}:{}),name,protein:+g("ef_protein")||0,carbs:+g("ef_carbs")||0,fat:+g("ef_fat")||0};f.kcal=g("ef_kcal")!==""?Math.round(+g("ef_kcal")):macroKcal(f);
+    if(f.base){const qe=document.getElementById("ef_qty"),ge=document.getElementById("ef_g");f.qty=f.unit==="g"?(+(ge&&ge.value)||0):(+(qe&&qe.value)||0)}
     const i=e.target.dataset.i;const x=i==="new"?editDay():clone(dayDoc(S.day));x.foods=x.foods||[];if(i==="new")x.foods.push(f);else x.foods[+i]=f;
     S.editFood=null;save("day_"+S.day,x);toast((i==="new"?"Added · ":"Saved · ")+macroLeft());return}
   if(e.target.id==="habAddForm"){const inp=document.getElementById("habNew"),v=inp.value.trim();if(!v){inp.focus();return}
     if(S.editHabits.some(h=>h.name.trim().toLowerCase()===v.toLowerCase())){toast("That habit's already on the list");return}
     S.editHabits.push({name:v,old:null});render();document.getElementById("habNew")?.focus();return}
-  if(e.target.id==="searchForm"){const q=document.getElementById("q").value.trim();if(q)runSearch(q)}
+  if(e.target.id==="searchForm"){const q=document.getElementById("q").value.trim();if(q){S.meal=/^\d{8,14}$/.test(q.replace(/\s/g,""))?null:estimateMeal(q);runSearch(q)}}
   if(e.target.id==="bodyForm"){const date=document.getElementById("bDate").value||todayKey();const x={type:"body",date};let any=false;
     ["weight","waist","hips","chest","arm","thigh"].forEach(k=>{const v=document.getElementById("b_"+k).value;if(v!==""){x[k]=+v;any=true}});
     if(!any){toast("Enter at least one measurement");return}save("body_"+date,x);toast("Entry saved")}
