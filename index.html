@@ -176,7 +176,22 @@ nav.tabs button{font-size:10.5px;letter-spacing:.04em}
 .status{font-size:13px;color:var(--muted);min-height:1em}
 /* workouts */
 .ex{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
-.set{display:grid;grid-template-columns:24px 1fr 1fr 44px 24px;gap:6px;align-items:center}
+.set{display:grid;grid-template-columns:20px 1fr 1fr 52px 40px 22px;gap:5px;align-items:center}
+.set select{padding:9px 4px;text-align:center}
+.msets{display:flex;flex-direction:column;gap:5px}
+.mset{display:grid;grid-template-columns:118px 1fr 26px;gap:8px;align-items:center;font-size:12.5px}
+.mset .n{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.mbar{position:relative;height:10px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.mbar i{display:block;height:100%;border-radius:99px}
+.mbar b{position:absolute;top:0;bottom:0;width:2px;background:var(--fg);opacity:.25}
+.part{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.part h3{margin:0;font-family:var(--display);font-size:18px;text-transform:uppercase;letter-spacing:.04em}
+.wrow{display:grid;grid-template-columns:40px 1fr 78px 22px;gap:5px;align-items:center}
+.wrow .done{height:38px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--muted);font-size:18px;font-weight:700;line-height:1}
+.wrow .done[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.kinds{grid-template-columns:repeat(4,1fr)}.kinds button{font-size:12.5px;padding:8px 0}
+.kbadge{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border:1px solid var(--line);border-radius:99px;padding:0 6px;color:var(--fg)}
+.qchip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .set .done{height:38px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--muted);font-size:18px;font-weight:700;line-height:1}
 .set .done[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 /* rest timer */
@@ -428,28 +443,118 @@ function renderTargets(){const st=settings(),t=st.targets,mk=macroKcal(t);
     <div class="spread small"><span class="muted">Your macros add up to <b style="color:var(--fg)">${mk.toLocaleString("en-GB")} kcal</b></span>${mk!==+t.kcal?`<button class="btn ghost" data-act="matchKcal">Use ${mk.toLocaleString("en-GB")}</button>`:""}</div>
     </div>`}
 
-function renderTrain(){
-  const wo=ofType("workout"), dw=S.draftWorkout;
-  let editor="";
-  if(dw){editor=`<section class="panel"><div class="spread"><h2>New session</h2><button class="btn ghost" data-act="cancelWo">Cancel</button></div>
-    <div class="grid2"><label class="field"><span class="label">Session name</span><input id="woName" value="${esc(dw.name)}" data-act="woName" placeholder="e.g. Upper A"></label>
+const KINDS=[["gym","Gym"],["bodyweight","Bodyweight"],["functional","Functional"],["calisthenics","Calisthenics"]];
+const kindName=k=>(KINDS.find(x=>x[0]===k)||KINDS[0])[1];
+const WARM_PRESET={
+  gym:[["Easy cardio (bike, rower or brisk walk)","5 min"],["Dynamic mobility: leg swings, arm circles, hip openers","3 min"],["Ramp-up sets for your first lift","2–3 light sets"]],
+  bodyweight:[["March or jog on the spot","2 min"],["Arm circles and leg swings","1 min"],["Bodyweight squats and inchworms","10 each"]],
+  functional:[["Skipping, jumping jacks or easy row","3 min"],["World's greatest stretch","5 each side"],["Light kettlebell deadlifts and halos","10 each"]],
+  calisthenics:[["Wrist and shoulder circles","2 min"],["Scapular pull-ups and scapular push-ups","10 each"],["Dead hang","30 s"]]};
+const COOL_PRESET={
+  gym:[["Easy walk or cycle","3–5 min"],["Stretch the muscles you trained","30 s each"],["Slow breathing","1 min"]],
+  bodyweight:[["Easy walk","3 min"],["Hamstring, quad and chest stretches","30 s each"],["Slow breathing","1 min"]],
+  functional:[["Easy walk or row","3–5 min"],["Hip flexor and glute stretch","30 s each side"],["Slow breathing","1 min"]],
+  calisthenics:[["Wrist and forearm stretches","1 min"],["Lat and chest stretch","30 s each"],["Child's pose and slow breathing","1 min"]]};
+const WARM_IDEAS=["Rower","Bike","Skipping","Leg swings","Arm circles","Hip circles","Cat-cow","World's greatest stretch","Inchworms","Band pull-aparts","Glute bridges","Ramp-up sets"];
+const COOL_IDEAS=["Walk","Hamstring stretch","Quad stretch","Hip flexor stretch","Chest stretch","Lat stretch","Child's pose","Pigeon stretch","Foam roll","Slow breathing"];
+const presetList=(P,k)=>(P[k]||P.gym).map(([name,detail])=>({name,detail,done:false}));
+function newDraft(kind){kind=kind||S.lastKind||"gym";return {type:"workout",date:todayKey(),name:"",kind,warmup:presetList(WARM_PRESET,kind),exercises:[{name:"",sets:[{kg:"",reps:""}]}],cooldown:presetList(COOL_PRESET,kind),_auto:true}}
+function partEditor(part,title,ideas){const L=S.draftWorkout[part]||[];
+  return `<div class="part"><div class="spread"><h3>${title}</h3><span class="label">${L.filter(x=>x.done).length}/${L.length}</span></div>
+    ${L.map((it,i)=>`<div class="wrow"><button class="done" data-act="partDone" data-part="${part}" data-i="${i}" aria-pressed="${!!it.done}" aria-label="Done">✓</button>
+      <input id="${part}n${i}" value="${esc(it.name)}" data-act="partName" data-part="${part}" data-i="${i}" placeholder="Movement"><input id="${part}d${i}" class="det" value="${esc(it.detail||"")}" data-act="partDet" data-part="${part}" data-i="${i}" placeholder="e.g. 2 min">
+      <button class="x" data-act="partDel" data-part="${part}" data-i="${i}" aria-label="Remove">×</button></div>`).join("")}
+    <div class="chiprow">${ideas.map(n=>`<button class="qchip" data-act="partAdd" data-part="${part}" data-v="${esc(n)}">+ ${esc(n)}</button>`).join("")}<button class="qchip" data-act="partAdd" data-part="${part}" data-v="">+ Other</button></div></div>`}
+function setRow(ex,ei,s,si,mode){const bw=S.draftWorkout.kind!=="gym";
+  return `<div class="set"><span class="n">${si+1}</span><input type="number" inputmode="decimal" step="any" id="kg${ei}_${si}" value="${s.kg??""}" data-act="setKg" data-ei="${ei}" data-si="${si}" placeholder="${bw?"0":""}" aria-label="${bw?"Added kg":"kg"}">
+    <input type="number" inputmode="numeric" id="rp${ei}_${si}" value="${(mode==="time"?s.secs:s.reps)??""}" data-act="setVal" data-f="${mode==="time"?"secs":"reps"}" data-ei="${ei}" data-si="${si}" aria-label="${mode==="time"?"Seconds":"Reps"}">
+    <select id="rir${ei}_${si}" data-act="setRir" data-ei="${ei}" data-si="${si}" aria-label="Reps in reserve"><option value="">–</option>${[0,1,2,3,4,5].map(n=>`<option value="${n}" ${String(s.rir)===String(n)?"selected":""}>${n===5?"5+":n}</option>`).join("")}</select>
+    <button class="done" data-act="setDone" data-ei="${ei}" data-si="${si}" aria-pressed="${!!s.done}" aria-label="Set ${si+1} done, start rest timer">✓</button><button class="x" data-act="delSet" data-ei="${ei}" data-si="${si}" aria-label="Remove set">×</button></div>`}
+function sessionEditor(){const dw=S.draftWorkout,bw=dw.kind!=="gym";
+  return `<section class="panel"><div class="spread"><h2>${dw._repeat?"Session":"New session"}</h2><button class="btn ghost" data-act="cancelWo">Cancel</button></div>
+    <div class="seg kinds" role="group" aria-label="Session type">${KINDS.map(([k,l])=>`<button data-act="woKind" data-v="${k}" aria-pressed="${dw.kind===k}">${l}</button>`).join("")}</div>
+    <div class="grid2"><label class="field"><span class="label">Session name</span><input id="woName" value="${esc(dw.name)}" data-act="woName" placeholder="${{gym:"e.g. Upper A",bodyweight:"e.g. Home full body",functional:"e.g. KB conditioning",calisthenics:"e.g. Pull & core"}[dw.kind]}"></label>
     <label class="field"><span class="label">Date</span><input type="date" id="woDate" value="${dw.date}" data-act="woDate"></label></div>
-    ${dw.exercises.map((ex,ei)=>`<div class="ex"><div class="row" style="flex-wrap:nowrap"><input id="exn${ei}" value="${esc(ex.name)}" data-act="exName" data-ei="${ei}" placeholder="Start typing, e.g. bench" list="exlib" autocomplete="off"><button class="x" data-act="delEx" data-ei="${ei}" aria-label="Remove exercise">×</button></div>
+    ${partEditor("warmup","Warm-up",WARM_IDEAS)}
+    <div class="part"><div class="spread"><h3>Training</h3><span class="label">${dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0)}/${dw.exercises.reduce((a,e)=>a+e.sets.length,0)} sets</span></div>
+    ${dw.exercises.map((ex,ei)=>{const mode=exMode(ex.name,ex.mode);return `<div class="ex"><div class="row" style="flex-wrap:nowrap"><input id="exn${ei}" value="${esc(ex.name)}" data-act="exName" data-ei="${ei}" placeholder="Start typing, e.g. ${{gym:"bench",bodyweight:"push-up",functional:"kettlebell",calisthenics:"pull-up"}[dw.kind]}" list="exlib" autocomplete="off"><button class="x" data-act="delEx" data-ei="${ei}" aria-label="Remove exercise">×</button></div>
       ${lastLine(ex.name,ei)}
-      <div class="set"><span></span><span class="label">kg</span><span class="label">Reps</span><span class="label" style="text-align:center">Done</span><span></span></div>
-      ${ex.sets.map((s,si)=>`<div class="set"><span class="n">${si+1}</span><input type="number" inputmode="decimal" step="0.5" id="kg${ei}_${si}" value="${s.kg??""}" data-act="setKg" data-ei="${ei}" data-si="${si}"><input type="number" inputmode="numeric" id="rp${ei}_${si}" value="${s.reps??""}" data-act="setReps" data-ei="${ei}" data-si="${si}"><button class="done" data-act="setDone" data-ei="${ei}" data-si="${si}" aria-pressed="${!!s.done}" aria-label="Set ${si+1} done, start rest timer">✓</button><button class="x" data-act="delSet" data-ei="${ei}" data-si="${si}" aria-label="Remove set">×</button></div>`).join("")}
-      <button class="btn ghost" style="align-self:flex-start" data-act="addSet" data-ei="${ei}">+ Add set</button></div>`).join("")}
-    <div class="row"><button class="btn" data-act="addEx">+ Add exercise</button><button class="btn primary" data-act="saveWo">Save session</button></div>
-    <button class="btn ghost" style="align-self:flex-start;padding-left:0" data-act="tplFromDraft">Save as template</button></section>`}
-  const hist=wo.map(w=>{const sets=w.exercises.reduce((s,e)=>s+e.sets.length,0);const vol=w.exercises.reduce((s,e)=>s+e.sets.reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0),0);
+      <div class="set"><span></span><span class="label">${bw?"+kg":"kg"}</span><span class="label">${mode==="time"?"Secs":"Reps"}</span><span class="label" style="text-align:center">RIR</span><span class="label" style="text-align:center">Done</span><span></span></div>
+      ${ex.sets.map((st,si)=>setRow(ex,ei,st,si,mode)).join("")}
+      <button class="btn ghost" style="align-self:flex-start" data-act="addSet" data-ei="${ei}">+ Add set</button></div>`}).join("")}
+    <button class="btn" style="align-self:flex-start" data-act="addEx">+ Add exercise</button>
+    <span class="small muted"><b>RIR</b> = reps in reserve: how many more good reps you could have done. 0 = nothing left, 2–3 suits most sets.${bw?" <b>+kg</b> = extra weight (vest, belt or dumbbell); leave blank for bodyweight.":""}</span></div>
+    ${partEditor("cooldown","Cool-down",COOL_IDEAS)}
+    <div class="row"><button class="btn primary" data-act="saveWo">Save session</button><button class="btn ghost" data-act="tplFromDraft">Save as template</button></div></section>`}
+function renderStrength(){const wo=ofType("workout"),dw=S.draftWorkout;
+  const hist=wo.slice(0,S.woAll?wo.length:15).map(w=>{const sets=w.exercises.reduce((s,e)=>s+e.sets.length,0);const vol=w.exercises.reduce((s,e)=>s+e.sets.reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0),0);
+    const wu=(w.warmup||[]).length,cd=(w.cooldown||[]).length;
     return `<div class="item"><div class="spread"><b>${esc(w.name||"Session")}</b><span class="small muted">${fmtDay(w.date)}</span></div>
-    <div class="small muted" style="font-variant-numeric:tabular-nums">${w.exercises.length} exercises · ${sets} sets · ${Math.round(vol).toLocaleString("en-GB")} kg volume</div>
-    <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${e.sets.map(s=>`${fmtN(+s.kg||0)}×${s.reps||0}`).join(", ")}`).join("<br>")}</div>
+    <div class="small muted" style="font-variant-numeric:tabular-nums"><span class="kbadge">${kindName(w.kind)}</span> ${w.exercises.length} exercises · ${sets} sets${vol?` · ${Math.round(vol).toLocaleString("en-GB")} kg volume`:""}${wu||cd?` · warm-up ${wu?"✓":"–"} · cool-down ${cd?"✓":"–"}`:""}${w.prs&&w.prs.length?` · 🏆 ${w.prs.length} PB${w.prs.length===1?"":"s"}`:""}</div>
+    <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${fmtSets(e.sets)}`).join("<br>")}</div>
     <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="tplFromWo" data-id="${w.id}">Save as template</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`}).join("");
-  return `${exampleBanner()}<header class="top"><div><h1>Train</h1><div class="sub">Sessions, sets and volume</div></div>${dw?"":`<button class="btn primary" data-act="newWo">New session</button>`}</header>
-  <datalist id="exlib">${exOptions()}</datalist>
-  <div class="stack">${dw?"":renderTemplates()}${editor}${renderExercises()}<section class="panel"><h2>Session history</h2><div class="hist">${hist||'<p class="muted small" style="margin:0">No sessions yet. Tap New session to log your first workout.</p>'}</div></section></div>`;
-}
+  return `${dw?"":`<div class="row" style="margin-bottom:14px">${KINDS.map(([k,l])=>`<button class="btn${k==="gym"?" primary":""}" data-act="newWo" data-v="${k}">+ ${l}</button>`).join("")}</div>`}
+  <datalist id="exlib">${exOptions(dw&&dw.kind)}</datalist>
+  <div class="stack">${dw?sessionEditor():(typeof renderInsights==="function"?renderInsights():"")+renderTemplates()}${renderExercises()}<section class="panel"><h2>Session history</h2><div class="hist">${hist||'<p class="muted small" style="margin:0">No sessions yet. Pick a session type above to log your first workout.</p>'}</div>${wo.length>15?`<button class="btn ghost" style="align-self:flex-start" data-act="woAll">${S.woAll?"Show fewer":"Show all "+wo.length}</button>`:""}</section></div>`}
+function renderTrain(){const v=S.draftWorkout?"strength":(S.trainView||"strength");
+  return `${exampleBanner()}<header class="top"><div><h1>Train</h1><div class="sub">${v==="cardio"?"Cardio and activity minutes":"Strength, bodyweight, functional and calisthenics"}</div></div></header>
+  ${S.draftWorkout?"":`<div class="seg" role="tablist" aria-label="Training type" style="margin-bottom:14px;grid-template-columns:1fr 1fr">${[["strength","Workouts"],["cardio","Cardio"]].map(([k,l])=>`<button role="tab" data-act="trainView" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join("")}</div>`}
+  ${v==="cardio"?renderCardio():renderStrength()}`}
+
+
+/* ---------- progress insights ---------- */
+// a personal best = this session's best set beats every earlier session of that exercise
+function findPRs(w){const out=[];(w.exercises||[]).forEach(e=>{const h=exHistory(e.name);if(!h.length)return;const nb=bestSet(e.sets),old=Math.max(...h.map(x=>setScore(bestSet(x.sets))));
+  if(nb&&setScore(nb)>old)out.push({name:e.name,txt:fmtSet(nb)})});return out}
+function stalls(){const seen=new Set(),out=[],cut=addDays(todayKey(),-21);
+  ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(!k||seen.has(k))return;seen.add(k);const h=exHistory(e.name);
+    if(h.length<4||h[0].date<cut)return;const sc=h.map(x=>setScore(bestSet(x.sets)));if(Math.max(...sc.slice(0,3))<=Math.max(...sc.slice(3)))out.push(e.name)}));return out}
+const MAJOR=["Chest","Back","Shoulders","Quads","Hamstrings & glutes"];
+function weeklySets(ws){const end=addDays(ws,6),g={};ofType("workout").filter(w=>w.date>=ws&&w.date<=end).forEach(w=>(w.exercises||[]).forEach(e=>{const k=LIB_GROUP[exKey(e.name)]||"Other";g[k]=(g[k]||0)+e.sets.length}));return g}
+function deloadInfo(){const d=settings().deload;if(!d||!d.start)return null;const wk=Math.floor((new Date(weekStart())-new Date(d.start))/(7*864e5)),pos=((wk%d.every)+d.every)%d.every+1;return {pos,every:d.every,deload:pos===d.every,next:pos===d.every-1}}
+function renderInsights(){const ws=weekStart(),wo=ofType("workout"),thisWk=wo.filter(w=>w.date>=ws),prs=thisWk.flatMap(w=>w.prs||[]),st=stalls(),sets=weeklySets(ws),dl=deloadInfo();
+  const lastAny=[...wo,...ofType("cardio")].map(x=>x.date).sort().pop(),gap=lastAny?Math.floor((new Date(todayKey())-new Date(lastAny))/864e5):null;
+  const notes=[];
+  if(dl&&dl.deload)notes.push(`<div class="hint small"><b>Deload week (week ${dl.pos} of ${dl.every}).</b><span>Cut your sets by about half, keep weights around 10% lighter and leave 3–4 reps in reserve. You'll come back stronger.</span></div>`);
+  else if(dl&&dl.next)notes.push(`<div class="small">📅 <b>Deload next week.</b> This is week ${dl.pos} of ${dl.every}. Push this week, then ease off.</div>`);
+  if(gap!=null&&gap>=7)notes.push(`<div class="small">⏰ It's been <b>${gap} days</b> since your last session. A short one today counts.</div>`);
+  prs.forEach(x=>notes.push(`<div class="small">🏆 New best this week: <b>${esc(x.name)}</b> ${esc(x.txt)}</div>`));
+  st.slice(0,3).forEach(n=>notes.push(`<div class="small">⚠️ <b>${esc(n)}</b> hasn't improved in 3 sessions. Try a different rep range, a small weight jump, an extra set, or a deload.</div>`));
+  const groups=[...new Set([...MAJOR,...Object.keys(sets)])],max=Math.max(20,...Object.values(sets));
+  const bars=groups.map(g=>{const n=sets[g]||0,tone=n===0?"var(--line)":n<10?"var(--carb)":n<=20?"var(--veg)":"var(--protein)";
+    return `<div class="mset"><span>${g}</span><div class="mbar"><i style="width:${n/max*100}%;background:${tone}"></i><b style="left:${10/max*100}%"></b><b style="left:${20/max*100}%"></b></div><span class="n">${n}</span></div>`}).join("");
+  return `<section class="panel"><div class="spread"><h2>Insights</h2>${dl?`<span class="label">deload ${dl.pos}/${dl.every}</span>`:""}</div>
+    ${notes.length?`<div class="stack" style="gap:8px">${notes.join("")}</div>`:`<p class="small muted" style="margin:0">Log a few sessions and you'll see personal bests, stalled lifts and reminders here.</p>`}
+    <div class="label" style="margin-top:4px">Sets per muscle this week</div><div class="msets">${bars}</div>
+    <span class="small muted">Most people grow best with about 10–20 sets per muscle a week (the marks on each bar). <span style="color:var(--carb)">Amber</span> is under 10, <span style="color:var(--veg)">green</span> is in range, <span style="color:var(--protein)">red</span> is over 20.</span>
+    ${dl?`<div class="row"><span class="small">Deload every</span>${[4,5,6,8].map(n=>`<button class="btn${dl.every===n?" primary":""}" style="padding:6px 10px" data-act="deloadEvery" data-v="${n}">${n} wk</button>`).join("")}<button class="btn ghost" data-act="deloadReset">Restart cycle</button></div>`
+      :`<button class="btn" style="align-self:flex-start" data-act="deloadEvery" data-v="6">Plan deload weeks</button><span class="small muted">A deload is a lighter week every 4–8 weeks so your body can recover and keep progressing.</span>`}</section>`}
+
+/* ---------- cardio ---------- */
+const CARDIO=["Run","Walk","Cycle","Row","Swim","Cross-trainer","Stairs","HIIT","Sport","Other"];
+const effortWord=n=>n<=3?"Easy":n<=6?"Moderate":n<=8?"Hard":"Max";
+// UK guideline: 150 min moderate or 75 min vigorous a week; vigorous minutes count double
+const actMins=c=>(+c.mins||0)*((+c.rpe||5)>=7?2:1);
+function paceTxt(c){if(!(+c.km>0)||!(+c.mins>0)||!["Run","Walk"].includes(c.activity))return"";const p=c.mins/c.km,m=Math.floor(p),sec=Math.round((p-m)*60);return `${m}:${String(sec===60?0:sec).padStart(2,"0")}/km`}
+function renderCardio(){const all=ofType("cardio"),ws=weekStart(),wk=all.filter(c=>c.date>=ws),am=wk.reduce((a,c)=>a+actMins(c),0),mins=wk.reduce((a,c)=>a+(+c.mins||0),0),km=wk.reduce((a,c)=>a+(+c.km||0),0);
+  const d=S.cDraft||(S.cDraft={activity:"Run",date:todayKey(),mins:"",km:"",hr:"",rpe:5,notes:""});
+  return `<div class="stack"><section class="panel"><div class="spread"><h2>This week</h2><span class="label">since ${fmtDay(ws).replace(/^\w+, /,"")}</span></div>
+    <div class="spread"><div><div class="count" style="text-align:left">${am}<small> / 150</small></div><div class="small muted">activity minutes (vigorous count double)</div></div><div class="small" style="text-align:right">${wk.length} session${wk.length===1?"":"s"}<br>${mins} min${km?` · ${fmtN(r1(km))} km`:""}</div></div>
+    <div class="bar" style="--c:var(--veg)"><i style="width:${Math.min(100,am/150*100)}%"></i></div>
+    <span class="small muted">The UK guideline is 150 minutes of moderate activity (or 75 vigorous) a week. Moderate: you can talk but not sing. Vigorous: only a few words at a time.</span></section>
+  <section class="panel"><h2>Log cardio</h2>
+    <div class="chiprow" role="group" aria-label="Activity">${CARDIO.map(a=>`<button class="qchip${d.activity===a?" on":""}" data-act="cAct" data-v="${a}" aria-pressed="${d.activity===a}">${a}</button>`).join("")}</div>
+    <div class="grid2"><label class="field"><span class="label">Minutes</span><input id="c_mins" type="number" inputmode="numeric" step="any" value="${esc(d.mins)}" data-act="cF" data-k="mins"></label>
+      <label class="field"><span class="label">Date</span><input id="c_date" type="date" value="${d.date}" data-act="cF" data-k="date"></label>
+      ${["HIIT","Sport"].includes(d.activity)?"":`<label class="field"><span class="label">Distance (km)</span><input id="c_km" type="number" inputmode="decimal" step="any" value="${esc(d.km)}" data-act="cF" data-k="km" placeholder="optional"></label>`}
+      <label class="field"><span class="label">Avg heart rate</span><input id="c_hr" type="number" inputmode="numeric" step="any" value="${esc(d.hr)}" data-act="cF" data-k="hr" placeholder="optional"></label></div>
+    <div class="field"><span class="label">Effort: ${d.rpe}/10 · ${effortWord(d.rpe)}</span><div class="scale" style="grid-template-columns:repeat(10,1fr)" role="group" aria-label="Effort">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-act="cRpe" data-n="${n}" aria-pressed="${d.rpe===n}">${n}</button>`).join("")}</div>
+      <div class="anchors"><span>1 · Very easy</span><span>All out · 10</span></div></div>
+    <label class="field"><span class="label">Notes</span><input id="c_notes" value="${esc(d.notes)}" data-act="cF" data-k="notes" placeholder="optional, e.g. intervals 6 × 400m"></label>
+    <button class="btn primary" style="align-self:flex-start" data-act="cSave">Save cardio</button></section>
+  <section class="panel"><h2>History</h2><div class="hist">${all.slice(0,S.cAll?all.length:15).map(c=>`<div class="item"><div class="spread"><b>${esc(c.activity)} · ${c.mins} min${+c.km?` · ${fmtN(+c.km)} km`:""}</b><button class="x" data-act="cDel" data-id="${c.id}" aria-label="Delete">×</button></div>
+      <div class="small muted">${fmtDay(c.date)} · effort ${c.rpe}/10 (${effortWord(+c.rpe).toLowerCase()})${paceTxt(c)?" · "+paceTxt(c):""}${+c.hr?` · ${c.hr} bpm`:""}${c.notes?" · "+esc(c.notes):""}</div></div>`).join("")||'<p class="muted small" style="margin:0">No cardio logged yet.</p>'}</div>
+    ${all.length>15?`<button class="btn ghost" style="align-self:flex-start" data-act="cAll">${S.cAll?"Show fewer":"Show all "+all.length}</button>`:""}</section></div>`}
 
 /* ---------- exercise library + per-exercise history ---------- */
 const EX_LIB={
@@ -464,23 +569,39 @@ const EX_LIB={
   "Core":["Plank","Side plank","Hanging leg raise","Cable crunch","Ab wheel rollout","Dead bug","Pallof press","Russian twist","Decline sit-up"],
   "Conditioning":["Farmer's carry","Sled push","Rowing machine","Assault bike","Treadmill incline walk","Battle ropes","Burpees"]
 };
-const LIB_GROUP={};Object.entries(EX_LIB).forEach(([g,l])=>l.forEach(n=>LIB_GROUP[n.toLowerCase()]=g));
+// [name, muscle group, "t" if it's a timed hold]
+const EX_MORE={
+  bodyweight:[["Push-up","Chest"],["Incline push-up","Chest"],["Decline push-up","Chest"],["Diamond push-up","Triceps"],["Pike push-up","Shoulders"],["Bodyweight squat","Quads"],["Jump squat","Quads"],["Split squat","Quads"],["Reverse lunge","Quads"],["Walking lunge","Quads"],["Step-up","Quads"],["Wall sit","Quads","t"],["Glute bridge","Hamstrings & glutes"],["Single-leg glute bridge","Hamstrings & glutes"],["Calf raise","Calves"],["Plank","Core","t"],["Side plank","Core","t"],["Hollow hold","Core","t"],["Dead bug","Core"],["Bird dog","Core"],["Superman","Back"],["Bench dip","Triceps"],["Mountain climbers","Conditioning","t"],["Burpees","Conditioning"],["Jumping jacks","Conditioning","t"],["High knees","Conditioning","t"]],
+  functional:[["Kettlebell swing","Hamstrings & glutes"],["Goblet squat","Quads"],["Kettlebell clean","Hamstrings & glutes"],["Kettlebell snatch","Shoulders"],["Turkish get-up","Core"],["Thruster","Quads"],["Wall ball","Quads"],["Box jump","Quads"],["Lateral lunge","Quads"],["Step-up","Quads"],["Landmine press","Shoulders"],["Landmine row","Back"],["Single-arm dumbbell row","Back"],["Medicine ball slam","Conditioning"],["Woodchop","Core"],["Farmer's carry","Conditioning","t"],["Suitcase carry","Core","t"],["Sandbag carry","Conditioning","t"],["Bear crawl","Conditioning","t"],["Sled push","Conditioning"],["Sled pull","Conditioning"],["Battle ropes","Conditioning","t"]],
+  calisthenics:[["Pull-up","Back"],["Chin-up","Back"],["Australian row","Back"],["Muscle-up","Back"],["Dead hang","Back","t"],["Front lever hold","Back","t"],["Dips","Chest"],["Push-up","Chest"],["Archer push-up","Chest"],["Pike push-up","Shoulders"],["Pseudo planche push-up","Shoulders"],["Handstand push-up","Shoulders"],["Handstand hold","Shoulders","t"],["Planche lean","Shoulders","t"],["L-sit","Core","t"],["Hollow body hold","Core","t"],["Hanging leg raise","Core"],["Toes-to-bar","Core"],["Dragon flag","Core"],["Pistol squat","Quads"],["Shrimp squat","Quads"],["Bulgarian split squat","Quads"],["Nordic curl","Hamstrings & glutes"]]};
+const LIB_GROUP={},LIB_TIME=new Set(),KIND_LIB={gym:[]};
+Object.entries(EX_LIB).forEach(([g,l])=>l.forEach(n=>{LIB_GROUP[n.toLowerCase()]=g;KIND_LIB.gym.push([n,g])}));
+["Plank","Side plank"].forEach(n=>LIB_TIME.add(n.toLowerCase()));
+Object.entries(EX_MORE).forEach(([k,l])=>{KIND_LIB[k]=l;l.forEach(([n,g,t])=>{if(!LIB_GROUP[n.toLowerCase()])LIB_GROUP[n.toLowerCase()]=g;if(t)LIB_TIME.add(n.toLowerCase())})});
+// timed holds log seconds instead of reps
+function exMode(name,saved){if(saved)return saved;const k=String(name||"").trim().toLowerCase();if(LIB_TIME.has(k))return "time";
+  const h=ofType("workout").find(w=>(w.exercises||[]).some(e=>e.name&&e.name.trim().toLowerCase()===k&&e.mode));return h?h.exercises.find(e=>e.name.trim().toLowerCase()===k).mode:"reps"}
 const exKey=n=>String(n||"").trim().toLowerCase();
 // every logged instance of an exercise, newest first (example data excluded once real data exists)
 function exHistory(name){const k=exKey(name);if(!k)return[];const out=[];
-  ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{if(exKey(e.name)===k&&e.sets&&e.sets.length)out.push({date:w.date,session:w.name,sets:e.sets})}));return out}
+  ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{if(exKey(e.name)===k&&e.sets&&e.sets.length)out.push({id:w.id,date:w.date,session:w.name,sets:e.sets})}));return out}
 const e1rm=s=>(+s.kg||0)*(1+(+s.reps||0)/30);
-function bestSet(sets){return sets.reduce((b,s)=>!b||e1rm(s)>e1rm(b)?s:b,null)}
-const fmtSets=sets=>sets.map(s=>`${fmtN(+s.kg||0)}×${s.reps||0}`).join(", ");
-function exOptions(){const mine=new Map();ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!LIB_GROUP[k]&&!mine.has(k))mine.set(k,e.name.trim())}));
-  return [...mine.values()].map(n=>`<option value="${esc(n)}" label="Your exercise">`).join("")+Object.entries(EX_LIB).map(([g,l])=>l.map(n=>`<option value="${esc(n)}" label="${esc(g)}">`).join("")).join("")}
+// one comparable score per set: weighted sets by estimated 1RM, bodyweight sets by reps or seconds
+const setScore=s=>(+s.kg||0)>0?1000+(s.secs?(+s.kg)*(1+(+s.secs)/60):e1rm(s)):(+s.secs||+s.reps||0);
+function bestSet(sets){return sets.reduce((b,s)=>!b||setScore(s)>setScore(b)?s:b,null)}
+const fmtSet=s=>s.secs!=null&&s.secs!==""?`${+s.kg?"+"+fmtN(+s.kg)+"kg ":""}${s.secs}s`:(+s.kg?`${fmtN(+s.kg)}×${s.reps||0}`:`${s.reps||0} reps`);
+const fmtSets=sets=>sets.map(fmtSet).join(", ");
+const bestTxt=b=>!b?"":(+b.kg&&!b.secs)?`${fmtN(+b.kg)} kg × ${b.reps} · est. 1RM ${fmtN(Math.round(e1rm(b)*2)/2)} kg`:fmtSet(b);
+function exOptions(kind){const mine=new Map();ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!LIB_GROUP[k]&&!mine.has(k))mine.set(k,e.name.trim())}));
+  const lib=KIND_LIB[kind||"gym"]||KIND_LIB.gym,seen=new Set(lib.map(([n])=>n.toLowerCase())),rest=Object.values(KIND_LIB).flat().filter(([n])=>!seen.has(n.toLowerCase())&&(seen.add(n.toLowerCase()),true));
+  return [...mine.values()].map(n=>`<option value="${esc(n)}" label="Your exercise">`).join("")+lib.map(([n,g])=>`<option value="${esc(n)}" label="${esc(g)}">`).join("")+rest.map(([n,g])=>`<option value="${esc(n)}" label="${esc(g)}">`).join("")}
 function lastLine(name,ei){if(!exKey(name))return"";const h=exHistory(name);
   if(!h.length)return `<div class="lastline small muted">First time logging this. Today sets your baseline.</div>`;
   const l=h[0],b=bestSet(h.flatMap(x=>x.sets));
   return `<div class="lastline small"><div><span class="muted">Last time (${fmtDay(l.date)}):</span> ${fmtSets(l.sets)}</div>
-    <div class="muted">Best: ${fmtN(+b.kg||0)} kg × ${b.reps} · est. 1RM ${fmtN(Math.round(e1rm(b)*2)/2)} kg</div>
+    <div class="muted">Best: ${bestTxt(b)}</div>
     <button class="btn ghost" style="padding:4px 0" data-act="useLast" data-ei="${ei}">Copy last time's sets</button></div>`}
-function exSpark(h){const pts=h.slice(0,10).reverse().map(x=>e1rm(bestSet(x.sets)));if(pts.length<2)return"";
+function exSpark(h){const pts=h.slice(0,10).reverse().map(x=>setScore(bestSet(x.sets)));if(pts.length<2)return"";
   const W=120,H=32,lo=Math.min(...pts),hi=Math.max(...pts),r=hi-lo||1;
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts.map((v,i)=>`${(i*(W-4)/(pts.length-1)+2).toFixed(1)},${(H-3-(v-lo)/r*(H-6)).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/></svg>`}
 function renderExercises(){
@@ -490,8 +611,8 @@ function renderExercises(){
   const rows=[...map.entries()].filter(([k])=>!q||k.includes(q)).map(([k,name])=>{const h=exHistory(name),b=bestSet(h.flatMap(x=>x.sets)),open=S.openEx===k;
     return `<div class="item"><button class="exhead" data-act="openEx" data-k="${esc(k)}" aria-expanded="${open}">
       <span style="min-width:0"><b>${esc(name)}</b><span class="small muted" style="display:block">${LIB_GROUP[k]||"Your exercise"} · ${h.length} session${h.length===1?"":"s"} · last ${fmtDay(h[0].date)}</span></span>
-      <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none">${fmtN(+b.kg||0)} kg × ${b.reps}<span class="muted" style="display:block">est. 1RM ${fmtN(Math.round(e1rm(b)*2)/2)}</span></span></button>
-      ${open?`<div class="exdetail">${exSpark(h)?`<div class="small muted">Est. 1RM trend</div>${exSpark(h)}`:""}
+      <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none;max-width:45%">${bestTxt(b).replace(" · ","<span class=\"muted\" style=\"display:block\">")+((+b.kg&&!b.secs)?"</span>":"")}</span></button>
+      ${open?`<div class="exdetail">${exSpark(h)?`<div class="small muted">Best-set trend</div>${exSpark(h)}`:""}
         ${h.map(x=>`<div class="spread small" style="padding:4px 0;border-top:1px solid var(--line)"><span class="muted">${fmtDay(x.date)}${x.session?" · "+esc(x.session):""}</span><span style="font-variant-numeric:tabular-nums;text-align:right">${fmtSets(x.sets)}</span></div>`).join("")}</div>`:""}</div>`}).join("");
   return `<section class="panel"><div class="spread"><h2>Exercise history</h2><span class="label">${map.size} exercise${map.size===1?"":"s"}</span></div>
     ${map.size>5?`<input id="exFilter" data-act="exFilter" placeholder="Find an exercise" value="${esc(S.exFilter||"")}" autocomplete="off">`:""}
@@ -832,6 +953,7 @@ function weekSummary(ws,withNotes){const st=settings(),tg=st.targets,hs=st.habit
   const wo=ofType("workout").filter(w=>w.date>=ws&&w.date<=end);
   o.sessions=wo.length;o.sets=wo.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.length,0),0);
   o.volume=Math.round(wo.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.reduce((c,x)=>c+(+x.kg||0)*(+x.reps||0),0),0),0));
+  const cw=ofType("cardio").filter(c=>c.date>=ws&&c.date<=end);o.cardioMins=cw.reduce((a,c)=>a+(+c.mins||0),0);o.activityMins=cw.reduce((a,c)=>a+actMins(c),0);
   const ci=S.docs["ci_"+ws];if(ci){CQ.forEach(([k])=>{if(ci[k])o[k]=ci[k]});if(withNotes)["win","struggle","focus"].forEach(k=>{if(ci[k])o[k]=ci[k]})}
   return o}
 function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,notes:true});
@@ -859,7 +981,7 @@ function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=J
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
     save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
-const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
+const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
   const vals=series.flatMap(sr=>weeks.map(w=>w[sr.key]).filter(v=>v!=null&&v!==""));
   if(!vals.length)return `<p class="small muted" style="margin:0">Nothing logged for this yet.</p>`;
@@ -894,6 +1016,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   <section class="panel"><h2>Calories</h2>${chartSVG(wk,[{key:"kcal",label:"Avg kcal",color:"var(--carb)",bars:true}],{target:t.kcal,zero:true,label:"Average daily calories per week"})}</section>
   <section class="panel"><h2>Protein</h2>${chartSVG(wk,[{key:"protein",label:"Avg protein (g)",color:"var(--protein)",bars:true}],{target:t.protein,zero:true,label:"Average daily protein per week"})}</section>
   <section class="panel"><h2>Training</h2>${chartSVG(wk,[{key:"sessions",label:"Sessions",color:"var(--veg)",bars:true}],{zero:true,label:"Sessions per week"})}</section>
+  <section class="panel"><h2>Cardio</h2>${chartSVG(wk,[{key:"activityMins",label:"Activity minutes",color:"var(--veg)",bars:true}],{target:150,zero:true,label:"Weekly activity minutes"})}</section>
   <section class="panel"><h2>Check-in scores</h2>${chartSVG(wk,[{key:"adherence",label:"Adherence",color:"var(--accent)"},{key:"motivation",label:"Motivation",color:"var(--veg)"},{key:"energy",label:"Energy",color:"var(--carb)"},{key:"sleep",label:"Sleep",color:"var(--fat)"},{key:"stress",label:"Stress",color:"var(--protein)"}],{min:1,max:5,label:"Weekly check-in scores out of 5"})}</section>
   <section class="panel"><div class="spread"><h2>Weekly table</h2><button class="btn ghost" data-act="clientCsv" data-id="${id}">Download CSV</button></div>
     <div class="tablewrap"><table class="ctable"><thead><tr>${CLIENT_COLS.map(col=>`<th scope="col">${col[1]}</th>`).join("")}</tr></thead>
@@ -976,17 +1099,19 @@ function healthPanel(){const p=S.docs.profile||{},hr=p.health,draft=S.healthDraf
 /* ---------- training templates ---------- */
 function renderTemplates(){const T=ofType("template").sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   return `<section class="panel"><div class="spread"><h2>Templates</h2>${T.length?`<span class="label">${T.length}</span>`:""}</div>
-    ${T.length?`<div class="hist">${T.map(t=>`<div class="item spread"><span style="min-width:0"><b>${esc(t.name)}</b><span class="small muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.exercises.map(e=>esc(e.name)).join(" · ")}</span></span>
+    ${T.length?`<div class="hist">${T.map(t=>`<div class="item spread"><span style="min-width:0"><b>${esc(t.name)}</b><span class="small muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${kindName(t.kind)} · ${t.exercises.map(e=>esc(e.name)).join(" · ")}</span></span>
       <span class="row" style="gap:0;flex-wrap:nowrap;flex:none"><button class="btn primary" data-act="tplStart" data-id="${t.id}">Start</button><button class="x" data-act="tplDel" data-id="${t.id}" aria-label="Delete template ${esc(t.name)}">×</button></span></div>`).join("")}</div>`
     :`<p class="small muted" style="margin:0">Save any session as a template (e.g. "Upper A") and start it in one tap next time, with last session's weights filled in.</p>`}</section>`}
-function saveTemplate(name,exercises){name=String(name||"").trim();if(!name){toast("Give the session a name first, e.g. Upper A");document.getElementById("woName")?.focus();return}
-  const ex=exercises.filter(e=>String(e.name||"").trim()).map(e=>({name:e.name.trim(),sets:Math.max(1,e.sets.length),reps:(e.sets.find(x=>x.reps)||{}).reps||""}));
+function saveTemplate(name,exercises,w){w=w||{};name=String(name||"").trim();if(!name){toast("Give the session a name first, e.g. Upper A");document.getElementById("woName")?.focus();return}
+  const ex=exercises.filter(e=>String(e.name||"").trim()).map(e=>({name:e.name.trim(),sets:Math.max(1,e.sets.length),reps:(e.sets.find(x=>x.reps)||{}).reps||"",secs:(e.sets.find(x=>x.secs)||{}).secs||"",mode:exMode(e.name,e.mode)==="time"?"time":undefined}));
+  const strip=L=>(L||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.detail||""}));
   if(!ex.length){toast("Add at least one exercise first");return}
   const old=ofType("template").find(t=>exKey(t.name)===exKey(name)),id=old?old.id:"tpl_"+Date.now(),prev=old?clone(S.docs[id]):null;
-  save(id,{type:"template",date:todayKey(),name,exercises:ex});toast((old?"Updated":"Saved")+" template "+name,{undo:()=>restoreDoc(id,prev)})}
+  save(id,{type:"template",date:todayKey(),name,kind:w.kind||"gym",warmup:strip(w.warmup),cooldown:strip(w.cooldown),exercises:ex});toast((old?"Updated":"Saved")+" template "+name,{undo:()=>restoreDoc(id,prev)})}
 function startTemplate(id){const t=S.docs[id];if(!t)return;
-  S.draftWorkout={type:"workout",date:todayKey(),name:t.name,exercises:t.exercises.map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];
-    return {name:e.name,sets:[...Array(e.sets)].map((_,i)=>{const ls=last[i]||last[last.length-1];return ls?{kg:ls.kg,reps:ls.reps}:{kg:"",reps:e.reps||""}})}})};
+  const kind=t.kind||"gym",cp=L=>(L||[]).map(x=>({name:x.name,detail:x.detail||"",done:false}));
+  S.draftWorkout={type:"workout",date:todayKey(),name:t.name,kind,warmup:t.warmup?cp(t.warmup):presetList(WARM_PRESET,kind),cooldown:t.cooldown?cp(t.cooldown):presetList(COOL_PRESET,kind),exercises:t.exercises.map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];
+    return {name:e.name,mode:e.mode,sets:[...Array(e.sets)].map((_,i)=>{const ls=last[i]||last[last.length-1];return ls?{kg:ls.kg,reps:ls.reps,secs:ls.secs}:{kg:"",reps:e.reps||"",secs:e.secs||""}})}})};
   render();window.scrollTo(0,0);toast("Last session's weights filled in. Beat them if you can")}
 
 
@@ -1377,25 +1502,43 @@ document.addEventListener("click",e=>{
     case "cancelFood":S.editFood=null;render();break;
     case "delFood":{const id="day_"+S.day,prev=clone(dayDoc(S.day)),x=d();x.foods.splice(+ds.i,1);S.editFood=null;save(id,x);toast("Deleted"+ML(),{undo:()=>restoreDoc(id,prev)});break}
     case "tplStart":startTemplate(ds.id);break;
-    case "tplFromDraft":saveTemplate(S.draftWorkout.name,S.draftWorkout.exercises);break;
-    case "tplFromWo":{const w=S.docs[ds.id];if(w)saveTemplate(w.name,w.exercises);break}
+    case "tplFromDraft":saveTemplate(S.draftWorkout.name,S.draftWorkout.exercises,S.draftWorkout);break;
+    case "tplFromWo":{const w=S.docs[ds.id];if(w)saveTemplate(w.name,w.exercises,w);break}
     case "tplDel":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Template deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
-    case "newWo":S.draftWorkout={type:"workout",date:todayKey(),name:"",exercises:[{name:"",sets:[{kg:"",reps:""}]}]};render();break;
-    case "repeatWo":{const w=clone(S.docs[ds.id]);w.date=todayKey();w.exercises.forEach(e=>e.sets.forEach(s=>{}));S.draftWorkout=w;render();window.scrollTo(0,0);break}
+    case "newWo":S.lastKind=ds.v||S.lastKind;S.draftWorkout=newDraft(ds.v);render();window.scrollTo(0,0);break;
+    case "repeatWo":{const w=clone(S.docs[ds.id]);delete w.prs;delete w._t;w.date=todayKey();w.kind=w.kind||"gym";w._repeat=true;["warmup","cooldown"].forEach(p=>w[p]=(w[p]||presetList(p==="warmup"?WARM_PRESET:COOL_PRESET,w.kind)).map(x=>({...x,done:false})));w.exercises.forEach(e=>e.sets.forEach(st=>{delete st.done}));S.draftWorkout=w;render();window.scrollTo(0,0);break}
+    case "woKind":{const dw=S.draftWorkout;dw.kind=ds.v;S.lastKind=ds.v;if(dw._auto){dw.warmup=presetList(WARM_PRESET,ds.v);dw.cooldown=presetList(COOL_PRESET,ds.v)}render();break}
+    case "partDone":{const it=S.draftWorkout[ds.part][+ds.i];it.done=!it.done;S.draftWorkout._auto=false;render();break}
+    case "partDel":S.draftWorkout[ds.part].splice(+ds.i,1);S.draftWorkout._auto=false;render();break;
+    case "partAdd":{const L=S.draftWorkout[ds.part];L.push({name:ds.v,detail:"",done:false});S.draftWorkout._auto=false;render();document.getElementById(ds.part+(ds.v?"d":"n")+(L.length-1))?.focus();break}
+    case "deloadEvery":{const st=clone(settings());st.deload={every:+ds.v,start:(st.deload&&st.deload.start)||weekStart()};save("settings",st);toast("Deload every "+ds.v+" weeks");break}
+    case "deloadReset":{const st=clone(settings());st.deload={...(st.deload||{every:6}),start:weekStart()};save("settings",st);toast("New cycle starts this week");break}
+    case "trainView":S.trainView=ds.v;render();break;
+    case "woAll":S.woAll=!S.woAll;render();break;
+    case "cAct":S.cDraft.activity=ds.v;render();break;
+    case "cRpe":S.cDraft.rpe=+ds.n;render();break;
+    case "cAll":S.cAll=!S.cAll;render();break;
+    case "cSave":{const d=S.cDraft;if(!(+d.mins>0)){toast("Add how many minutes");document.getElementById("c_mins")?.focus();break}
+      save("cardio_"+Date.now(),{type:"cardio",date:d.date||todayKey(),activity:d.activity,mins:+d.mins,km:+d.km||0,hr:+d.hr||0,rpe:d.rpe,notes:d.notes||""});S.cDraft={...d,mins:"",km:"",hr:"",notes:""};toast("Cardio saved");break}
+    case "cDel":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Cardio deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "cancelWo":S.draftWorkout=null;render();break;
-    case "useLast":{const ex=S.draftWorkout.exercises[+ds.ei],h=exHistory(ex.name);if(h.length){ex.sets=h[0].sets.map(s=>({kg:s.kg,reps:s.reps}));render();toast("Copied. Add a rep or a little weight to progress")}break}
+    case "useLast":{const ex=S.draftWorkout.exercises[+ds.ei],h=exHistory(ex.name);if(h.length){ex.sets=h[0].sets.map(s=>({kg:s.kg,reps:s.reps,secs:s.secs}));render();toast("Copied. Add a rep or a little weight to progress")}break}
     case "openEx":S.openEx=S.openEx===ds.k?null:ds.k;render();break;
     case "addEx":S.draftWorkout.exercises.push({name:"",sets:[{kg:"",reps:""}]});render();break;
     case "delEx":S.draftWorkout.exercises.splice(+ds.ei,1);render();break;
-    case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??""});render();break}
+    case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??"",secs:last.secs??""});render();break}
     case "setDone":{const st=S.draftWorkout.exercises[+ds.ei].sets[+ds.si];st.done=!st.done;render();if(st.done)startRest();break}
     case "restAdj":if(S.rest&&!S.rest.fired){S.rest.end+=(+ds.d)*1000;S.rest.total=Math.max(5,S.rest.total+(+ds.d));if(S.rest.end<Date.now())S.rest.end=Date.now();tickRest()}break;
     case "restSkip":stopRest();break;
     case "restDef":case "restSet":{const st=clone(settings());const c={...REST_DEF,...(st.rest||{})};c.secs=a==="restSet"?+ds.v:Math.min(600,Math.max(15,c.secs+(+ds.d)));st.rest=c;save("settings",st);break}
     case "restTest":unlockAudio();startRest(3);break;
     case "delSet":S.draftWorkout.exercises[+ds.ei].sets.splice(+ds.si,1);render();break;
-    case "saveWo":{const w=S.draftWorkout;w.exercises=w.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),sets:e.sets.filter(s=>s.reps!==""&&s.reps!=null).map(s=>({kg:+s.kg||0,reps:+s.reps||0}))}));
-      if(!w.exercises.length){toast("Add at least one exercise with a name");break}S.draftWorkout=null;save("wo_"+Date.now(),w);toast("Session saved");break}
+    case "saveWo":{const w=S.draftWorkout;
+      w.exercises=w.exercises.filter(e=>e.name.trim()).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";return o}).filter(e=>e.sets.length);
+      if(!w.exercises.length){toast("Add at least one exercise with a set");break}
+      ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.detail||"",done:!!x.done})));
+      delete w._auto;delete w._repeat;const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
+      S.draftWorkout=null;save(id,w);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
     case "delWo":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Session deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "delBody":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Entry deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "ciScale":S.ciDraft[ds.k]=+ds.n;render();break;
@@ -1422,6 +1565,8 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
     c[ds.k]=t.checked;st.rest=c;save("settings",st)}
   if(ds.act==="target"){const st=clone(settings());st.targets[ds.k]=Math.max(0,Math.round(+t.value||0));save("settings",st)}
   if(ds.act==="woDate")S.draftWorkout.date=t.value;
+  if(ds.act==="setRir")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].rir=t.value;
+  if(ds.act==="cF")S.cDraft[ds.k]=t.value;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;render()}
 });
 document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
@@ -1437,7 +1582,10 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
     if(ds.act==="amtG"&&f.unit!=="g"){const qn=document.getElementById("ef_qty");if(qn)qn.value=r1(qty*4)/4===qty?qty:Math.round(qty*100)/100}
     const sc=scaleFood(f.base,qty);["protein","carbs","fat","kcal"].forEach(k=>{document.getElementById("ef_"+k).value=sc[k]})}
   if(ds.act==="setKg")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].kg=t.value;
-  if(ds.act==="setReps")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].reps=t.value;
+  if(ds.act==="setVal")S.draftWorkout.exercises[+ds.ei].sets[+ds.si][ds.f]=t.value;
+  if(ds.act==="partName"){S.draftWorkout[ds.part][+ds.i].name=t.value;S.draftWorkout._auto=false}
+  if(ds.act==="partDet"){S.draftWorkout[ds.part][+ds.i].detail=t.value;S.draftWorkout._auto=false}
+  if(ds.act==="cF")S.cDraft[ds.k]=t.value;
   if(ds.act==="ciText")S.ciDraft[ds.k]=t.value;
   if(ds.act==="habName")S.editHabits[+ds.i].name=t.value;
 });
