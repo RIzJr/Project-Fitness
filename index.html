@@ -133,7 +133,7 @@ form.row .btn{white-space:nowrap;flex:none}
 .avatar.big{width:56px;height:56px;font-size:20px;display:flex}
 .who-row{display:flex;align-items:center;gap:12px;min-width:0}
 .btn.back{padding:4px 0;margin-bottom:8px;display:block}
-nav.tabs button{font-size:10.5px;letter-spacing:.04em}
+nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 /* quick estimate */
 .meal{border:1px solid var(--accent);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
 .mrow{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:8px}
@@ -178,6 +178,15 @@ nav.tabs button{font-size:10.5px;letter-spacing:.04em}
 .ex{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
 .set{display:grid;grid-template-columns:20px 1fr 1fr 52px 40px 22px;gap:5px;align-items:center}
 .set select{padding:9px 4px;text-align:center}
+.ready{display:flex;gap:14px;align-items:center}
+.ring{flex:none;width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--sunk) 0);display:grid;place-items:center}
+.ring b{width:60px;height:60px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:var(--display);font-size:26px}
+.runner{background:#0B1A1F}
+.rtbody{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:10px;padding:0 8px}
+.rtname{font-family:var(--display);font-size:34px;font-weight:700;text-transform:uppercase;line-height:1.05}
+.rtime{font-family:var(--display);font-size:72px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.rtbody .prog{width:80%;height:6px;border-radius:99px;background:rgba(255,255,255,.2);overflow:hidden}.rtbody .prog i{display:block;height:100%;background:#3FB8AE}
+details summary{cursor:pointer;color:var(--muted)}
 .msets{display:flex;flex-direction:column;gap:5px}
 .mset{display:grid;grid-template-columns:118px 1fr 26px;gap:8px;align-items:center;font-size:12.5px}
 .mset .n{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
@@ -219,8 +228,8 @@ nav.tabs button{font-size:10.5px;letter-spacing:.04em}
 .exhead:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 .exdetail{margin-top:8px;display:flex;flex-direction:column;gap:2px}
 /* tabbar */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:5}
-nav.tabs button{border:0;background:transparent;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:5}
+nav.tabs button{border:0;background:transparent;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 nav.tabs button[aria-current="page"]{color:var(--accent)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:13.5px;z-index:9;max-width:90vw;display:flex;align-items:center;gap:12px}
@@ -351,7 +360,8 @@ const ICONS={
   body:'<svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>',
   checkin:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 2v4M16 2v4M8 13l3 3 5-6"/></svg>',
   settings:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'};
-const TABS=[["today","Today"],["train","Train"],["body","Body"],["checkin","Check-in"],["settings","Settings"]];
+const TABS=[["today","Today"],["train","Train"],["body","Body"],["recover","Recover"],["checkin","Check-in"],["settings","Settings"]];
+ICONS.recover='<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M8.5 11.5h2l1-2 1.5 4 1-2h1.5"/></svg>';
 function renderTabs(){document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" ${S.tab===k?'aria-current="page"':""}>${ICONS[k]}${l}</button>`).join("")}
 
 function exampleBanner(){return S.example?`<div class="banner"><span>Showing example data. Your first entry replaces it.</span><button class="btn ghost" data-act="clearEx">Start fresh</button></div>`:""}
@@ -514,7 +524,8 @@ function weeklySets(ws){const end=addDays(ws,6),g={};ofType("workout").filter(w=
 function deloadInfo(){const d=settings().deload;if(!d||!d.start)return null;const wk=Math.floor((new Date(weekStart())-new Date(d.start))/(7*864e5)),pos=((wk%d.every)+d.every)%d.every+1;return {pos,every:d.every,deload:pos===d.every,next:pos===d.every-1}}
 function renderInsights(){const ws=weekStart(),wo=ofType("workout"),thisWk=wo.filter(w=>w.date>=ws),prs=thisWk.flatMap(w=>w.prs||[]),st=stalls(),sets=weeklySets(ws),dl=deloadInfo();
   const lastAny=[...wo,...ofType("cardio")].map(x=>x.date).sort().pop(),gap=lastAny?Math.floor((new Date(todayKey())-new Date(lastAny))/864e5):null;
-  const notes=[];
+  const notes=[],rt=S.docs["ready_"+todayKey()],ra=rt?readinessAdvice(readinessScore(rt),rt.pain):null;
+  if(ra)notes.push(`<div class="small">💡 Readiness ${readinessScore(rt)}: <b>${ra[0]}.</b> ${ra[1].replace(" below"," on the Recover tab")}</div>`);
   if(dl&&dl.deload)notes.push(`<div class="hint small"><b>Deload week (week ${dl.pos} of ${dl.every}).</b><span>Cut your sets by about half, keep weights around 10% lighter and leave 3–4 reps in reserve. You'll come back stronger.</span></div>`);
   else if(dl&&dl.next)notes.push(`<div class="small">📅 <b>Deload next week.</b> This is week ${dl.pos} of ${dl.every}. Push this week, then ease off.</div>`);
   if(gap!=null&&gap>=7)notes.push(`<div class="small">⏰ It's been <b>${gap} days</b> since your last session. A short one today counts.</div>`);
@@ -529,6 +540,77 @@ function renderInsights(){const ws=weekStart(),wo=ofType("workout"),thisWk=wo.fi
     <span class="small muted">Most people grow best with about 10–20 sets per muscle a week (the marks on each bar). <span style="color:var(--carb)">Amber</span> is under 10, <span style="color:var(--veg)">green</span> is in range, <span style="color:var(--protein)">red</span> is over 20.</span>
     ${dl?`<div class="row"><span class="small">Deload every</span>${[4,5,6,8].map(n=>`<button class="btn${dl.every===n?" primary":""}" style="padding:6px 10px" data-act="deloadEvery" data-v="${n}">${n} wk</button>`).join("")}<button class="btn ghost" data-act="deloadReset">Restart cycle</button></div>`
       :`<button class="btn" style="align-self:flex-start" data-act="deloadEvery" data-v="6">Plan deload weeks</button><span class="small muted">A deload is a lighter week every 4–8 weeks so your body can recover and keep progressing.</span>`}</section>`}
+
+
+/* ---------- recover: readiness, pain log, recovery activities, guided routines ---------- */
+const RQ=[["sleepQ","Sleep quality","Poor","Great"],["soreness","Muscle soreness","None","Very sore"],["energy","Energy","Drained","Full of energy"],["stress","Stress","Calm","Very stressed"]];
+// readiness 0–100 from sleep, soreness, energy and stress; pain caps it at 50
+function readinessScore(r){if(!r)return null;const n=(v,inv)=>v?(inv?(5-v)/4:(v-1)/4):0.5;
+  let sc=Math.min(1,(+r.sleepH||0)/8)*0.2+n(r.sleepQ)*0.2+n(r.soreness,true)*0.2+n(r.energy)*0.25+n(r.stress,true)*0.15;sc=Math.round(sc*100);return r.pain?Math.min(sc,50):sc}
+function readinessAdvice(sc,pain){if(sc==null)return null;
+  const a=sc>=75?["Good to go","Train as planned. If a personal best is on the cards, go for it.","var(--veg)"]:sc>=55?["Train as planned","Keep the plan, but drop a set if things feel heavy.","var(--accent)"]:sc>=35?["Go lighter today","Cut your volume, leave 3+ reps in reserve, or swap for technique and mobility work.","var(--carb)"]:["Rest or recover","Take a rest day: a walk, mobility or one of the recovery routines below.","var(--protein)"];
+  if(pain)a[1]+=" You flagged pain, so avoid anything that makes it worse.";return a}
+const PAIN_AREAS=["Neck","Shoulder","Elbow","Wrist / hand","Chest","Upper back","Lower back","Hip","Glute","Groin","Thigh","Knee","Shin","Calf","Ankle / foot","Other"];
+const PAIN_KINDS=["Sharp","Dull ache","Stiff","Burning","Throbbing"];
+const RED_FLAGS=[["numb","Numbness, tingling or weakness"],["swell","Swelling, bruising or a visible change"],["impact","Started after a fall, impact or a 'pop'"],["weight","Can't put weight on it or move it normally"],["night","Worse at night or wakes you up"]];
+const REC_ACTS=[["Mobility",15],["Stretching",10],["Foam rolling",10],["Walk",30],["Yoga",30],["Massage",45],["Sauna",15],["Cold plunge",5],["Rest day",0],["Nap",20]];
+const ROUTINES=[
+  {id:"mob",name:"Full-body mobility",steps:[["Cat-cow",45,"Slowly arch and round your back, moving with your breath."],["Thread the needle, left",30,"On all fours, slide your left arm under your body and rotate."],["Thread the needle, right",30,"Same on the right side."],["World's greatest stretch, left",45,"Lunge forward, elbow to instep, then rotate and reach up."],["World's greatest stretch, right",45,"Switch sides."],["Hip circles",30,"Hands on hips, big slow circles both ways."],["Deep squat hold",45,"Sit low, chest up, push knees out with your elbows."],["Arm circles",30,"Small to big, forwards then backwards."],["Child's pose",45,"Sit back on your heels, arms long, breathe into your back."]]},
+  {id:"legs",name:"Post-leg-day stretch",steps:[["Quad stretch, left",40,"Stand tall, heel to bum, knees together."],["Quad stretch, right",40,"Switch legs."],["Hamstring stretch, left",40,"Heel on a low step, hinge forward with a flat back."],["Hamstring stretch, right",40,"Switch legs."],["Hip flexor stretch, left",40,"Half kneel, squeeze your glute and shift forward."],["Hip flexor stretch, right",40,"Switch sides."],["Pigeon pose, left",45,"Front shin across, sink your hips gently."],["Pigeon pose, right",45,"Switch sides."],["Calf stretch",40,"Hands on a wall, back heel down, knee straight."]]},
+  {id:"upper",name:"Upper body & shoulders",steps:[["Doorway chest stretch",45,"Forearms on the frame, step through gently."],["Cross-body shoulder, left",30,"Pull your left arm across your chest."],["Cross-body shoulder, right",30,"Switch arms."],["Lat stretch",45,"Hold a post and sit your hips back, arms long."],["Neck side stretch, left",30,"Ear towards shoulder, other shoulder down."],["Neck side stretch, right",30,"Switch sides."],["Wrist stretches",45,"Palms down then palms up, fingers back, arm straight."],["Child's pose reach",45,"Walk your hands to each side to stretch your lats."]]},
+  {id:"desk",name:"Desk reset",steps:[["Chin tucks",30,"Glide your head back to make a double chin, hold 2 seconds, repeat."],["Shoulder rolls",30,"Big slow circles backwards."],["Seated twist, left",30,"Sit tall and rotate gently."],["Seated twist, right",30,"Switch sides."],["Standing hip flexor, left",30,"Step back, squeeze your glute, tall posture."],["Standing hip flexor, right",30,"Switch sides."],["Forward fold",30,"Soft knees, let your head hang."],["Slow breathing",60,"In for 4, out for 6."]]},
+  {id:"calm",name:"Wind-down breathing",steps:[["Box breathing",120,"In for 4, hold for 4, out for 4, hold for 4."],["Legs up the wall",120,"Lie with your legs resting up a wall. Relax your shoulders."],["Long exhales",60,"In for 4, out for 8."]]}];
+const routineMins=r=>Math.round(r.steps.reduce((a,x)=>a+x[1],0)/60);
+function readinessForm(r){return `<div class="grid2"><label class="field"><span class="label">Hours slept</span><input id="rd_sleepH" type="number" inputmode="decimal" step="any" value="${esc(r.sleepH??"")}" data-act="rdF" data-k="sleepH" placeholder="e.g. 7.5"></label><span></span></div>
+  ${RQ.map(([k,l,lo,hi])=>`<div class="field"><span class="label">${l}</span><div class="scale" role="group" aria-label="${l}">${[1,2,3,4,5].map(n=>`<button data-act="rdS" data-k="${k}" data-n="${n}" aria-pressed="${r[k]===n}">${n}</button>`).join("")}</div><div class="anchors"><span>1 · ${lo}</span><span>${hi} · 5</span></div></div>`).join("")}
+  <div class="hq"><span class="small"><b>Any pain?</b> Not normal training soreness, but pain that worries you.</span><div class="yn">${["no","yes"].map(v=>`<button data-act="rdPain" data-v="${v}" aria-pressed="${(r.pain?"yes":r.pain===false?"no":"")===v}">${v==="yes"?"Yes":"No"}</button>`).join("")}</div></div>
+  <button class="btn primary" style="align-self:flex-start" data-act="rdSave">Save today's check</button>`}
+function readinessTrend(){const pts=[];for(let i=13;i>=0;i--){const k=addDays(todayKey(),-i),r=S.docs["ready_"+k];pts.push({week:k,score:r?readinessScore(r):null})}
+  return pts.some(x=>x.score!=null)?chartSVG(pts,[{key:"score",label:"Readiness",color:"var(--accent)"}],{min:0,max:100,label:"Readiness over 14 days"}):""}
+function painCard(pn){const days=Math.floor((new Date(todayKey())-new Date(pn.date))/864e5),last=(pn.log&&pn.log.length?pn.log[pn.log.length-1].score:pn.score),flags=(pn.flags||[]).length;
+  const refer=flags||last>=7||(pn.kind==="Sharp"&&last>=5)||days>=14||(pn.log&&pn.log.length>=3&&last>pn.log[pn.log.length-3].score);
+  return `<div class="item"><div class="spread"><b>${esc(pn.area)}${pn.side&&pn.side!=="n/a"?" · "+esc(pn.side):""}</b><span class="small muted">${last}/10 · ${days?days+" day"+(days===1?"":"s"):"today"}</span></div>
+    <div class="small muted">${esc(pn.kind||"")}${pn.worse?" · worse with "+esc(pn.worse):""}</div>
+    ${refer?`<div class="hint small"><b>Get this checked by a physio or GP.</b><span>${flags?"You ticked a warning sign. ":""}${last>=7?"The pain is severe. ":""}${days>=14?"It's lasted 2 weeks or more. ":""}Avoid movements that make it worse until then. If you have sudden severe pain, numbness spreading, or loss of bladder or bowel control, call 111 or go to A&E.</span></div>`:""}
+    <div class="row" style="gap:4px"><span class="small">Today:</span>${[0,2,4,6,8,10].map(n=>`<button class="btn" style="padding:4px 9px" data-act="painLog" data-id="${pn.id}" data-n="${n}">${n}</button>`).join("")}<button class="btn ghost" data-act="painDone" data-id="${pn.id}">Resolved</button></div></div>`}
+function painForm(){const d=S.painDraft;return `<div class="stack" style="gap:10px;background:var(--sunk);border-radius:10px;padding:12px">
+  <div class="grid2"><label class="field"><span class="label">Where</span><select data-act="pdF" data-k="area">${PAIN_AREAS.map(a=>`<option ${d.area===a?"selected":""}>${a}</option>`).join("")}</select></label>
+    <label class="field"><span class="label">Side</span><select data-act="pdF" data-k="side">${["Left","Right","Both","n/a"].map(a=>`<option ${d.side===a?"selected":""}>${a}</option>`).join("")}</select></label></div>
+  <div class="field"><span class="label">How bad, 0–10: ${d.score}</span><div class="scale" style="grid-template-columns:repeat(11,1fr)">${[0,1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-act="pdScore" data-n="${n}" aria-pressed="${d.score===n}" style="padding:7px 0;font-size:12px">${n}</button>`).join("")}</div></div>
+  <div class="chiprow">${PAIN_KINDS.map(k=>`<button class="qchip${d.kind===k?" on":""}" data-act="pdKind" data-v="${k}">${k}</button>`).join("")}</div>
+  <label class="field"><span class="label">What makes it worse?</span><input id="pd_worse" data-act="pdF" data-k="worse" value="${esc(d.worse||"")}" placeholder="e.g. squatting below parallel, overhead pressing"></label>
+  <div class="label">Any of these?</div>${RED_FLAGS.map(([k,l])=>`<label class="habit"><input type="checkbox" data-act="pdFlag" data-k="${k}" ${d.flags.includes(k)?"checked":""}><span class="small">${l}</span></label>`).join("")}
+  <div class="row"><button class="btn primary" data-act="painSave">Save</button><button class="btn" data-act="painCancel">Cancel</button></div></div>`}
+function renderRecover(){const today=todayKey(),r=S.docs["ready_"+today],editing=!r||S.rdEdit,draft=S.rdDraft||(S.rdDraft=r?clone(r):{type:"readiness",date:today}),sc=readinessScore(r),adv=readinessAdvice(sc,r&&r.pain);
+  const pains=ofType("pain"),active=pains.filter(x=>x.status!=="resolved"),resolved=pains.filter(x=>x.status==="resolved");
+  const ws=weekStart(),recs=ofType("recovery"),wk=recs.filter(x=>x.date>=ws),dl=deloadInfo();
+  const last3=[0,1,2].map(i=>readinessScore(S.docs["ready_"+addDays(today,-i)])).filter(x=>x!=null),low=last3.length===3&&last3.every(x=>x<50);
+  return `<header class="top"><div><h1>Recover</h1><div class="sub">Readiness, pain and recovery</div></div></header><div class="stack">
+  <section class="panel"><div class="spread"><h2>Today's readiness</h2>${r&&!S.rdEdit?`<button class="btn ghost" data-act="rdEdit">Edit</button>`:""}</div>
+    ${editing?readinessForm(draft):`<div class="ready"><div class="ring" style="--p:${sc};--c:${adv[2]}"><b>${sc}</b></div><div><b style="font-size:18px">${adv[0]}</b><div class="small">${adv[1]}</div><div class="small muted">${fmtN(+r.sleepH||0)} h sleep · soreness ${r.soreness||"–"}/5 · energy ${r.energy||"–"}/5 · stress ${r.stress||"–"}/5</div></div></div>`}
+    ${low?`<div class="hint small"><b>Three low days in a row.</b><span>Consider an extra rest day or bringing your deload forward. Look at sleep, stress and food too.</span></div>`:""}
+    ${dl?`<div class="small muted">Deload cycle: week ${dl.pos} of ${dl.every}${dl.deload?". This is your deload week.":dl.next?". Deload next week.":""}</div>`:""}
+    ${readinessTrend()}</section>
+  <section class="panel"><div class="spread"><h2>Pain & injuries</h2>${S.painDraft?"":`<button class="btn ghost" data-act="painNew">+ Report pain</button>`}</div>
+    ${S.painDraft?painForm():""}
+    ${active.length?`<div class="hist">${active.map(painCard).join("")}</div>`:S.painDraft?"":`<p class="small muted" style="margin:0">Nothing reported.</p>`}
+    <span class="small muted">Training soreness 1–3 days after a session is normal. Pain that's sharp, getting worse, or lasting over 2 weeks should be checked by a physio or GP.</span>
+    ${resolved.length?`<details><summary class="small">Resolved (${resolved.length})</summary>${resolved.map(x=>`<div class="small muted" style="padding:3px 0">${esc(x.area)} · ${fmtDay(x.date)} to ${fmtDay(x.resolved||x.date)}</div>`).join("")}</details>`:""}</section>
+  <section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">this week: ${wk.length} · ${wk.reduce((a,x)=>a+(+x.mins||0),0)} min</span></div>
+    <div class="chiprow">${REC_ACTS.map(([a,m])=>`<button class="qchip" data-act="recLog" data-v="${a}" data-m="${m}">+ ${a}${m?` <span class="muted">${m}m</span>`:""}</button>`).join("")}</div>
+    <div class="hist">${recs.slice(0,8).map(x=>`<div class="item spread"><span class="small"><b>${esc(x.activity)}</b>${+x.mins?` · ${x.mins} min`:""}<span class="muted"> · ${fmtDay(x.date)}</span></span><button class="x" data-act="recDel" data-id="${x.id}" aria-label="Delete">×</button></div>`).join("")||'<p class="small muted" style="margin:0">Tap an activity to log it. Recovery counts as training too.</p>'}</div></section>
+  <section class="panel"><h2>Guided routines</h2><div class="hist">${ROUTINES.map(rt=>`<div class="item spread"><span><b>${rt.name}</b><span class="small muted" style="display:block">${routineMins(rt)} min · ${rt.steps.length} moves</span></span><button class="btn primary" data-act="rtStart" data-id="${rt.id}">Start</button></div>`).join("")}</div>
+    <span class="small muted">Move gently and never into pain. Each routine logs itself when you finish.</span></section></div>`}
+function routineRunner(){const R=S.routine,rt=ROUTINES.find(x=>x.id===R.id);if(!rt)return"";
+  if(R.done)return `<div class="viewer runner"><div class="vbar"><b>${rt.name}</b><button class="btn" data-act="rtClose">Close</button></div><div class="rtbody"><div class="rtname">Done 🎉</div><p>${routineMins(rt)} minutes logged as recovery.</p></div></div>`;
+  const st=rt.steps[R.i],nx=rt.steps[R.i+1];
+  return `<div class="viewer runner" role="dialog" aria-label="${rt.name}"><div class="vbar"><b>${rt.name}</b><span class="small">${R.i+1} / ${rt.steps.length}</span><button class="btn" data-act="rtClose">Close</button></div>
+    <div class="rtbody"><div class="rtname">${st[0]}</div><p>${st[2]}</p><div class="rtime" id="rtTime">${mmss((R.paused?R.left:(R.end-Date.now()))/1000)}</div><div class="prog"><i id="rtBar" style="width:0%"></i></div>${nx?`<p class="small" style="opacity:.7">Next: ${nx[0]}</p>`:""}</div>
+    <div class="vbar"><button class="btn" data-act="rtPrev" ${R.i?"":"disabled"}>‹ Back</button><button class="btn" data-act="rtPause">${R.paused?"Resume":"Pause"}</button><button class="btn" data-act="rtNext">Next ›</button></div></div>`}
+function rtGo(i){const R=S.routine,rt=ROUTINES.find(x=>x.id===R.id);if(i>=rt.steps.length){R.done=true;clearInterval(rtGo._i);save("rec_"+Date.now(),{type:"recovery",date:todayKey(),activity:rt.name,mins:routineMins(rt)});if(restCfg().sound)beep();render();return}
+  R.i=Math.max(0,i);R.paused=false;R.end=Date.now()+rt.steps[R.i][1]*1000;if(i>0&&restCfg().sound)beep();if(navigator.vibrate)navigator.vibrate(150);render();clearInterval(rtGo._i);rtGo._i=setInterval(rtTick,250)}
+function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUTINES.find(x=>x.id===R.id),left=(R.end-Date.now())/1000;if(left<=0){rtGo(R.i+1);return}
+  const t=document.getElementById("rtTime"),b=document.getElementById("rtBar");if(t)t.textContent=mmss(left);if(b)b.style.width=((1-left/rt.steps[R.i][1])*100).toFixed(1)+"%"}
 
 /* ---------- cardio ---------- */
 const CARDIO=["Run","Walk","Cycle","Row","Swim","Cross-trainer","Stairs","HIIT","Sport","Other"];
@@ -713,14 +795,14 @@ function render(){
   if(S.lock){tb.hidden=true;document.getElementById("app").innerHTML=renderLock();return}
   if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
   tb.hidden=false;
-  document.getElementById("viewerRoot").innerHTML=S.tab==="body"?photoViewer():"";
+  document.getElementById("viewerRoot").innerHTML=S.tab==="body"?photoViewer():S.routine?routineRunner():"";
   renderTabs();
   const app=document.getElementById("app");
   const fe=document.activeElement, fid=fe&&fe.id, sel=fe&&fe.selectionStart;
   const qv=document.getElementById("q")?.value;
   // keep anything typed into an open food form when the page redraws (e.g. a search finishing)
   const ff=document.querySelector('form[data-form="food"]'),keep=ff?{i:ff.dataset.i,v:[...ff.querySelectorAll("input")].map(x=>[x.id,x.value])}:null;
-  app.innerHTML=S.tab==="today"?renderToday():S.tab==="train"?renderTrain():S.tab==="body"?renderBody():S.tab==="checkin"?renderCheckin():renderSettings();
+  app.innerHTML=S.tab==="today"?renderToday():S.tab==="train"?renderTrain():S.tab==="body"?renderBody():S.tab==="recover"?renderRecover():S.tab==="checkin"?renderCheckin():renderSettings();
   if(qv&&document.getElementById("q"))document.getElementById("q").value=qv;
   if(keep){const nf=document.querySelector(`form[data-form="food"][data-i="${keep.i}"]`);if(nf)keep.v.forEach(([id,v])=>{const el=id&&document.getElementById(id);if(el)el.value=v})}
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
@@ -953,6 +1035,8 @@ function weekSummary(ws,withNotes){const st=settings(),tg=st.targets,hs=st.habit
   const wo=ofType("workout").filter(w=>w.date>=ws&&w.date<=end);
   o.sessions=wo.length;o.sets=wo.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.length,0),0);
   o.volume=Math.round(wo.reduce((a,w)=>a+w.exercises.reduce((b,e)=>b+e.sets.reduce((c,x)=>c+(+x.kg||0)*(+x.reps||0),0),0),0));
+  const rd=[...Array(7)].map((_,i)=>readinessScore(S.docs["ready_"+addDays(ws,i)])).filter(x=>x!=null);if(rd.length)o.readiness=Math.round(rd.reduce((a,b)=>a+b,0)/rd.length);
+  o.recovery=ofType("recovery").filter(x=>x.date>=ws&&x.date<=end).length;
   const cw=ofType("cardio").filter(c=>c.date>=ws&&c.date<=end);o.cardioMins=cw.reduce((a,c)=>a+(+c.mins||0),0);o.activityMins=cw.reduce((a,c)=>a+actMins(c),0);
   const ci=S.docs["ci_"+ws];if(ci){CQ.forEach(([k])=>{if(ci[k])o[k]=ci[k]});if(withNotes)["win","struggle","focus"].forEach(k=>{if(ci[k])o[k]=ci[k]})}
   return o}
@@ -965,7 +1049,8 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
     ${CL.user&&CL.links&&CL.links.length?`<div class="small"><b>Shared automatically with:</b> ${CL.links.map(l=>esc(l.coach_name||"your coach")).join(", ")} (updates as you log). Manage in Settings → Cloud account.</div>`:""}
     <button class="btn primary" style="align-self:flex-start" data-act="shareReport">Create and send report</button></section>`}
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
-  const health=pr.shareHealth&&pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:null;
+  const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
+    pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
   return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,health,generated:new Date().toISOString(),weeks}}
 async function shareReport(){const sh=S.share||{weeks:8,notes:true};let pr=S.docs.profile||{type:"profile",name:activeProf().name};
   if(!pr.shareId){pr={...pr,shareId:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)};save("profile",pr)}
@@ -981,7 +1066,7 @@ function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=J
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
     save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
-const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
+const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["readiness","Readiness"],["recovery","Recovery sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
   const vals=series.flatMap(sr=>weeks.map(w=>w[sr.key]).filter(v=>v!=null&&v!==""));
   if(!vals.length)return `<p class="small muted" style="margin:0">Nothing logged for this yet.</p>`;
@@ -1009,8 +1094,9 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   const fv=(w,col)=>col[2]?col[2](w):(w[col[0]]==null||w[col[0]]===""?"—":col[0]==="volume"?Number(w[col[0]]).toLocaleString("en-GB"):fmtN(+w[col[0]]));
   return `<div class="stack"><section class="panel"><div class="spread"><button class="btn ghost" style="padding:4px 0" data-act="openClient" data-id="">‹ All clients</button><button class="btn ghost" style="color:var(--protein)" data-act="delClient" data-id="${id}">${S.confirmDelClient===id?"Tap to confirm":"Remove"}</button></div>
     <div class="who-row"><span class="avatar big">${esc(initials(c.name))}</span><div><b style="font-size:18px">${esc(c.name)}</b><div class="small muted">${esc(GOALS[c.goal]||"No goal set")} · targets ${t.kcal?Number(t.kcal).toLocaleString("en-GB")+" kcal, "+t.protein+"g protein":"not shared"}<br>${wk.length} weeks · last report ${fmtDay(String(c.received||c.date).slice(0,10))}</div></div></div></section>
-  <section class="panel"><h2>Health check</h2>${c.health?(c.health.flagged?`<div class="hint"><b>Answered yes to ${c.health.yes.length} question${c.health.yes.length===1?"":"s"}</b> (${fmtDay(c.health.date)}). Ask them to get GP clearance before increasing intensity.<ul class="small" style="margin:4px 0 0;padding-left:18px">${c.health.yes.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:`<div class="small good"><b>All clear</b> (${fmtDay(c.health.date)})</div>`)
-    :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check result with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}</section>
+  <section class="panel"><h2>Health check</h2>${c.health&&c.health.date?(c.health.flagged?`<div class="hint"><b>Answered yes to ${c.health.yes.length} question${c.health.yes.length===1?"":"s"}</b> (${fmtDay(c.health.date)}). Ask them to get GP clearance before increasing intensity.<ul class="small" style="margin:4px 0 0;padding-left:18px">${c.health.yes.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:`<div class="small good"><b>All clear</b> (${fmtDay(c.health.date)})</div>`)
+    :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check and pain log with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}
+    ${c.health&&c.health.pain&&c.health.pain.length?`<div class="hint small"><b>Active pain reported</b>${c.health.pain.map(x=>`<span>${esc(x.area)}${x.side&&x.side!=="n/a"?" ("+esc(x.side)+")":""}: ${x.score}/10${x.kind?", "+esc(x.kind).toLowerCase():""}, since ${fmtDay(x.since)}${x.flags?", warning signs ticked":""}</span>`).join("")}</div>`:""}</section>
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
   <section class="panel"><h2>Waist</h2>${chartSVG(wk,[{key:"waist",label:"Waist (cm)",color:"var(--fat)"}],{label:"Waist measurement"})}</section>
   <section class="panel"><h2>Calories</h2>${chartSVG(wk,[{key:"kcal",label:"Avg kcal",color:"var(--carb)",bars:true}],{target:t.kcal,zero:true,label:"Average daily calories per week"})}</section>
@@ -1094,7 +1180,7 @@ function healthPanel(){const p=S.docs.profile||{},hr=p.health,draft=S.healthDraf
   return `<section class="panel"><h2>Health check</h2>
     <div class="small">${!hr?"Not done yet.":hr.flagged?`<b style="color:var(--protein)">Check with your GP</b> before increasing exercise (done ${fmtDay(hr.date)}).`:`<span class="good"><b>All clear</b></span> (done ${fmtDay(hr.date)}).`}${old?" It's over a year old, so please update it.":""}</div>
     <button class="btn${!hr||old?" primary":""}" style="align-self:flex-start" data-act="hqStart">${hr?"Update health check":"Do the health check"}</button>
-    ${hr?`<label class="habit"><input type="checkbox" data-act="shareHealth" ${p.shareHealth?"checked":""}><span class="small">Share my health check result with my coach (in progress reports)</span></label>`:""}</section>`}
+    ${hr?`<label class="habit"><input type="checkbox" data-act="shareHealth" ${p.shareHealth?"checked":""}><span class="small">Share my health check and pain log with my coach (in progress reports)</span></label>`:""}</section>`}
 
 /* ---------- training templates ---------- */
 function renderTemplates(){const T=ofType("template").sort((a,b)=>String(a.name).localeCompare(String(b.name)));
@@ -1513,6 +1599,25 @@ document.addEventListener("click",e=>{
     case "partAdd":{const L=S.draftWorkout[ds.part];L.push({name:ds.v,detail:"",done:false});S.draftWorkout._auto=false;render();document.getElementById(ds.part+(ds.v?"d":"n")+(L.length-1))?.focus();break}
     case "deloadEvery":{const st=clone(settings());st.deload={every:+ds.v,start:(st.deload&&st.deload.start)||weekStart()};save("settings",st);toast("Deload every "+ds.v+" weeks");break}
     case "deloadReset":{const st=clone(settings());st.deload={...(st.deload||{every:6}),start:weekStart()};save("settings",st);toast("New cycle starts this week");break}
+    case "rdS":S.rdDraft[ds.k]=+ds.n;render();break;
+    case "rdPain":S.rdDraft.pain=ds.v==="yes";render();break;
+    case "rdEdit":S.rdEdit=true;S.rdDraft=clone(S.docs["ready_"+todayKey()]);render();break;
+    case "rdSave":{const d=S.rdDraft;if(!(+d.sleepH>0)||RQ.some(([k])=>!d[k])){toast("Fill in sleep hours and all four scores");break}if(d.pain==null){toast("Answer the pain question");break}
+      const k=todayKey();d.date=k;d.type="readiness";d.sleepH=+d.sleepH;S.rdEdit=false;S.rdDraft=null;if(d.pain&&!ofType("pain").some(x=>x.status!=="resolved"))S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};save("ready_"+k,d);toast(S.painDraft?"Saved. Tell us about the pain below":"Readiness saved");break}
+    case "painNew":S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};render();break;
+    case "painCancel":S.painDraft=null;render();break;
+    case "pdScore":S.painDraft.score=+ds.n;render();break;
+    case "pdKind":S.painDraft.kind=ds.v;render();break;
+    case "painSave":{const d=S.painDraft;S.painDraft=null;save("pain_"+Date.now(),{type:"pain",date:todayKey(),area:d.area,side:d.side,score:d.score,kind:d.kind,worse:d.worse||"",flags:d.flags,status:"active",log:[{date:todayKey(),score:d.score}]});toast("Saved. Keep an eye on it and log how it feels");break}
+    case "painLog":{const pn=clone(S.docs[ds.id]);pn.log=(pn.log||[]).filter(x=>x.date!==todayKey()).concat([{date:todayKey(),score:+ds.n}]);save(ds.id,pn);toast("Logged "+ds.n+"/10 for today");break}
+    case "painDone":{const prev=clone(S.docs[ds.id]);save(ds.id,{...prev,status:"resolved",resolved:todayKey()});toast("Marked as resolved",{undo:()=>restoreDoc(ds.id,prev)});break}
+    case "recLog":{const id="rec_"+Date.now();save(id,{type:"recovery",date:todayKey(),activity:ds.v,mins:+ds.m});toast(ds.v+" logged",{undo:()=>restoreDoc(id,null)});break}
+    case "recDel":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
+    case "rtStart":unlockAudio();S.routine={id:ds.id,i:0};rtGo(0);break;
+    case "rtNext":rtGo(S.routine.i+1);break;
+    case "rtPrev":rtGo(S.routine.i-1);break;
+    case "rtPause":{const R=S.routine;if(R.paused){R.end=Date.now()+R.left;R.paused=false}else{R.left=R.end-Date.now();R.paused=true}render();break}
+    case "rtClose":clearInterval(rtGo._i);S.routine=null;render();break;
     case "trainView":S.trainView=ds.v;render();break;
     case "woAll":S.woAll=!S.woAll;render();break;
     case "cAct":S.cDraft.activity=ds.v;render();break;
@@ -1565,6 +1670,8 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
     c[ds.k]=t.checked;st.rest=c;save("settings",st)}
   if(ds.act==="target"){const st=clone(settings());st.targets[ds.k]=Math.max(0,Math.round(+t.value||0));save("settings",st)}
   if(ds.act==="woDate")S.draftWorkout.date=t.value;
+  if(ds.act==="pdF")S.painDraft[ds.k]=t.value;
+  if(ds.act==="pdFlag"){const F=S.painDraft.flags;if(t.checked){if(!F.includes(ds.k))F.push(ds.k)}else S.painDraft.flags=F.filter(x=>x!==ds.k)}
   if(ds.act==="setRir")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].rir=t.value;
   if(ds.act==="cF")S.cDraft[ds.k]=t.value;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;render()}
@@ -1582,6 +1689,8 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
     if(ds.act==="amtG"&&f.unit!=="g"){const qn=document.getElementById("ef_qty");if(qn)qn.value=r1(qty*4)/4===qty?qty:Math.round(qty*100)/100}
     const sc=scaleFood(f.base,qty);["protein","carbs","fat","kcal"].forEach(k=>{document.getElementById("ef_"+k).value=sc[k]})}
   if(ds.act==="setKg")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].kg=t.value;
+  if(ds.act==="rdF")S.rdDraft[ds.k]=t.value;
+  if(ds.act==="pdF")S.painDraft[ds.k]=t.value;
   if(ds.act==="setVal")S.draftWorkout.exercises[+ds.ei].sets[+ds.si][ds.f]=t.value;
   if(ds.act==="partName"){S.draftWorkout[ds.part][+ds.i].name=t.value;S.draftWorkout._auto=false}
   if(ds.act==="partDet"){S.draftWorkout[ds.part][+ds.i].detail=t.value;S.draftWorkout._auto=false}
