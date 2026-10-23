@@ -81,6 +81,7 @@ textarea{resize:vertical;min-height:64px}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
 /* settings */
+.code{font-family:var(--display);font-size:40px;font-weight:700;letter-spacing:.18em;text-align:center;background:var(--sunk);border-radius:12px;padding:10px}
 .phgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .phthumb{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
 .phthumb img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:9px;background:var(--sunk)}
@@ -294,11 +295,12 @@ const timers={};
 function save(id,data){
   if(S.example){S.docs={settings:S.docs.settings||DEFAULT_SETTINGS};S.example=false;
     if(S.col){S.col.doc("settings").set(clone(S.docs.settings)).catch(()=>{})}}
-  S.docs[id]=data;render();
+  if(data&&typeof data==="object")data._t=Date.now();
+  S.docs[id]=data;render();window.Cloud&&Cloud.queue(id);
   if(S.col){clearTimeout(timers[id]);timers[id]=setTimeout(()=>{S.col.doc(id).set(clone(data)).catch(e=>toast("Couldn't save: "+(e&&e.message||"try again"))).finally(()=>{delete timers[id]})},500)}
   else saveLocal();
 }
-function remove(id){delete S.docs[id];render();if(S.col){S.col.doc(id).delete().catch(()=>toast("Couldn't delete, try again"))}else saveLocal()}
+function remove(id){delete S.docs[id];window.Cloud&&Cloud.markDeleted(id);render();if(S.col){S.col.doc(id).delete().catch(()=>toast("Couldn't delete, try again"))}else saveLocal()}
 const clone=o=>JSON.parse(JSON.stringify(o));
 function toast(msg,opt){const t=document.getElementById("toast");t.innerHTML="";const sp=document.createElement("span");sp.textContent=msg;t.appendChild(sp);
   if(opt&&opt.undo){const b=document.createElement("button");b.className="undo";b.type="button";b.textContent="Undo";b.onclick=()=>{t.hidden=true;opt.undo();toast("Undone")};t.appendChild(b)}
@@ -818,11 +820,13 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
     <div class="grid2"><label class="field"><span class="label">Period</span><select data-act="shareWeeks">${[4,8,12,26].map(n=>`<option value="${n}" ${sh.weeks===n?"selected":""}>Last ${n} weeks</option>`).join("")}</select></label>
       <label class="habit" style="align-self:end"><input type="checkbox" data-act="shareNotes" ${sh.notes?"checked":""}><span class="small">Include my check-in notes</span></label></div>
     <div class="small muted"><b style="color:var(--fg)">Shared:</b> weekly average weight and measurements, average calories and protein, days on target, habit %, training sessions and volume, check-in scores${sh.notes?" and notes":""}.<br><b style="color:var(--fg)">Not shared:</b> individual meals, contact details, notes in your profile, PIN.</div>
+    ${CL.user&&CL.links&&CL.links.length?`<div class="small"><b>Shared automatically with:</b> ${CL.links.map(l=>esc(l.coach_name||"your coach")).join(", ")} (updates as you log). Manage in Settings → Cloud account.</div>`:""}
     <button class="btn primary" style="align-self:flex-start" data-act="shareReport">Create and send report</button></section>`}
+function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:settings().targets,generated:new Date().toISOString(),weeks}}
 async function shareReport(){const sh=S.share||{weeks:8,notes:true};let pr=S.docs.profile||{type:"profile",name:activeProf().name};
   if(!pr.shareId){pr={...pr,shareId:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)};save("profile",pr)}
-  const ws0=weekStart(),weeks=[];for(let i=sh.weeks-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),sh.notes));
-  const rep={app:"Project Fitness",kind:"progress-report",v:1,shareId:pr.shareId,name:pr.name||activeProf().name,goal:pr.goal||"",targets:settings().targets,generated:new Date().toISOString(),weeks};
+  const rep=buildReport(sh.weeks,sh.notes,pr.shareId);
   const fname=`progress-${(rep.name||"client").replace(/[^a-z0-9]+/gi,"-").toLowerCase()}-${todayKey()}.json`;
   const file=new File([JSON.stringify(rep)],fname,{type:"application/json"});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"My progress report",text:`${rep.name}'s progress report (Project Fitness)`});return}}catch(e){if(e&&e.name==="AbortError")return}
@@ -849,8 +853,9 @@ function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=week
   const xl=n?`<text x="${x(0)}" y="${H-6}" font-size="9.5" fill="var(--muted)" ${n<2?'text-anchor="middle"':""}>${fmtDay(weeks[0].week)}</text>${n>1?`<text x="${x(n-1)}" y="${H-6}" font-size="9.5" fill="var(--muted)" text-anchor="end">${fmtDay(weeks[n-1].week)}</text>`:""}`:"";
   const legend=series.length>1?`<div class="legend">${series.map(sr=>`<span><i style="background:${sr.color}"></i>${sr.label}</span>`).join("")}</div>`:"";
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label||series.map(s=>s.label).join(", "))}">${grid}${tgt}${marks}${xl}</svg>${legend}`}
-function renderClients(){const list=ofType("client").sort((a,b)=>String(a.name).localeCompare(String(b.name)));const c=S.clientOpen&&S.docs[S.clientOpen];
-  const head=`<header class="top"><div><h1>Clients</h1><div class="sub">${list.length} client${list.length===1?"":"s"} · reports they've sent you</div></div><button class="btn primary" data-act="importReport">Import report</button></header>${coachSeg()}`;
+function renderClients(){if(CL.user&&(!CL.repAt||Date.now()-CL.repAt>60000)){CL.repAt=Date.now();fetchClientReports()}
+  const list=ofType("client").sort((a,b)=>String(a.name).localeCompare(String(b.name)));const c=S.clientOpen&&S.docs[S.clientOpen];
+  const head=`<header class="top"><div><h1>Clients</h1><div class="sub">${list.length} client${list.length===1?"":"s"}${CL.user?" · linked clients update automatically":" · reports they've sent you"}</div></div><button class="btn primary" data-act="importReport">Import report</button></header>${coachSeg()}`;
   if(c)return head+clientDetail(S.clientOpen,c);
   return head+`<div class="stack">${list.length?`<section class="panel" style="padding:4px 16px">${list.map(cl=>{const w=cl.weeks.filter(x=>x.weight!=null),ch=w.length>1?r1(w[w.length-1].weight-w[0].weight):null,last=cl.weeks[cl.weeks.length-1];
       return `<button class="setrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small muted" style="display:block">${esc(GOALS[cl.goal]||"No goal set")} · report ${fmtDay(String(cl.received||cl.date).slice(0,10))}</span></span></span>
@@ -882,7 +887,7 @@ function clientCsv(id){const c=S.docs[id];if(!c)return;const cols=[...CLIENT_COL
 /* ---------- first-run setup ---------- */
 const HABIT_IDEAS=["Protein at every meal","2 litres of water","8,000+ steps","7+ hours sleep","Ate slowly, stopped at 80% full","10 minutes of mobility","No alcohol","Fruit or veg with every meal"];
 function needsOnboarding(){const p=S.docs.profile||{};return !p.onboarded&&!Object.values(S.docs).some(d=>d&&["day","workout","body","checkin"].includes(d.type))}
-function afterLoad(){if(S.example){S.docs={settings:clone(DEFAULT_SETTINGS)};S.example=false}
+function afterLoad(){setTimeout(()=>Cloud.init(),0);if(S.example){S.docs={settings:clone(DEFAULT_SETTINGS)};S.example=false}
   if(needsOnboarding()){const p=S.docs.profile||{},nm=p.name||activeProf().name;S.onboard={step:0,d:{name:nm==="Me"?"":nm,goal:p.goal||"",activity:p.activity||"",dob:p.dob||"",sex:p.sex||"",height:p.height||"",weight:p.weight||"",habits:[...(settings().habits||[])],targets:null}}}
   else S.onboard=null}
 function renderOnboard(){const O=S.onboard,d=O.d,N=5;
@@ -962,8 +967,118 @@ function backupBanner(){if(S.example||(window.Cloud&&Cloud.signedIn&&Cloud.signe
   const days=Math.floor((now-last)/864e5),never=!lsGet("pf-lastbackup:"+pid);
   return `<div class="banner"><span>💾 ${never?"You haven't backed up yet.":`Last backup was ${days} days ago.`} Your data only lives on this phone.</span><span class="row" style="gap:2px"><button class="btn ghost" data-act="exportData">Back up now</button><button class="btn ghost" data-act="snoozeBackup">Later</button></span></div>`}
 
+
+/* ---------- cloud account & sync (Supabase) ----------
+   Fill these two in from your Supabase project (Project Settings → API). The anon key is meant to be public:
+   Row Level Security in supabase-setup.sql makes sure each person can only read and write their own data. */
+const CLOUD_URL="";
+const CLOUD_KEY="";
+const CL={user:null,status:CLOUD_URL?"loading":"off",last:0,err:"",links:null,code:undefined,syncedOnce:false};
+let sbMod=null;const sbClients={};
+async function sbClient(){if(!CLOUD_URL)return null;const pid=PROF.active;
+  try{sbMod=sbMod||import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");const m=await sbMod;
+    if(!sbClients[pid]){const c=m.createClient(CLOUD_URL,CLOUD_KEY,{auth:{storageKey:"pf-sb-"+pid,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});sbClients[pid]=c;
+      c.auth.onAuthStateChange((ev,sess)=>{if(PROF.active!==pid)return;CL.user=(sess&&sess.user)||null;
+        if(ev==="PASSWORD_RECOVERY"){CL.recover=true;S.tab="settings";S.setPage="cloud";render()}
+        if(ev==="SIGNED_OUT"){CL.status="signedout";cloudRender()}})}
+    return sbClients[pid]}catch(e){sbMod=null;CL.status="offline";return null}}
+const ckey=k=>"pf-"+k+":"+PROF.active;
+function jget(k,d){try{return JSON.parse(lsGet(ckey(k))||"null")??d}catch(e){return d}}
+function jset(k,v){lsSet(ckey(k),JSON.stringify(v))}
+// only redraw when it can't interrupt typing elsewhere
+function cloudRender(changed){if(changed||(S.tab==="settings"&&S.setPage==="cloud")||(S.tab==="checkin"&&S.ciView==="clients"))render()}
+const Cloud={signedIn:()=>!!CL.user,
+  async init(){const pid=PROF.active;Object.assign(CL,{user:null,links:null,code:undefined,syncedOnce:false,recover:false,err:"",repAt:0});
+    if(!CLOUD_URL){CL.status="off";return}CL.status="loading";const c=await sbClient();if(!c||PROF.active!==pid){cloudRender();return}
+    try{const {data}=await c.auth.getSession();if(PROF.active!==pid)return;CL.user=(data.session&&data.session.user)||null}catch(e){}
+    CL.status=CL.user?"ok":"signedout";cloudRender();if(CL.user)fullSync()},
+  queue(id){if(!CLOUD_URL)return;const d=new Set(jget("dirty",[]));d.add(id);jset("dirty",[...d]);clearTimeout(Cloud._t);Cloud._t=setTimeout(pushDirty,1500)},
+  markDeleted(id){if(!CLOUD_URL)return;const t=jget("tomb",{});t[id]=Date.now();jset("tomb",t);Cloud.queue(id)}};
+window.Cloud=Cloud;
+async function pushDirty(){if(!CL.user||CL.pushing)return;const c=await sbClient();if(!c)return;const dirty=jget("dirty",[]);if(!dirty.length){pushReports();return}
+  CL.pushing=true;const tomb=jget("tomb",{}),uid=CL.user.id;
+  const rows=dirty.map(id=>({user_id:uid,id,data:S.docs[id]?S.docs[id]:{_del:true,_t:tomb[id]||Date.now()}})),snap=Object.fromEntries(rows.map(r=>[r.id,JSON.stringify(r.data)]));
+  try{for(let i=0;i<rows.length;i+=200){const {error}=await c.from("docs").upsert(rows.slice(i,i+200),{onConflict:"user_id,id"});if(error)throw error}
+    const now=new Set(jget("dirty",[])),t2=jget("tomb",{});rows.forEach(r=>{const cur=S.docs[r.id]?JSON.stringify(S.docs[r.id]):null;if(cur===snap[r.id]||(!S.docs[r.id]&&r.data._del)){now.delete(r.id);if(!S.docs[r.id])delete t2[r.id]}});
+    jset("dirty",[...now]);jset("tomb",t2);CL.status="ok";CL.err="";CL.last=Date.now()}
+  catch(e){CL.status=navigator.onLine===false?"offline":"error";CL.err=(e&&e.message)||"Sync failed"}
+  CL.pushing=false;cloudRender();pushReports()}
+// first=true on a phone's first sign-in: the account's copy wins, so a new phone's blank setup can't overwrite your real data
+async function pullDocs(first){const c=await sbClient();if(!c||!CL.user)return;const since=first?null:jget("lastpull",null);let changed=false,max=since;const seen=new Set();
+  for(let from=0;;from+=1000){let q=c.from("docs").select("id,data,updated_at").order("updated_at",{ascending:true}).range(from,from+999);
+    if(since)q=q.gt("updated_at",new Date(new Date(since).getTime()-60000).toISOString());
+    const {data,error}=await q;if(error)throw error;
+    data.forEach(r=>{if(!max||r.updated_at>max)max=r.updated_at;seen.add(r.id);const loc=S.docs[r.id],rt=(r.data&&r.data._t)||0,lt=(loc&&loc._t)||0;
+      if(r.data&&r.data._del){if(loc&&(first||lt<=rt)){delete S.docs[r.id];changed=true}}else if(!loc||first||lt<rt){S.docs[r.id]=r.data;changed=true}});
+    if(data.length<1000)break}
+  if(max)jset("lastpull",max);CL.remoteIds=seen;
+  if(changed){saveLocal();S.ciDraft=null;if(needsOnboarding()===false&&S.onboard)S.onboard=null;render()}}
+async function fullSync(){if(!CL.user||CL.syncing)return;CL.syncing=true;CL.status="syncing";cloudRender();
+  try{const first=lsGet(ckey("synced"))!==CL.user.id;
+    if(first)jset("dirty",[]);
+    await pullDocs(first);
+    if(first){const d=new Set();Object.keys(S.docs).forEach(id=>{if(!CL.remoteIds.has(id))d.add(id)});jset("dirty",[...d]);lsSet(ckey("synced"),CL.user.id)}
+    CL.syncing=false;await pushDirty();await loadLinks();CL.syncedOnce=true;if(S.docs.profile&&S.docs.profile.coach)loadCode()}
+  catch(e){CL.status=navigator.onLine===false?"offline":"error";CL.err=(e&&e.message)||"Sync failed"}
+  CL.syncing=false;cloudRender()}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&CL.user)fullSync()});
+window.addEventListener("online",()=>{if(CL.user)fullSync()});
+/* coach linking */
+async function loadLinks(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("coach_links").select("coach_id,coach_name,include_notes").eq("client_id",CL.user.id);if(!error)CL.links=data||[]}
+async function loadCode(){const c=await sbClient();if(!c||!CL.user)return;const {data}=await c.from("coach_codes").select("code").eq("coach_id",CL.user.id).maybeSingle();CL.code=data?data.code:null;cloudRender()}
+async function makeCode(){const c=await sbClient();if(!c||!CL.user)return;const A="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  for(let tries=0;tries<5;tries++){const code=[...crypto.getRandomValues(new Uint8Array(6))].map(b=>A[b%A.length]).join("");
+    const {error}=await c.from("coach_codes").upsert({coach_id:CL.user.id,code,name:activeProf().name},{onConflict:"coach_id"});if(!error){CL.code=code;render();return}}
+  toast("Couldn't create a code. Try again")}
+async function linkCoach(code){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.rpc("link_coach",{p_code:code,p_name:activeProf().name});
+  if(error){toast(/own code/i.test(error.message)?"That's your own coach code":/No coach/i.test(error.message)?"No coach found with that code":"Couldn't link. Check the code and try again");return}
+  await loadLinks();CL.repAt=0;await pushReports(true);render();toast("Now sharing your progress with "+(data||"your coach"))}
+async function setNotes(coachId,on){const c=await sbClient();if(!c||!CL.user)return;await c.from("coach_links").update({include_notes:on}).eq("client_id",CL.user.id).eq("coach_id",coachId);await loadLinks();pushReports(true);render()}
+async function unlinkCoach(coachId){const c=await sbClient();if(!c||!CL.user)return;await c.from("reports").delete().eq("client_id",CL.user.id).eq("coach_id",coachId);await c.from("coach_links").delete().eq("client_id",CL.user.id).eq("coach_id",coachId);await loadLinks();render();toast("Stopped sharing")}
+async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)return;if(!force&&CL.repPushed&&Date.now()-CL.repPushed<120000)return;CL.repPushed=Date.now();
+  const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
+async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
+  let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,notes:old.notes||"",weeks:j.weeks||[],_t:Date.now()};Cloud.queue(id);changed=true});
+  if(changed){saveLocal();render()}}
+async function unlinkClient(clientUid){const c=await sbClient();if(!c||!CL.user)return;await c.from("reports").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id);await c.from("coach_links").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id)}
+/* auth */
+const authMsg=e=>{const m=(e&&e.message)||"";return /Invalid login/i.test(m)?"Email or password is wrong":/not confirmed/i.test(m)?"Confirm your email first (check your inbox), then sign in":/already registered/i.test(m)?"There's already an account with that email. Sign in instead":/Password should be/i.test(m)?"Password must be at least 8 characters":m||"Something went wrong. Try again"};
+async function doAuth(kind){const c=await sbClient();if(!c){toast("Can't reach the account service. Check your connection");return}
+  const email=(document.getElementById("au_email")||{}).value?.trim(),pw=(document.getElementById("au_pw")||{}).value||"";
+  if(!email||!/@/.test(email)){toast("Enter your email");return}
+  if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});toast(error?authMsg(error):"Password reset email sent");return}
+  if(pw.length<8){toast("Password must be at least 8 characters");return}
+  CL.busy=true;cloudRender();
+  const {data,error}=kind==="up"?await c.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname}}):await c.auth.signInWithPassword({email,password:pw});
+  CL.busy=false;if(error){toast(authMsg(error));cloudRender();return}
+  if(kind==="up"&&!data.session){toast("Check your email to confirm your account, then sign in here");cloudRender();return}
+  CL.user=data.user;CL.status="ok";toast("Signed in. Syncing your data");fullSync()}
+async function signOut(){const c=await sbClient();if(c)await c.auth.signOut();["lastpull","synced","dirty","tomb"].forEach(k=>{try{localStorage.removeItem(ckey(k))}catch(e){}});
+  Object.assign(CL,{user:null,status:"signedout",links:null,code:undefined});render();toast("Signed out. Your data stays on this phone")}
+function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coach&&CL.user&&CL.code===undefined&&!CL.codeLoading){CL.codeLoading=true;loadCode().finally(()=>CL.codeLoading=false)}
+  const ago=CL.last?Math.max(0,Math.round((Date.now()-CL.last)/60000)):null;
+  if(CL.status==="off")return `<section class="panel"><h2>Not switched on yet</h2><p class="small" style="margin:0">Cloud accounts aren't connected for this app yet. Until then, everything is saved on this phone. Use Data & backup to keep a copy.</p></section>`;
+  if(CL.recover)return `<section class="panel"><h2>Set a new password</h2><form id="pwForm" class="stack" style="gap:10px"><input id="au_newpw" type="password" autocomplete="new-password" placeholder="New password (8+ characters)"><button class="btn primary" type="submit">Save password</button></form></section>`;
+  if(!CL.user)return `<section class="panel"><h2>${CL.status==="loading"?"Connecting…":CL.status==="offline"?"You're offline":"Sign in or create an account"}</h2>
+    <p class="small" style="margin:0">An account backs up ${esc(activeProf().name)}'s data online and keeps it in sync on every phone you sign in on. Your data on this phone is kept and uploaded when you sign in.</p>
+    <form id="authForm" class="stack" style="gap:10px"><label class="field"><span class="label">Email</span><input id="au_email" type="email" autocomplete="email" inputmode="email"></label>
+      <label class="field"><span class="label">Password</span><input id="au_pw" type="password" autocomplete="current-password" placeholder="8+ characters"></label>
+      <div class="row"><button class="btn primary" type="submit" ${CL.busy?"disabled":""}>Sign in</button><button class="btn" type="button" data-act="signUp" ${CL.busy?"disabled":""}>Create account</button><button class="btn ghost" type="button" data-act="forgotPw">Forgot password?</button></div></form></section>
+    <section class="panel"><h2>Privacy</h2><p class="small" style="margin:0">Only you can read your account's data. If you link a coach, they receive weekly summaries only, never individual meals, photos or your contact details. Progress photos never leave this phone.</p></section>`;
+  return `<section class="panel"><h2>Signed in</h2><div class="small"><b>${esc(CL.user.email||"")}</b></div>
+    <div class="small ${CL.status==="error"?"":"muted"}" style="${CL.status==="error"?"color:var(--protein)":""}">${CL.status==="syncing"?"Syncing…":CL.status==="error"?"Sync problem: "+esc(CL.err):CL.status==="offline"?"Offline. Changes will sync when you're back online.":ago==null?"Up to date":ago<1?"Synced just now":"Synced "+ago+" min ago"}</div>
+    <div class="row"><button class="btn" data-act="syncNow">Sync now</button><button class="btn ghost" data-act="signOut">Sign out</button></div></section>
+  ${coach?`<section class="panel"><h2>Your coach code</h2>${CL.code?`<div class="code">${esc(CL.code)}</div><p class="small" style="margin:0">Clients enter this in <b>Settings → Cloud account → Share with a coach</b>. Their weekly summaries then appear in your Clients view automatically.</p><button class="btn ghost" style="align-self:flex-start" data-act="newCode">Make a new code</button>`
+    :CL.code===null?`<p class="small" style="margin:0">Create a code to give to clients.</p><button class="btn primary" style="align-self:flex-start" data-act="newCode">Create my coach code</button>`:`<p class="small muted" style="margin:0">Loading…</p>`}</section>`:""}
+  <section class="panel"><h2>Share with a coach</h2>
+    ${CL.links&&CL.links.length?`<div class="hist">${CL.links.map(l=>`<div class="item"><div class="spread"><b>${esc(l.coach_name||"Coach")}</b><button class="btn ghost" style="color:var(--protein)" data-act="unlinkCoach" data-id="${l.coach_id}">Stop sharing</button></div>
+      <label class="habit"><input type="checkbox" data-act="linkNotes" data-id="${l.coach_id}" ${l.include_notes?"checked":""}><span class="small">Include my check-in notes</span></label></div>`).join("")}</div>`:""}
+    <form id="linkForm" class="row" style="flex-wrap:nowrap"><input id="lk_code" placeholder="Coach code, e.g. K7P2QX" autocomplete="off" autocapitalize="characters" maxlength="8"><button class="btn" type="submit">Link</button></form>
+    <span class="small muted">Your coach gets weekly summaries (weight, measurements, nutrition averages, habits, training, check-in scores), updated as you log. Never individual meals, photos or contact details. Stop sharing any time.</span></section>`}
+
 /* ---------- settings ---------- */
-const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
+const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
 const GOALS={lose:"Lose fat",maintain:"Maintain",gain:"Build muscle",perform:"Performance"};
 const ACT=[["1.2","Mostly sitting, little exercise"],["1.375","Light: 1–3 sessions a week"],["1.55","Moderate: 3–5 sessions a week"],["1.725","Very active: 6–7 sessions or a physical job"]];
 const initials=n=>String(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
@@ -981,7 +1096,7 @@ function renderSettings(){const pg=S.setPage,me=activeProf(),pr=S.docs.profile||
       ${PROF.list.length>1?`<button class="btn" style="align-self:flex-start" data-act="setPage" data-v="users">Switch user</button>`:""}</section>
     <section class="panel" style="padding:2px 16px">${SET_PAGES.map(([k,l,d])=>`<button class="setrow" data-act="setPage" data-v="${k}"><span style="min-width:0"><b>${l}</b><span class="small muted" style="display:block">${k==="users"?PROF.list.length+" user"+(PROF.list.length===1?"":"s")+" on this phone":d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</section></div>`;
   const title=(SET_PAGES.find(x=>x[0]===pg)||[0,""])[1];
-  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="rest"?setRest():pg==="look"?lookPanel():pg==="data"?setData():setAbout();
+  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="look"?lookPanel():pg==="data"?setData():setAbout();
   return `<header class="top"><div><button class="btn ghost back" data-act="setPage" data-v="">‹ Settings</button><h1>${title}</h1></div></header><div class="stack">${body}</div>`}
 function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??"");
   const sel=(id,opts,cur)=>`<select id="${id}">${opts.map(([val,l])=>`<option value="${val}" ${String(cur??"")===String(val)?"selected":""}>${l}</option>`).join("")}</select>`;
@@ -1051,7 +1166,7 @@ function switchUser(id,force){const p=PROF.list.find(x=>x.id===id);if(!p)return;
 }
 function exportData(){lsSet("pf-lastbackup:"+PROF.active,String(Date.now()));setTimeout(render,50);const me=activeProf(),blob=new Blob([JSON.stringify({app:"Project Fitness",version:1,user:me.name,exported:new Date().toISOString(),docs:S.docs},null,1)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`project-fitness-${me.name.replace(/[^a-z0-9]+/gi,"-").toLowerCase()}-${todayKey()}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
-function persistAll(){if(S.col)Object.entries(S.docs).forEach(([id,d])=>S.col.doc(id).set(clone(d)).catch(()=>{}));else saveLocal()}
+function persistAll(){window.Cloud&&Object.keys(S.docs).forEach(id=>Cloud.queue(id));if(S.col)Object.entries(S.docs).forEach(([id,d])=>S.col.doc(id).set(clone(d)).catch(()=>{}));else saveLocal()}
 function importData(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||typeof j.docs!=="object"||!j.docs)throw 0;
     S.docs=j.docs;S.example=false;persistAll();render();toast("Backup restored")}catch(e){toast("That file isn't a Project Fitness backup")}};r.readAsText(file)}
 
@@ -1124,7 +1239,7 @@ document.addEventListener("click",e=>{
     case "shareReport":shareReport();break;
     case "importReport":document.getElementById("reportIn").click();break;
     case "openClient":S.clientOpen=ds.id||null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
-    case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}{const prev=clone(S.docs[ds.id]);S.confirmDelClient=null;S.clientOpen=null;remove(ds.id);toast("Client removed",{undo:()=>restoreDoc(ds.id,prev)})}break;
+    case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}{const prev=clone(S.docs[ds.id]);S.confirmDelClient=null;S.clientOpen=null;if(prev.clientUid){unlinkClient(prev.clientUid);remove(ds.id);toast("Client removed and sharing stopped")}else{remove(ds.id);toast("Client removed",{undo:()=>restoreDoc(ds.id,prev)})}}break;
     case "clientCsv":clientCsv(ds.id);break;
     case "obPick":S.onboard.d[ds.k]=ds.v;if(ds.k==="goal"||ds.k==="activity")S.onboard.d.targets=null;render();break;
     case "obBack":S.onboard.step=Math.max(0,S.onboard.step-1);render();window.scrollTo(0,0);break;
@@ -1140,6 +1255,12 @@ document.addEventListener("click",e=>{
     case "comparePhoto":S.viewPhoto.compare=!S.viewPhoto.compare;render();break;
     case "delPhoto":if(!S.viewPhoto.confirm){S.viewPhoto.confirm=true;render();break}phTx("readwrite",st=>st.delete(ds.id)).then(()=>{S.viewPhoto=null;S.photosFor=null;render();toast("Photo deleted")});break;
     case "snoozeBackup":lsSet("pf-backupsnooze:"+PROF.active,String(Date.now()+3*864e5));render();break;
+    case "signUp":doAuth("up");break;
+    case "forgotPw":doAuth("forgot");break;
+    case "signOut":signOut();break;
+    case "syncNow":fullSync();break;
+    case "newCode":makeCode();break;
+    case "unlinkCoach":unlinkCoach(ds.id);break;
     case "setPage":S.setPage=ds.v||null;S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
     case "lockCancel":S.lock=null;render();break;
@@ -1151,7 +1272,7 @@ document.addEventListener("click",e=>{
     case "importData":document.getElementById("importIn").click();break;
     case "wipeData":{if(!S.confirmWipe){S.confirmWipe=true;render();break}const old=Object.keys(S.docs);S.confirmWipe=false;
       S.docs={settings:clone(DEFAULT_SETTINGS),profile:{type:"profile",name:activeProf().name}};S.example=false;
-      if(S.col)old.forEach(id=>{if(!S.docs[id])S.col.doc(id).delete().catch(()=>{})});persistAll();render();toast("All data deleted");break}
+      old.forEach(id=>{if(!S.docs[id]){window.Cloud&&Cloud.markDeleted(id);if(S.col)S.col.doc(id).delete().catch(()=>{})}});persistAll();render();toast("All data deleted");break}
     case "lookAccent":LOOK.accent=ds.v;saveLook();break;
     case "lookTheme":LOOK.theme=ds.v;saveLook();break;
     case "lookPhoto":document.getElementById("lookIn").click();break;
@@ -1196,6 +1317,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="habit"){const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
   if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
   if(ds.act==="obHabit"){const H=S.onboard.d.habits;if(t.checked){if(!H.includes(ds.h))H.push(ds.h)}else S.onboard.d.habits=H.filter(x=>x!==ds.h)}
+  if(ds.act==="linkNotes"){setNotes(ds.id,t.checked)}
   if(ds.act==="coachMode"){save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),coach:t.checked});if(t.checked){S.ciView="clients"};toast(t.checked?"Clients view added to Check-in":"Coach tools off")}
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
@@ -1232,6 +1354,10 @@ document.addEventListener("submit",e=>{e.preventDefault();
     if(f.base){const qe=document.getElementById("ef_qty"),ge=document.getElementById("ef_g");f.qty=f.unit==="g"?(+(ge&&ge.value)||0):(+(qe&&qe.value)||0)}
     const i=e.target.dataset.i;const x=i==="new"?editDay():clone(dayDoc(S.day));x.foods=x.foods||[];if(i==="new")x.foods.push(f);else x.foods[+i]=f;
     S.editFood=null;save("day_"+S.day,x);toast((i==="new"?"Added · ":"Saved · ")+macroLeft());return}
+  if(e.target.id==="authForm"){doAuth("in");return}
+  if(e.target.id==="linkForm"){const v=document.getElementById("lk_code").value.trim().toUpperCase();if(v.length<4){toast("Enter your coach's code");return}linkCoach(v);return}
+  if(e.target.id==="pwForm"){const pw=document.getElementById("au_newpw").value;if(pw.length<8){toast("Password must be at least 8 characters");return}
+    sbClient().then(c=>c&&c.auth.updateUser({password:pw})).then(r=>{if(r&&r.error){toast(authMsg(r.error));return}CL.recover=false;toast("Password updated");render()});return}
   if(e.target.id==="profileForm"){const g=id=>document.getElementById(id).value.trim(),name=g("pf_name");if(!name){toast("Add a name");return}
     const pr={...(S.docs.profile||{}),type:"profile",name,email:g("pf_email"),phone:g("pf_phone"),dob:g("pf_dob"),sex:g("pf_sex"),height:g("pf_height")?+g("pf_height"):"",goal:g("pf_goal"),activity:g("pf_act"),notes:document.getElementById("pf_notes").value};
     const w=g("pf_weight"),lw=latestWeight();if(w)pr.weight=+w;
