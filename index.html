@@ -183,7 +183,22 @@ nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border
 nav.tabs button{border:0;background:transparent;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 nav.tabs button[aria-current="page"]{color:var(--accent)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:13.5px;z-index:9;max-width:90vw}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:13.5px;z-index:9;max-width:90vw;display:flex;align-items:center;gap:12px}
+.toast[hidden]{display:none}
+.toast .undo{border:0;background:transparent;color:inherit;font-weight:700;text-decoration:underline;padding:4px 2px;font-size:13.5px}
+/* meals */
+.mealpick{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.mealpick button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 0;font-weight:600;font-size:12.5px}
+.mealpick button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chiprow{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.qchip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 12px;font-size:13px;font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qchip .muted{font-weight:500}
+.mealgrp{display:flex;flex-direction:column;padding-top:10px;border-top:1px solid var(--line)}
+.mealgrp:first-child{border-top:0;padding-top:0}
+.mealgrp .food:first-of-type{border-top:0}
+.fbtns{display:flex;align-items:center;gap:0;flex:none}
+.star{border:0;background:transparent;font-size:20px;line-height:1;padding:4px 6px;color:var(--muted)}
+.star[aria-pressed="true"]{color:var(--carb)}
 @media (prefers-reduced-motion:no-preference){.dot{transition:background .15s}}
 </style>
 
@@ -265,7 +280,11 @@ function save(id,data){
 }
 function remove(id){delete S.docs[id];render();if(S.col){S.col.doc(id).delete().catch(()=>toast("Couldn't delete, try again"))}else saveLocal()}
 const clone=o=>JSON.parse(JSON.stringify(o));
-function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
+function toast(msg,opt){const t=document.getElementById("toast");t.innerHTML="";const sp=document.createElement("span");sp.textContent=msg;t.appendChild(sp);
+  if(opt&&opt.undo){const b=document.createElement("button");b.className="undo";b.type="button";b.textContent="Undo";b.onclick=()=>{t.hidden=true;opt.undo();toast("Undone")};t.appendChild(b)}
+  t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,opt&&opt.undo?6000:2600)}
+// put a doc back exactly as it was (for Undo)
+function restoreDoc(id,prev){if(prev)save(id,prev);else remove(id)}
 
 const settings=()=>{const s=S.docs.settings||DEFAULT_SETTINGS;return (s.targets&&s.targets.kcal!=null)?s:{...s,targets:DEFAULT_TARGETS}};
 function dayDoc(k){return S.docs["day_"+k]||{type:"day",date:k,foods:[],habits:{}}}
@@ -292,6 +311,7 @@ function foodForm(f,i){
   const v=k=>f&&f[k]!=null&&f[k]!==""?f[k]:"";
   return `<form class="editform" data-form="food" data-i="${i}">
     <label class="field wide"><span class="label">Food</span><input id="ef_name" value="${esc(v("name"))}" placeholder="e.g. Chicken wrap" required></label>
+    <label class="field wide"><span class="label">Meal</span><select id="ef_meal">${MEALS.map(([k,l])=>`<option value="${k}" ${((f&&f.meal)||S.addTo||defaultMeal())===k?"selected":""}>${l}</option>`).join("")}</select></label>
     ${f&&f.base?(f.unit==="g"?`<label class="field wide"><span class="label">Amount eaten (g)</span><input id="ef_g" type="number" step="any" min="0" inputmode="decimal" value="${Math.round(f.qty)}" data-act="amtG"></label>`
       :`<label class="field ${f.unitG?"":"wide"}" style="${f.unitG?"grid-column:span 2":""}"><span class="label">Amount (× ${esc(f.unit)})</span><input id="ef_qty" type="number" step="any" min="0" inputmode="decimal" value="${f.qty}" data-act="amtQty"></label>
         ${f.unitG?`<label class="field" style="grid-column:span 2"><span class="label">Or grams</span><input id="ef_g" type="number" step="any" min="0" inputmode="decimal" value="${Math.round(f.qty*f.unitG)}" data-act="amtG"></label>`:""}`)
@@ -315,9 +335,18 @@ function renderToday(){
     </div>`}).join("");
   const habits=st.habits.map((h,i)=>`<label class="habit"><input type="checkbox" id="hab${i}" data-act="habit" data-h="${esc(h)}" ${d.habits&&d.habits[h]?"checked":""}><span>${esc(h)}</span></label>`).join("");
   const done=st.habits.filter(h=>d.habits&&d.habits[h]).length;
-  const foods=(d.foods||[]).map((f,i)=>S.editFood===i?foodForm(f,i):`<div class="food"><div style="min-width:0"><div class="nm">${esc(f.name)}</div>
+  const foodRow=(f,i)=>S.editFood===i?foodForm(f,i):`<div class="food"><div style="min-width:0"><div class="nm">${esc(f.name)}</div>
     <div class="meta">${f.base&&f.qty!=null?fmtQty(f)+" · ":""}${Math.round(+f.kcal||0)} kcal · P ${fmtN(+f.protein||0)}g · C ${fmtN(+f.carbs||0)}g · F ${fmtN(+f.fat||0)}g</div></div>
-    <button class="btn ghost" data-act="editFood" data-i="${i}" aria-label="Edit ${esc(f.name)}">Edit</button></div>`).join("")||(S.editFood==="new"?"":`<p class="muted small" style="margin:0">Nothing logged yet. Search a food, scan a label, or add one manually.</p>`);
+    <div class="fbtns"><button class="star" data-act="favFood" data-i="${i}" aria-pressed="${isFav(f)}" aria-label="${isFav(f)?"Remove from":"Add to"} favourites">${isFav(f)?"★":"☆"}</button><button class="btn ghost" data-act="editFood" data-i="${i}" aria-label="Edit ${esc(f.name)}">Edit</button></div></div>`;
+  const all=(d.foods||[]).map((f,i)=>[f,i]),yd=dayDoc(addDays(S.day,-1));
+  const grp=(k,l,items)=>{const kc=items.reduce((a,[f])=>a+(+f.kcal||0),0),yItems=k?(yd.foods||[]).filter(f=>f.meal===k):[];
+    return `<div class="mealgrp"><div class="spread"><span><b>${l}</b> <span class="small muted">${items.length?Math.round(kc).toLocaleString("en-GB")+" kcal":""}</span></span>
+      ${k?`<span class="row" style="gap:0;flex-wrap:nowrap">${!items.length&&yItems.length?`<button class="btn ghost" style="font-size:13px" data-act="copyMeal" data-m="${k}">Same as yesterday</button>`:""}<button class="btn ghost" data-act="addTo" data-m="${k}" data-focus="1" aria-label="Add to ${l}">+ Add</button></span>`:""}</div>
+      ${items.map(([f,i])=>foodRow(f,i)).join("")}</div>`};
+  const other=all.filter(([f])=>!MEALS.some(m=>m[0]===f.meal));
+  const foods=MEALS.map(([k,l])=>grp(k,l,all.filter(([f])=>f.meal===k))).join("")+(other.length?grp(null,"Other",other):"");
+  S.quick=quickFoods();
+  const quick=S.quick.length?`<div class="label" style="margin-top:2px">Quick add</div><div class="chiprow">${S.quick.map((x,i)=>`<button class="qchip" data-act="quickAdd" data-i="${i}">${x.fav?"★ ":""}${esc(x.f.name)} <span class="muted">${Math.round(+x.f.kcal||0)}</span></button>`).join("")}</div>`:"";
   const results=S.results.map((r,i)=>`<div class="result"><div style="min-width:0"><div class="nm" style="font-weight:600">${esc(r.name)}</div>
     <div class="meta small muted">${r.serving?esc(r.serving)+" · ":""}${Math.round(r.kcal||0)} kcal · P ${Math.round(r.protein_g||0)}g · C ${Math.round(r.carbs_g||0)}g · F ${Math.round(r.fat_g||0)}g</div></div>
     <button class="btn primary" data-act="addRes" data-i="${i}">Add</button></div>`).join("");
@@ -331,14 +360,18 @@ function renderToday(){
     ${S.showTargets?renderTargets():""}
     <div>${rows}</div>
   </section>
-  <section class="panel"><h2>Log food</h2>
+  <section class="panel" id="logPanel"><h2>Log food</h2>
+    <div class="mealpick" role="group" aria-label="Add to meal">${MEALS.map(([k,l])=>`<button data-act="addTo" data-m="${k}" aria-pressed="${(S.addTo||(S.addTo=defaultMeal()))===k}">${l}</button>`).join("")}</div>
     <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="Food, brand or barcode" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""}>Search</button></form>
     <div class="row"><button class="btn" data-act="photo" ${S.searching?"disabled":""}>Scan barcode or label</button><button class="btn" data-act="newFood">Add manually</button></div>
+    ${quick}
     ${mealCard()}
     <div class="status" aria-live="polite">${esc(S.searchMsg)}</div>
     ${results?`<div class="stack" style="gap:8px">${results}</div>`:""}
     ${S.editFood==="new"?foodForm(null,"new"):""}
-    <div class="label" style="margin-top:4px">Logged ${isToday?"today":"this day"}</div>
+  </section>
+  <section class="panel"><div class="spread"><h2>${isToday?"Today's food":"Food this day"}</h2><span class="label">${all.length?Math.round(tot.kcal).toLocaleString("en-GB")+" kcal":""}</span></div>
+    ${all.length?"":`<p class="muted small" style="margin:0">Nothing logged yet. Pick a meal above, then search, tap a quick add, or add manually.</p>`}
     <div class="stack" style="gap:0">${foods}</div>
   </section>
   <section class="panel"><div class="spread"><h2>Daily habits</h2>${S.editHabits?`<span class="label">Editing</span>`:`<div class="row" style="gap:4px"><span class="label">${done} / ${st.habits.length}</span><button class="btn ghost" data-act="editHabits">Edit</button></div>`}</div>
@@ -642,6 +675,20 @@ function mealCard(){const M=S.meal;if(!M)return"";const t=mealTotals(M.items);
       <div class="steppers" style="grid-column:auto"><button data-act="mealQty" data-i="${i}" data-d="-0.5" aria-label="Less ${esc(it.name)}">−</button><button class="add" style="--c:var(--accent)" data-act="mealQty" data-i="${i}" data-d="0.5" aria-label="More ${esc(it.name)}">+</button></div></div>`}).join("")}
     ${M.missed.length?`<div class="small muted">Not in the quick list: ${M.missed.map(esc).join(", ")}. Check the online results below, or add it manually.</div>`:""}
     <div class="row"><button class="btn primary" data-act="addMeal">Add ${M.items.length>1?"all "+M.items.length+" items":"it"}</button><button class="btn ghost" data-act="clearMeal">Dismiss</button></div></div>`}
+
+
+/* ---------- meals, quick add, favourites ---------- */
+const MEALS=[["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snacks","Snacks"]];
+const mealName=k=>(MEALS.find(m=>m[0]===k)||[0,"Other"])[1];
+function defaultMeal(){const h=new Date().getHours();return h<11?"breakfast":h<15?"lunch":h>=17&&h<22?"dinner":"snacks"}
+const isFav=f=>(settings().favs||[]).some(x=>exKey(x.name)===exKey(f.name));
+const cleanFood=f=>{const o=clone(f);delete o.meal;return o};
+function quickFoods(){const favs=settings().favs||[],seen=new Set(favs.map(f=>exKey(f.name))),cnt=new Map();
+  for(let i=0;i<21;i++){const dd=S.docs["day_"+addDays(todayKey(),-i)];((dd&&dd.foods)||[]).forEach(f=>{const k=exKey(f.name);if(!k||seen.has(k))return;const c=cnt.get(k);if(c)c.n++;else cnt.set(k,{n:1,f})})}
+  const rec=[...cnt.values()].sort((a,b)=>b.n-a.n).slice(0,Math.max(0,12-favs.length)).map(x=>({f:x.f,fav:false}));
+  return [...favs.map(f=>({f,fav:true})),...rec]}
+function addFoodsToDay(foods,msg){const id="day_"+S.day,prev=S.docs[id]?clone(S.docs[id]):null,x=editDay();
+  x.foods=(x.foods||[]).concat(foods);save(id,x);toast(msg+" · "+macroLeft(),{undo:()=>restoreDoc(id,prev)})}
 
 /* ---------- quote of the day ---------- */
 const QUOTES=[["I hated every minute of training, but I said, 'Don't quit. Suffer now and live the rest of your life as a champion.'", "Muhammad Ali"], ["I've failed over and over and over again in my life. And that is why I succeed.", "Michael Jordan"], ["Rest at the end, not in the middle.", "Kobe Bryant"], ["Everything negative – pressure, challenges – is all an opportunity for me to rise.", "Kobe Bryant"], ["Only the disciplined ones in life are free. If you are undisciplined, you are a slave to your moods and your passions.", "Eliud Kipchoge"], ["No human is limited.", "Eliud Kipchoge"], ["The last three or four reps is what makes the muscle grow.", "Arnold Schwarzenegger"], ["Luck has nothing to do with it, because I have spent many, many hours, countless hours, on the court working for my one moment in time.", "Serena Williams"], ["I am building a fire, and every day I train, I add more fuel. At just the right moment, I light the match.", "Mia Hamm"], ["To give anything less than your best is to sacrifice the gift.", "Steve Prefontaine"], ["You miss 100% of the shots you don't take.", "Wayne Gretzky"], ["Champions keep playing until they get it right.", "Billie Jean King"], ["Talent without working hard is nothing.", "Cristiano Ronaldo"], ["You can't put a limit on anything. The more you dream, the farther you get.", "Michael Phelps"], ["I'd rather regret the risks that didn't work out than the chances I didn't take at all.", "Simone Biles"], ["Fatigue makes cowards of us all.", "Vince Lombardi"], ["Don't let what you cannot do interfere with what you can do.", "John Wooden"], ["Start where you are. Use what you have. Do what you can.", "Arthur Ashe"], ["We all have dreams. But in order to make dreams come into reality, it takes an awful lot of determination, dedication, self-discipline, and effort.", "Jesse Owens"], ["Discipline is doing what you hate to do, but doing it like you love it.", "Mike Tyson"], ["The man who can drive himself further once the effort gets painful is the man who will win.", "Roger Bannister"], ["The moment of victory is much too short to live for that and nothing else.", "Martina Navratilova"], ["Ability is what you're capable of doing. Motivation determines what you do. Attitude determines how well you do it.", "Lou Holtz"], ["Success isn't always about greatness. It's about consistency. Consistent hard work leads to success. Greatness will come.", "Dwayne Johnson"], ["You are in danger of living a life so comfortable and soft, that you will die without ever realising your true potential.", "David Goggins"], ["Knowing is not enough, we must apply. Willing is not enough, we must do.", "Bruce Lee"], ["Pain is inevitable. Suffering is optional.", "Haruki Murakami"], ["We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "Will Durant, on Aristotle"], ["Waste no more time arguing about what a good man should be. Be one.", "Marcus Aurelius"], ["We suffer more often in imagination than in reality.", "Seneca"], ["No man is free who is not master of himself.", "Epictetus"], ["The journey of a thousand miles begins with a single step.", "Lao Tzu"], ["Discipline is the bridge between goals and accomplishment.", "Jim Rohn"], ["Take care of your body. It's the only place you have to live.", "Jim Rohn"], ["Strength does not come from physical capacity. It comes from an indomitable will.", "Mahatma Gandhi"], ["It is not the mountain we conquer, but ourselves.", "Sir Edmund Hillary"], ["Hard work beats talent when talent doesn't work hard.", "Tim Notke"], ["The difference between the impossible and the possible lies in a person's determination.", "Tommy Lasorda"], ["It's not whether you get knocked down; it's whether you get up.", "Vince Lombardi"], ["Make each day your masterpiece.", "John Wooden"]];
@@ -947,12 +994,17 @@ document.addEventListener("click",e=>{
     case "photo":document.getElementById("photoIn").click();break;
     case "mealQty":{const it=S.meal.items[+ds.i];it.qty=Math.max(0.5,r1(it.qty+(+ds.d)));render();break}
     case "clearMeal":S.meal=null;render();break;
-    case "addMeal":{const x=editDay();x.foods=(x.foods||[]).concat(S.meal.items.map(it=>({...it,...scaleFood(it.base,it.qty)})));S.meal=null;S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added · "+macroLeft());break}
+    case "addMeal":{const items=S.meal.items.map(it=>({...it,...scaleFood(it.base,it.qty),meal:S.addTo}));S.meal=null;S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";addFoodsToDay(items,"Added to "+mealName(S.addTo));break}
+    case "addTo":S.addTo=ds.m;render();if(ds.focus){const q=document.getElementById("q");document.getElementById("logPanel")?.scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>q&&q.focus({preventScroll:true}),300)}break;
+    case "quickAdd":{const x=S.quick[+ds.i];if(x)addFoodsToDay([{...cleanFood(x.f),meal:S.addTo}],x.f.name+" → "+mealName(S.addTo));break}
+    case "copyMeal":{const items=(dayDoc(addDays(S.day,-1)).foods||[]).filter(f=>f.meal===ds.m).map(clone);if(items.length)addFoodsToDay(items,"Copied yesterday's "+mealName(ds.m).toLowerCase());break}
+    case "favFood":{const f=dayDoc(S.day).foods[+ds.i];if(!f)break;const st=clone(settings()),favs=st.favs||[],k=exKey(f.name),had=favs.some(x=>exKey(x.name)===k);
+      st.favs=had?favs.filter(x=>exKey(x.name)!==k):favs.concat([cleanFood(f)]);save("settings",st);toast(had?"Removed from favourites":"★ Saved to favourites. It's now in Quick add");break}
     case "ciView":S.ciView=ds.v;S.clientOpen=null;render();window.scrollTo(0,0);break;
     case "shareReport":shareReport();break;
     case "importReport":document.getElementById("reportIn").click();break;
     case "openClient":S.clientOpen=ds.id||null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
-    case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}S.confirmDelClient=null;S.clientOpen=null;remove(ds.id);toast("Client removed");break;
+    case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}{const prev=clone(S.docs[ds.id]);S.confirmDelClient=null;S.clientOpen=null;remove(ds.id);toast("Client removed",{undo:()=>restoreDoc(ds.id,prev)})}break;
     case "clientCsv":clientCsv(ds.id);break;
     case "setPage":S.setPage=ds.v||null;S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
@@ -971,14 +1023,14 @@ document.addEventListener("click",e=>{
     case "lookPhoto":document.getElementById("lookIn").click();break;
     case "lookNoPhoto":LOOK.photo=null;saveLook();break;
     case "nextQuote":S.quoteShift=(S.quoteShift||0)+1;render();break;
-    case "addRes":{const r=S.results[+ds.i];const x=editDay();const m={kcal:Math.round(+r.kcal||0),protein:r1(+r.protein_g||0),carbs:r1(+r.carbs_g||0),fat:r1(+r.fat_g||0)};
+    case "addRes":{const r=S.results[+ds.i];const id0="day_"+S.day,prev0=S.docs[id0]?clone(S.docs[id0]):null;const x=editDay();const m={kcal:Math.round(+r.kcal||0),protein:r1(+r.protein_g||0),carbs:r1(+r.carbs_g||0),fat:r1(+r.fat_g||0)};
       const per100=r.serving==="per 100g",it=per100?{name:r.name,unit:"g",unitG:1,qty:100,base:{kcal:m.kcal/100,protein:m.protein/100,carbs:m.carbs/100,fat:m.fat/100}}:{name:r.name,unit:r.serving||"serving",unitG:(String(r.serving||"").match(/(\d+(?:\.\d+)?)\s*g\b/)||[])[1]*1||null,qty:1,base:m};
-      x.foods=(x.foods||[]).concat([{...it,...m}]);S.meal=null;
-      S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added · "+macroLeft());break}
+      x.foods=(x.foods||[]).concat([{...it,...m,meal:S.addTo}]);S.meal=null;
+      S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added to "+mealName(S.addTo)+" · "+macroLeft(),{undo:()=>restoreDoc(id0,prev0)});break}
     case "newFood":S.editFood="new";render();document.getElementById("ef_name")?.focus();break;
     case "editFood":S.editFood=+ds.i;render();document.getElementById("ef_name")?.focus();break;
     case "cancelFood":S.editFood=null;render();break;
-    case "delFood":{const x=d();x.foods.splice(+ds.i,1);S.editFood=null;save("day_"+S.day,x);toast("Deleted · "+macroLeft());break}
+    case "delFood":{const id="day_"+S.day,prev=clone(dayDoc(S.day)),x=d();x.foods.splice(+ds.i,1);S.editFood=null;save(id,x);toast("Deleted · "+macroLeft(),{undo:()=>restoreDoc(id,prev)});break}
     case "newWo":S.draftWorkout={type:"workout",date:todayKey(),name:"",exercises:[{name:"",sets:[{kg:"",reps:""}]}]};render();break;
     case "repeatWo":{const w=clone(S.docs[ds.id]);w.date=todayKey();w.exercises.forEach(e=>e.sets.forEach(s=>{}));S.draftWorkout=w;render();window.scrollTo(0,0);break}
     case "cancelWo":S.draftWorkout=null;render();break;
@@ -995,11 +1047,11 @@ document.addEventListener("click",e=>{
     case "delSet":S.draftWorkout.exercises[+ds.ei].sets.splice(+ds.si,1);render();break;
     case "saveWo":{const w=S.draftWorkout;w.exercises=w.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),sets:e.sets.filter(s=>s.reps!==""&&s.reps!=null).map(s=>({kg:+s.kg||0,reps:+s.reps||0}))}));
       if(!w.exercises.length){toast("Add at least one exercise with a name");break}S.draftWorkout=null;save("wo_"+Date.now(),w);toast("Session saved");break}
-    case "delWo":remove(ds.id);break;
-    case "delBody":remove(ds.id);break;
+    case "delWo":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Session deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
+    case "delBody":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Entry deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "ciScale":S.ciDraft[ds.k]=+ds.n;render();break;
     case "saveCi":{const c=clone(S.ciDraft);save("ci_"+c.date,c);S.ciDraft=null;toast("Check-in saved");break}
-    case "delCi":remove(ds.id);break;
+    case "delCi":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Check-in deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
   }
 });
 document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
@@ -1034,6 +1086,7 @@ document.addEventListener("submit",e=>{e.preventDefault();
   if(e.target.dataset.form==="food"){const g=id=>document.getElementById(id).value;const name=g("ef_name").trim();if(!name){toast("Give the food a name");return}
     const old=e.target.dataset.i!=="new"?dayDoc(S.day).foods[+e.target.dataset.i]:null;
     const f={...(old&&old.base?{base:old.base,unit:old.unit,unitG:old.unitG,qty:old.qty}:{}),name,protein:+g("ef_protein")||0,carbs:+g("ef_carbs")||0,fat:+g("ef_fat")||0};f.kcal=g("ef_kcal")!==""?Math.round(+g("ef_kcal")):macroKcal(f);
+    f.meal=document.getElementById("ef_meal").value;
     if(f.base){const qe=document.getElementById("ef_qty"),ge=document.getElementById("ef_g");f.qty=f.unit==="g"?(+(ge&&ge.value)||0):(+(qe&&qe.value)||0)}
     const i=e.target.dataset.i;const x=i==="new"?editDay():clone(dayDoc(S.day));x.foods=x.foods||[];if(i==="new")x.foods.push(f);else x.foods[+i]=f;
     S.editFood=null;save("day_"+S.day,x);toast((i==="new"?"Added · ":"Saved · ")+macroLeft());return}
