@@ -81,6 +81,16 @@ textarea{resize:vertical;min-height:64px}
 .kcal{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:10px;padding:10px 12px}
 .kcal b{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
 /* settings */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:380px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--sunk);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile b{font-family:var(--display);font-size:24px;white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .label{font-size:10.5px}
+.good{color:var(--veg)}
+.ciq{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--line)}
+.ciq:first-of-type{border-top:0;padding-top:0}
+.anchors{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.focusnote{border-left:4px solid var(--accent)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:4px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .tablewrap{overflow-x:auto;margin:0 -16px;padding:0 16px;-webkit-overflow-scrolling:touch}
@@ -445,28 +455,45 @@ function renderBody(){
     <div class="spread"><span class="small muted">${M.slice(1).filter(([k])=>b[k]).map(([k,l])=>l.replace(" (cm)","")+" "+b[k]+" cm").join(" · ")||"&nbsp;"}</span><button class="x" data-act="delBody" data-id="${b.id}" aria-label="Delete entry">×</button></div></div>`).join("")||'<p class="muted small" style="margin:0">No entries yet.</p>'}</div></section></div>`;
 }
 
-const CQ=[["adherence","Plan adherence"],["energy","Energy"],["sleep","Sleep quality"],["stress","Stress"],["hunger","Hunger"]];
+const CQ=[
+  ["adherence","Sticking to the plan","How closely did you follow your training and nutrition plan?","Barely","Nailed it"],
+  ["motivation","Motivation","How driven did you feel to train and eat well?","Running on empty","Fired up"],
+  ["energy","Energy","How were your energy levels day to day?","Drained","Full of energy"],
+  ["sleep","Sleep","How well did you sleep?","Poorly","Really well"],
+  ["stress","Stress","How stressed did you feel?","Calm","Very stressed"],
+  ["hunger","Appetite & cravings","How hard were hunger and cravings to manage?","Easy","Very hard"]];
 function weekStart(){const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return keyOf(d)}
+function glanceTile(label,val,sub,tone){return `<div class="tile"><span class="label">${label}</span><b>${val}</b>${sub?`<span class="small ${tone||"muted"}">${sub}</span>`:""}</div>`}
+function weekGlance(ws){const tw=weekSummary(ws,false),lw=weekSummary(addDays(ws,-7),false),tg=settings().targets;
+  const wd=tw.weight!=null&&lw.weight!=null?r1(tw.weight-lw.weight):null;
+  const tiles=[
+    glanceTile("Weight kg",tw.weight!=null?fmtN(tw.weight):"—",wd!=null?(wd>0?"+":"")+fmtN(wd)+" kg vs last week":tw.weight!=null?"first weigh-in week":"log a weigh-in"),
+    glanceTile("Avg calories",tw.kcal!=null?tw.kcal.toLocaleString("en-GB"):"—",tw.kcal!=null?"target "+Number(tg.kcal).toLocaleString("en-GB"):"no food logged"),
+    glanceTile("Avg protein",tw.protein!=null?tw.protein+"g":"—",tw.protein!=null?(tw.protein>=tg.protein*.9?"on target":"target "+tg.protein+"g"):"",tw.protein!=null&&tw.protein>=tg.protein*.9?"good":"muted"),
+    glanceTile("Days on target",tw.daysLogged?`${tw.onTarget||0}/${tw.daysLogged}`:"—",tw.daysLogged?`${tw.daysLogged} day${tw.daysLogged===1?"":"s"} logged`:""),
+    glanceTile("Habits",tw.habitsPct!=null?tw.habitsPct+"%":"—","of daily ticks"),
+    glanceTile("Sessions",tw.sessions,tw.volume?tw.volume.toLocaleString("en-GB")+" kg volume":"training")];
+  return `<section class="panel"><div class="spread"><h2>Your week so far</h2><span class="label">auto</span></div><div class="tiles">${tiles.join("")}</div></section>`}
 function renderCheckin(){
   const coach=!!(S.docs.profile&&S.docs.profile.coach);
   if(coach&&S.ciView==="clients")return renderClients();
   const list=ofType("checkin"),ws=weekStart();
   if(!S.ciDraft){const ex=S.docs["ci_"+ws];S.ciDraft=ex&&!S.example?clone(ex):{type:"checkin",date:ws}}
-  const c=S.ciDraft;
-  // days on target: calories within 10% and protein at 90%+
-  let hit=0,logged=0;const tg=settings().targets;
-  for(let i=0;i<7;i++){const k=addDays(ws,i);const d=S.docs["day_"+k];if(!d||!(d.foods||[]).length)continue;logged++;const t=totals(d);
-    if(Math.abs(t.kcal-tg.kcal)<=tg.kcal*.1&&t.protein>=tg.protein*.9)hit++}
-  const auto=logged?`${hit} of ${logged}`:null;
+  const c=S.ciDraft,prev=S.docs["ci_"+addDays(ws,-7)],done=CQ.filter(([k])=>c[k]).length;
   return `${exampleBanner()}<header class="top"><div><h1>Check-in</h1><div class="sub">Week of ${fmtDay(ws)}</div></div></header>
   ${coach?coachSeg():""}
-  <div class="stack"><section class="panel"><h2>This week</h2>
-    ${auto!==null?`<div class="kcal"><span class="small muted">Days on target (calories ±10%, protein 90%+)</span><b>${auto}</b></div>`:""}
-    ${CQ.map(([k,l])=>`<div class="field"><span class="label">${l} <span style="text-transform:none;letter-spacing:0;font-weight:400">(1 low – 5 high)</span></span><div class="scale" role="group" aria-label="${l}">${[1,2,3,4,5].map(n=>`<button data-act="ciScale" data-k="${k}" data-n="${n}" aria-pressed="${c[k]===n}">${n}</button>`).join("")}</div></div>`).join("")}
-    <label class="field"><span class="label">Biggest win</span><textarea id="ci_win" data-act="ciText" data-k="win">${esc(c.win)}</textarea></label>
-    <label class="field"><span class="label">What got in the way</span><textarea id="ci_struggle" data-act="ciText" data-k="struggle">${esc(c.struggle)}</textarea></label>
-    <label class="field"><span class="label">One focus for next week</span><textarea id="ci_focus" data-act="ciText" data-k="focus">${esc(c.focus)}</textarea></label>
-    <button class="btn primary" data-act="saveCi">Save check-in</button></section>
+  <div class="stack">
+  ${prev&&prev.focus?`<section class="panel focusnote"><span class="label">Last week you said you'd focus on</span><p style="margin:0;font-weight:600">${esc(prev.focus)}</p></section>`:""}
+  ${weekGlance(ws)}
+  <section class="panel"><div class="spread"><h2>How did it go?</h2><span class="label">${done}/${CQ.length}</span></div>
+    ${CQ.map(([k,l,q,lo,hi])=>`<div class="ciq"><div><b>${l}</b><div class="small muted">${q}</div></div>
+      <div class="scale" role="group" aria-label="${l}">${[1,2,3,4,5].map(n=>`<button data-act="ciScale" data-k="${k}" data-n="${n}" aria-pressed="${c[k]===n}">${n}</button>`).join("")}</div>
+      <div class="anchors"><span>1 · ${lo}</span><span>${hi} · 5</span></div></div>`).join("")}</section>
+  <section class="panel"><h2>Reflect</h2>
+    <label class="field"><span class="label">Biggest win this week</span><textarea id="ci_win" data-act="ciText" data-k="win" placeholder="e.g. Hit my protein 6 days out of 7">${esc(c.win)}</textarea></label>
+    <label class="field"><span class="label">What got in the way?</span><textarea id="ci_struggle" data-act="ciText" data-k="struggle" placeholder="e.g. Late finishes at work, skipped Thursday">${esc(c.struggle)}</textarea></label>
+    <label class="field"><span class="label">One focus for next week</span><textarea id="ci_focus" data-act="ciText" data-k="focus" placeholder="e.g. Prep lunches on Sunday">${esc(c.focus)}</textarea></label>
+    <button class="btn primary" data-act="saveCi">${S.docs["ci_"+ws]&&!S.example?"Update check-in":"Save check-in"}</button></section>
   ${sharePanel()}
   <section class="panel"><h2>Past check-ins</h2><div class="hist">${list.map(x=>`<div class="item"><div class="spread"><b>${fmtDay(x.date)}</b><button class="x" data-act="delCi" data-id="${x.id}" aria-label="Delete check-in">×</button></div>
     <div class="small muted" style="font-variant-numeric:tabular-nums">${CQ.filter(([k])=>x[k]).map(([k,l])=>l.split(" ")[0]+" "+x[k]+"/5").join(" · ")}</div>
@@ -726,7 +753,7 @@ function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=J
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
     save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,notes:old.notes||"",weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
-const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Hunger /5"]];
+const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["waist","Waist cm"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
   const vals=series.flatMap(sr=>weeks.map(w=>w[sr.key]).filter(v=>v!=null&&v!==""));
   if(!vals.length)return `<p class="small muted" style="margin:0">Nothing logged for this yet.</p>`;
@@ -758,7 +785,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   <section class="panel"><h2>Calories</h2>${chartSVG(wk,[{key:"kcal",label:"Avg kcal",color:"var(--carb)",bars:true}],{target:t.kcal,zero:true,label:"Average daily calories per week"})}</section>
   <section class="panel"><h2>Protein</h2>${chartSVG(wk,[{key:"protein",label:"Avg protein (g)",color:"var(--protein)",bars:true}],{target:t.protein,zero:true,label:"Average daily protein per week"})}</section>
   <section class="panel"><h2>Training</h2>${chartSVG(wk,[{key:"sessions",label:"Sessions",color:"var(--veg)",bars:true}],{zero:true,label:"Sessions per week"})}</section>
-  <section class="panel"><h2>Check-in scores</h2>${chartSVG(wk,[{key:"adherence",label:"Adherence",color:"var(--accent)"},{key:"energy",label:"Energy",color:"var(--carb)"},{key:"sleep",label:"Sleep",color:"var(--fat)"},{key:"stress",label:"Stress",color:"var(--protein)"}],{min:1,max:5,label:"Weekly check-in scores out of 5"})}</section>
+  <section class="panel"><h2>Check-in scores</h2>${chartSVG(wk,[{key:"adherence",label:"Adherence",color:"var(--accent)"},{key:"motivation",label:"Motivation",color:"var(--veg)"},{key:"energy",label:"Energy",color:"var(--carb)"},{key:"sleep",label:"Sleep",color:"var(--fat)"},{key:"stress",label:"Stress",color:"var(--protein)"}],{min:1,max:5,label:"Weekly check-in scores out of 5"})}</section>
   <section class="panel"><div class="spread"><h2>Weekly table</h2><button class="btn ghost" data-act="clientCsv" data-id="${id}">Download CSV</button></div>
     <div class="tablewrap"><table class="ctable"><thead><tr>${CLIENT_COLS.map(col=>`<th scope="col">${col[1]}</th>`).join("")}</tr></thead>
     <tbody>${wk.slice().reverse().map(w=>`<tr>${CLIENT_COLS.map((col,i)=>i?`<td>${fv(w,col)}</td>`:`<th scope="row">${fv(w,col)}</th>`).join("")}</tr>`).join("")}</tbody></table></div></section>
