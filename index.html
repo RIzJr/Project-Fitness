@@ -84,6 +84,18 @@ textarea{resize:vertical;min-height:64px}
 .quote .label{color:inherit;opacity:.8}
 .quote p{margin:6px 0 0;font-family:var(--display);font-weight:600;font-size:22px;line-height:1.18;text-wrap:pretty}
 .quote .who{margin-top:8px;font-size:13.5px;font-weight:600;opacity:.85}
+.quote{background-size:cover;background-position:center}
+.quote.photo{color:#fff}
+.qbtns{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px}
+.quote .qbtns button{position:static}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.sw{width:36px;height:36px;border-radius:50%;border:2px solid var(--surface);background:var(--l);box-shadow:0 0 0 1px var(--line)}
+:root[data-theme="dark"] .sw{background:var(--d)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sw{background:var(--d)}}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--fg)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.seg button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 0;font-weight:600;font-size:13.5px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .quote button{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:9px;border:1px solid currentColor;background:transparent;color:inherit;font-size:17px;line-height:1;opacity:.85}
 /* habits */
 .habit{display:flex;gap:10px;align-items:center;padding:6px 0}
@@ -135,6 +147,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
 <nav class="tabs" id="tabs" aria-label="Sections"></nav>
 <div class="toast" id="toast" hidden></div>
 <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+<input type="file" id="lookIn" accept="image/*" hidden>
 
 <script>
 (function(){
@@ -551,7 +564,31 @@ function mealCard(){const M=S.meal;if(!M)return"";const t=mealTotals(M.items);
 const QUOTES=[["I hated every minute of training, but I said, 'Don't quit. Suffer now and live the rest of your life as a champion.'", "Muhammad Ali"], ["I've failed over and over and over again in my life. And that is why I succeed.", "Michael Jordan"], ["Rest at the end, not in the middle.", "Kobe Bryant"], ["Everything negative – pressure, challenges – is all an opportunity for me to rise.", "Kobe Bryant"], ["Only the disciplined ones in life are free. If you are undisciplined, you are a slave to your moods and your passions.", "Eliud Kipchoge"], ["No human is limited.", "Eliud Kipchoge"], ["The last three or four reps is what makes the muscle grow.", "Arnold Schwarzenegger"], ["Luck has nothing to do with it, because I have spent many, many hours, countless hours, on the court working for my one moment in time.", "Serena Williams"], ["I am building a fire, and every day I train, I add more fuel. At just the right moment, I light the match.", "Mia Hamm"], ["To give anything less than your best is to sacrifice the gift.", "Steve Prefontaine"], ["You miss 100% of the shots you don't take.", "Wayne Gretzky"], ["Champions keep playing until they get it right.", "Billie Jean King"], ["Talent without working hard is nothing.", "Cristiano Ronaldo"], ["You can't put a limit on anything. The more you dream, the farther you get.", "Michael Phelps"], ["I'd rather regret the risks that didn't work out than the chances I didn't take at all.", "Simone Biles"], ["Fatigue makes cowards of us all.", "Vince Lombardi"], ["Don't let what you cannot do interfere with what you can do.", "John Wooden"], ["Start where you are. Use what you have. Do what you can.", "Arthur Ashe"], ["We all have dreams. But in order to make dreams come into reality, it takes an awful lot of determination, dedication, self-discipline, and effort.", "Jesse Owens"], ["Discipline is doing what you hate to do, but doing it like you love it.", "Mike Tyson"], ["The man who can drive himself further once the effort gets painful is the man who will win.", "Roger Bannister"], ["The moment of victory is much too short to live for that and nothing else.", "Martina Navratilova"], ["Ability is what you're capable of doing. Motivation determines what you do. Attitude determines how well you do it.", "Lou Holtz"], ["Success isn't always about greatness. It's about consistency. Consistent hard work leads to success. Greatness will come.", "Dwayne Johnson"], ["You are in danger of living a life so comfortable and soft, that you will die without ever realising your true potential.", "David Goggins"], ["Knowing is not enough, we must apply. Willing is not enough, we must do.", "Bruce Lee"], ["Pain is inevitable. Suffering is optional.", "Haruki Murakami"], ["We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "Will Durant, on Aristotle"], ["Waste no more time arguing about what a good man should be. Be one.", "Marcus Aurelius"], ["We suffer more often in imagination than in reality.", "Seneca"], ["No man is free who is not master of himself.", "Epictetus"], ["The journey of a thousand miles begins with a single step.", "Lao Tzu"], ["Discipline is the bridge between goals and accomplishment.", "Jim Rohn"], ["Take care of your body. It's the only place you have to live.", "Jim Rohn"], ["Strength does not come from physical capacity. It comes from an indomitable will.", "Mahatma Gandhi"], ["It is not the mountain we conquer, but ourselves.", "Sir Edmund Hillary"], ["Hard work beats talent when talent doesn't work hard.", "Tim Notke"], ["The difference between the impossible and the possible lies in a person's determination.", "Tommy Lasorda"], ["It's not whether you get knocked down; it's whether you get up.", "Vince Lombardi"], ["Make each day your masterpiece.", "John Wooden"]];
 const dayIndex=()=>{const d=new Date();return Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(2026,0,1))/864e5)};
 function quoteCard(){if(S.day!==todayKey())return"";const n=QUOTES.length,i=(((dayIndex()+(S.quoteShift||0))%n)+n)%n;
-  return `<section class="quote" aria-label="Quote of the day"><span class="label">Quote of the day</span><p>“${esc(QUOTES[i][0])}”</p><div class="who">— ${esc(QUOTES[i][1])}</div><button data-act="nextQuote" aria-label="Show another quote">↻</button></section>`}
+  return `<section class="quote${LOOK.photo?" photo":""}" aria-label="Quote of the day"><span class="label">Quote of the day</span><p>“${esc(QUOTES[i][0])}”</p><div class="who">— ${esc(QUOTES[i][1])}</div>
+    <div class="qbtns"><button data-act="lookPanel" aria-label="Customise the look" aria-expanded="${!!S.lookOpen}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.2-.3-.4-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.4-9-7.4z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="14.5" cy="7" r="1.2"/></svg></button><button data-act="nextQuote" aria-label="Show another quote">↻</button></div></section>
+    ${S.lookOpen?lookPanel():""}`}
+
+/* ---------- customise the look (saved on this device) ---------- */
+const ACCENTS=[["Teal","#0E6B66","#3FB8AE"],["Navy","#1F4E8C","#6EA4E8"],["Red","#B23A3A","#EB7B70"],["Orange","#B5571A","#F0A35E"],["Purple","#5B3FA0","#A98BEA"],["Green","#2E7D32","#7CC476"],["Pink","#B03A75","#EE8DBE"],["Slate","#37474F","#B0BEC5"]];
+let LOOK={accent:"Teal",theme:"auto",photo:null};
+try{const l=JSON.parse(localStorage.getItem("pf-look")||"null");if(l)LOOK={...LOOK,...l}}catch(e){}
+function saveLook(){try{localStorage.setItem("pf-look",JSON.stringify(LOOK))}catch(e){toast("Couldn't save that photo on this device. Try a smaller one.");LOOK.photo=null}applyLook();render()}
+function applyLook(){const a=ACCENTS.find(x=>x[0]===LOOK.accent)||ACCENTS[0];let st=document.getElementById("lookcss");if(!st){st=document.createElement("style");st.id="lookcss";document.body.appendChild(st)}
+  st.textContent=`:root{--accent:${a[1]};--accent-ink:#fff}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--accent:${a[2]};--accent-ink:#0B1418}}:root[data-theme="dark"]{--accent:${a[2]};--accent-ink:#0B1418}`
+    +(LOOK.photo?`.quote.photo{background-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.55)),url("${LOOK.photo}")}`:"");
+  if(LOOK.theme==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",LOOK.theme)}
+function lookPanel(){
+  return `<section class="panel" aria-label="Customise the look"><div class="spread"><h2>Customise</h2><button class="btn ghost" data-act="lookPanel">Done</button></div>
+    <div class="field"><span class="label">App colour</span><div class="swatches">${ACCENTS.map(([n,l,d])=>`<button class="sw" style="--l:${l};--d:${d}" data-act="lookAccent" data-v="${n}" aria-label="${n}" aria-pressed="${LOOK.accent===n}"></button>`).join("")}</div></div>
+    <div class="field"><span class="label">Quote backdrop</span><div class="row">
+      <button class="btn" data-act="lookPhoto">${LOOK.photo?"Change photo":"Use one of my photos"}</button>${LOOK.photo?`<button class="btn ghost" data-act="lookNoPhoto">Remove photo</button>`:""}</div>
+      <span class="small muted">${LOOK.photo?"Your photo is darkened slightly so the quote stays readable.":"Without a photo, the quote card uses your app colour."}</span></div>
+    <div class="field"><span class="label">Light or dark</span><div class="seg" role="group" aria-label="Light or dark">${[["auto","Match phone"],["light","Light"],["dark","Dark"]].map(([v,l])=>`<button data-act="lookTheme" data-v="${v}" aria-pressed="${LOOK.theme===v}">${l}</button>`).join("")}</div></div>
+  </section>`}
+function loadPhoto(file){const img=new Image(),url=URL.createObjectURL(file);
+  img.onload=()=>{const max=1100,sc=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);LOOK.photo=c.toDataURL("image/jpeg",0.72);saveLook();toast("Backdrop updated")};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast("Couldn't open that image")};img.src=url}
 
 /* ---------- food search outside Claude: Open Food Facts (free UK food database) ---------- */
 const OFF="https://uk.openfoodfacts.org";
@@ -613,6 +650,11 @@ document.addEventListener("click",e=>{
     case "mealQty":{const it=S.meal.items[+ds.i];it.qty=Math.max(0.5,r1(it.qty+(+ds.d)));render();break}
     case "clearMeal":S.meal=null;render();break;
     case "addMeal":{const x=editDay();x.foods=(x.foods||[]).concat(S.meal.items.map(it=>({...it,...scaleFood(it.base,it.qty)})));S.meal=null;S.results=[];S.searchMsg="";const q=document.getElementById("q");if(q)q.value="";save("day_"+S.day,x);toast("Added · "+macroLeft());break}
+    case "lookPanel":S.lookOpen=!S.lookOpen;render();break;
+    case "lookAccent":LOOK.accent=ds.v;saveLook();break;
+    case "lookTheme":LOOK.theme=ds.v;saveLook();break;
+    case "lookPhoto":document.getElementById("lookIn").click();break;
+    case "lookNoPhoto":LOOK.photo=null;saveLook();break;
     case "nextQuote":S.quoteShift=(S.quoteShift||0)+1;render();break;
     case "addRes":{const r=S.results[+ds.i];const x=editDay();const m={kcal:Math.round(+r.kcal||0),protein:r1(+r.protein_g||0),carbs:r1(+r.carbs_g||0),fat:r1(+r.fat_g||0)};
       const per100=r.serving==="per 100g",it=per100?{name:r.name,unit:"g",unitG:1,qty:100,base:{kcal:m.kcal/100,protein:m.protein/100,carbs:m.carbs/100,fat:m.fat/100}}:{name:r.name,unit:r.serving||"serving",unitG:(String(r.serving||"").match(/(\d+(?:\.\d+)?)\s*g\b/)||[])[1]*1||null,qty:1,base:m};
@@ -679,6 +721,8 @@ document.addEventListener("submit",e=>{e.preventDefault();
 document.getElementById("photoIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)runSearch(document.getElementById("q")?.value.trim()||"",f)});
 
 /* ---------- boot ---------- */
+document.getElementById("lookIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)loadPhoto(f)});
+applyLook();
 render();
 (async function connect(){
   if(!window.claude||!window.claude.use){loadLocal();render();return}
