@@ -108,6 +108,11 @@ textarea{resize:vertical;min-height:64px}
 .scale button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 0;font-weight:600;font-variant-numeric:tabular-nums}
 .scale button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .chart{width:100%;height:auto;display:block}
+.lastline{background:var(--sunk);border-radius:9px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums}
+.lastline button{align-self:flex-start}
+.exhead{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+.exhead:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.exdetail{margin-top:8px;display:flex;flex-direction:column;gap:2px}
 /* tabbar */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:5}
 nav.tabs button{border:0;background:transparent;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
@@ -270,7 +275,8 @@ function renderTrain(){
   if(dw){editor=`<section class="panel"><div class="spread"><h2>New session</h2><button class="btn ghost" data-act="cancelWo">Cancel</button></div>
     <div class="grid2"><label class="field"><span class="label">Session name</span><input id="woName" value="${esc(dw.name)}" data-act="woName" placeholder="e.g. Upper A"></label>
     <label class="field"><span class="label">Date</span><input type="date" id="woDate" value="${dw.date}" data-act="woDate"></label></div>
-    ${dw.exercises.map((ex,ei)=>`<div class="ex"><div class="row" style="flex-wrap:nowrap"><input id="exn${ei}" value="${esc(ex.name)}" data-act="exName" data-ei="${ei}" placeholder="Exercise"><button class="x" data-act="delEx" data-ei="${ei}" aria-label="Remove exercise">×</button></div>
+    ${dw.exercises.map((ex,ei)=>`<div class="ex"><div class="row" style="flex-wrap:nowrap"><input id="exn${ei}" value="${esc(ex.name)}" data-act="exName" data-ei="${ei}" placeholder="Start typing, e.g. bench" list="exlib" autocomplete="off"><button class="x" data-act="delEx" data-ei="${ei}" aria-label="Remove exercise">×</button></div>
+      ${lastLine(ex.name,ei)}
       <div class="set"><span></span><span class="label">kg</span><span class="label">Reps</span><span></span></div>
       ${ex.sets.map((s,si)=>`<div class="set"><span class="n">${si+1}</span><input type="number" inputmode="decimal" step="0.5" id="kg${ei}_${si}" value="${s.kg??""}" data-act="setKg" data-ei="${ei}" data-si="${si}"><input type="number" inputmode="numeric" id="rp${ei}_${si}" value="${s.reps??""}" data-act="setReps" data-ei="${ei}" data-si="${si}"><button class="x" data-act="delSet" data-ei="${ei}" data-si="${si}" aria-label="Remove set">×</button></div>`).join("")}
       <button class="btn ghost" style="align-self:flex-start" data-act="addSet" data-ei="${ei}">+ Add set</button></div>`).join("")}
@@ -281,8 +287,55 @@ function renderTrain(){
     <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${e.sets.map(s=>`${fmtN(+s.kg||0)}×${s.reps||0}`).join(", ")}`).join("<br>")}</div>
     <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`}).join("");
   return `${exampleBanner()}<header class="top"><div><h1>Train</h1><div class="sub">Sessions, sets and volume</div></div>${dw?"":`<button class="btn primary" data-act="newWo">New session</button>`}</header>
-  <div class="stack">${editor}<section class="panel"><h2>History</h2><div class="hist">${hist||'<p class="muted small" style="margin:0">No sessions yet. Tap New session to log your first workout.</p>'}</div></section></div>`;
+  <datalist id="exlib">${exOptions()}</datalist>
+  <div class="stack">${editor}${renderExercises()}<section class="panel"><h2>Session history</h2><div class="hist">${hist||'<p class="muted small" style="margin:0">No sessions yet. Tap New session to log your first workout.</p>'}</div></section></div>`;
 }
+
+/* ---------- exercise library + per-exercise history ---------- */
+const EX_LIB={
+  "Chest":["Barbell bench press","Incline barbell bench press","Decline bench press","Dumbbell bench press","Incline dumbbell press","Dumbbell fly","Cable fly","Low-to-high cable fly","Pec deck","Machine chest press","Push-up","Dips (chest)"],
+  "Back":["Deadlift","Barbell row","Pendlay row","Dumbbell row","Chest-supported row","T-bar row","Seated cable row","Lat pulldown","Close-grip lat pulldown","Pull-up","Chin-up","Straight-arm pulldown","Machine row","Rack pull","Back extension"],
+  "Shoulders":["Overhead press","Seated dumbbell shoulder press","Arnold press","Machine shoulder press","Dumbbell lateral raise","Cable lateral raise","Front raise","Rear delt fly","Reverse pec deck","Face pull","Upright row","Barbell shrug","Dumbbell shrug"],
+  "Biceps":["Barbell curl","EZ-bar curl","Dumbbell curl","Hammer curl","Incline dumbbell curl","Preacher curl","Cable curl","Concentration curl"],
+  "Triceps":["Close-grip bench press","Triceps pushdown","Rope pushdown","Overhead cable extension","Skull crusher","Overhead dumbbell extension","Dips (triceps)","Bench dip"],
+  "Quads":["Back squat","Front squat","Goblet squat","Hack squat","Leg press","Bulgarian split squat","Walking lunge","Reverse lunge","Step-up","Leg extension","Smith machine squat"],
+  "Hamstrings & glutes":["Romanian deadlift","Stiff-leg deadlift","Lying leg curl","Seated leg curl","Nordic curl","Good morning","Hip thrust","Glute bridge","Cable kickback","Hip abduction machine","Kettlebell swing"],
+  "Calves":["Standing calf raise","Seated calf raise","Leg press calf raise"],
+  "Core":["Plank","Side plank","Hanging leg raise","Cable crunch","Ab wheel rollout","Dead bug","Pallof press","Russian twist","Decline sit-up"],
+  "Conditioning":["Farmer's carry","Sled push","Rowing machine","Assault bike","Treadmill incline walk","Battle ropes","Burpees"]
+};
+const LIB_GROUP={};Object.entries(EX_LIB).forEach(([g,l])=>l.forEach(n=>LIB_GROUP[n.toLowerCase()]=g));
+const exKey=n=>String(n||"").trim().toLowerCase();
+// every logged instance of an exercise, newest first (example data excluded once real data exists)
+function exHistory(name){const k=exKey(name);if(!k)return[];const out=[];
+  ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{if(exKey(e.name)===k&&e.sets&&e.sets.length)out.push({date:w.date,session:w.name,sets:e.sets})}));return out}
+const e1rm=s=>(+s.kg||0)*(1+(+s.reps||0)/30);
+function bestSet(sets){return sets.reduce((b,s)=>!b||e1rm(s)>e1rm(b)?s:b,null)}
+const fmtSets=sets=>sets.map(s=>`${fmtN(+s.kg||0)}×${s.reps||0}`).join(", ");
+function exOptions(){const mine=new Map();ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!LIB_GROUP[k]&&!mine.has(k))mine.set(k,e.name.trim())}));
+  return [...mine.values()].map(n=>`<option value="${esc(n)}" label="Your exercise">`).join("")+Object.entries(EX_LIB).map(([g,l])=>l.map(n=>`<option value="${esc(n)}" label="${esc(g)}">`).join("")).join("")}
+function lastLine(name,ei){if(!exKey(name))return"";const h=exHistory(name);
+  if(!h.length)return `<div class="lastline small muted">First time logging this. Today sets your baseline.</div>`;
+  const l=h[0],b=bestSet(h.flatMap(x=>x.sets));
+  return `<div class="lastline small"><div><span class="muted">Last time (${fmtDay(l.date)}):</span> ${fmtSets(l.sets)}</div>
+    <div class="muted">Best: ${fmtN(+b.kg||0)} kg × ${b.reps} · est. 1RM ${fmtN(Math.round(e1rm(b)*2)/2)} kg</div>
+    <button class="btn ghost" style="padding:4px 0" data-act="useLast" data-ei="${ei}">Copy last time's sets</button></div>`}
+function exSpark(h){const pts=h.slice(0,10).reverse().map(x=>e1rm(bestSet(x.sets)));if(pts.length<2)return"";
+  const W=120,H=32,lo=Math.min(...pts),hi=Math.max(...pts),r=hi-lo||1;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${pts.map((v,i)=>`${(i*(W-4)/(pts.length-1)+2).toFixed(1)},${(H-3-(v-lo)/r*(H-6)).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/></svg>`}
+function renderExercises(){
+  const map=new Map();ofType("workout").forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!map.has(k))map.set(k,e.name.trim())}));
+  if(!map.size)return"";
+  const q=exKey(S.exFilter);
+  const rows=[...map.entries()].filter(([k])=>!q||k.includes(q)).map(([k,name])=>{const h=exHistory(name),b=bestSet(h.flatMap(x=>x.sets)),open=S.openEx===k;
+    return `<div class="item"><button class="exhead" data-act="openEx" data-k="${esc(k)}" aria-expanded="${open}">
+      <span style="min-width:0"><b>${esc(name)}</b><span class="small muted" style="display:block">${LIB_GROUP[k]||"Your exercise"} · ${h.length} session${h.length===1?"":"s"} · last ${fmtDay(h[0].date)}</span></span>
+      <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none">${fmtN(+b.kg||0)} kg × ${b.reps}<span class="muted" style="display:block">est. 1RM ${fmtN(Math.round(e1rm(b)*2)/2)}</span></span></button>
+      ${open?`<div class="exdetail">${exSpark(h)?`<div class="small muted">Est. 1RM trend</div>${exSpark(h)}`:""}
+        ${h.map(x=>`<div class="spread small" style="padding:4px 0;border-top:1px solid var(--line)"><span class="muted">${fmtDay(x.date)}${x.session?" · "+esc(x.session):""}</span><span style="font-variant-numeric:tabular-nums;text-align:right">${fmtSets(x.sets)}</span></div>`).join("")}</div>`:""}</div>`}).join("");
+  return `<section class="panel"><div class="spread"><h2>Exercise history</h2><span class="label">${map.size} exercise${map.size===1?"":"s"}</span></div>
+    ${map.size>5?`<input id="exFilter" data-act="exFilter" placeholder="Find an exercise" value="${esc(S.exFilter||"")}" autocomplete="off">`:""}
+    <div class="hist">${rows||'<p class="muted small" style="margin:0">No match.</p>'}</div></section>`}
 
 function weightChart(list){
   const pts=list.filter(b=>b.weight).slice(0,12).reverse(); if(pts.length<2)return `<p class="muted small" style="margin:0">Log at least two weigh-ins to see your trend.</p>`;
@@ -395,6 +448,8 @@ document.addEventListener("click",e=>{
     case "newWo":S.draftWorkout={type:"workout",date:todayKey(),name:"",exercises:[{name:"",sets:[{kg:"",reps:""}]}]};render();break;
     case "repeatWo":{const w=clone(S.docs[ds.id]);w.date=todayKey();w.exercises.forEach(e=>e.sets.forEach(s=>{}));S.draftWorkout=w;render();window.scrollTo(0,0);break}
     case "cancelWo":S.draftWorkout=null;render();break;
+    case "useLast":{const ex=S.draftWorkout.exercises[+ds.ei],h=exHistory(ex.name);if(h.length){ex.sets=h[0].sets.map(s=>({kg:s.kg,reps:s.reps}));render();toast("Copied. Add a rep or a little weight to progress")}break}
+    case "openEx":S.openEx=S.openEx===ds.k?null:ds.k;render();break;
     case "addEx":S.draftWorkout.exercises.push({name:"",sets:[{kg:"",reps:""}]});render();break;
     case "delEx":S.draftWorkout.exercises.splice(+ds.ei,1);render();break;
     case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??""});render();break}
@@ -412,10 +467,13 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="habit"){const x=clone(dayDoc(S.day));x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
   if(ds.act==="target"){const st=clone(settings());st.targets[ds.k]=Math.max(0,Math.round(+t.value||0));save("settings",st)}
   if(ds.act==="woDate")S.draftWorkout.date=t.value;
+  if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;render()}
 });
 document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="woName")S.draftWorkout.name=t.value;
-  if(ds.act==="exName")S.draftWorkout.exercises[+ds.ei].name=t.value;
+  if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;
+    if(LIB_GROUP[exKey(t.value)]||exHistory(t.value).length)render()} // picked from the list: show last time straight away
+  if(ds.act==="exFilter"){S.exFilter=t.value;render()}
   if(ds.act==="setKg")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].kg=t.value;
   if(ds.act==="setReps")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].reps=t.value;
   if(ds.act==="ciText")S.ciDraft[ds.k]=t.value;
