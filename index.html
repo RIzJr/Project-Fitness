@@ -221,6 +221,10 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .wp-big svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.6}
 .wp-big:disabled{opacity:.45}
 .wp-rest{align-items:center;justify-content:center;text-align:center}
+.wp-exbtn{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:flex-start}.wp-exbtn:focus-visible{outline:2px solid var(--accent);border-radius:8px}
+.wp-change{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:700;color:var(--accent);border:1px solid var(--line);border-radius:99px;padding:5px 10px}
+.wp-change svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2}
+.wp-alt{display:flex;flex-wrap:wrap;gap:6px}.wp-alt .qchip{color:var(--fg);cursor:pointer}
 .wp-target{font-family:var(--display);font-size:34px;font-weight:900;font-stretch:110%;color:var(--accent);line-height:1.1}
 .wp-ring{width:236px;height:236px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--sunk) 0);display:grid;place-items:center}
 .wp-ring>div{width:208px;height:208px;border-radius:50%;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -789,7 +793,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-5";
+const APP_VERSION="2026-10-24-6";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -885,7 +889,12 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
   const h=exHistory(ex.name),last=h[0],kgStep=dw.kind==="gym"||dw.kind==="functional"?2.5:1,isLastEx=!dw.exercises[cur.ei+1];
   return `<div class="player">${head}<div class="wp-body">
     <span class="label">Exercise ${cur.ei+1} of ${dw.exercises.length}${ex.name&&LIB_GROUP[exKey(ex.name)]?" · "+LIB_GROUP[exKey(ex.name)]:""}</span>
-    ${ex.name?`<h1 class="wp-ex">${esc(ex.name)}</h1>`:`<input id="wpName" class="wp-name" list="exlib" data-act="wpName" placeholder="Choose an exercise" autocomplete="off"><datalist id="exlib">${exOptions(dw.kind)}</datalist>`}
+    ${ex.name&&S.wpRename!==cur.ei?`<button class="wp-exbtn" data-act="wpRename" aria-label="Change exercise: ${esc(ex.name)}"><h1 class="wp-ex">${esc(ex.name)}</h1><span class="wp-change"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Change</span></button>`
+      :`<input id="wpName" class="wp-name" list="exlib" data-act="wpName" placeholder="${ex.name?"Type to search exercises":"Choose an exercise"}" value="" autocomplete="off"><datalist id="exlib">${exOptions(dw.kind)}</datalist>
+      ${ex.name?(()=>{const g=LIB_GROUP[exKey(ex.name)],alt=(KIND_LIB[dw.kind]||KIND_LIB.gym).concat(dw.kind==="gym"?[]:KIND_LIB.gym).filter(([n,gg])=>gg===g&&exKey(n)!==exKey(ex.name)).map(([n])=>n).filter((n,i,a)=>a.indexOf(n)===i).slice(0,8);
+        return `${alt.length?`<span class="label">Swap for another ${esc(g.toLowerCase())} exercise</span><div class="chips wp-alt">${alt.map(n=>`<button class="qchip" data-act="wpSwap" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>`:""}
+        ${ex.sets.some(x=>x.done)?`<span class="small muted">Sets you've already done stay with this exercise and move to the new name.</span>`:""}
+        <button class="btn ghost" style="align-self:flex-start" data-act="wpRenameNo">Cancel, keep ${esc(ex.name)}</button>`})():""}`}
     <span class="small muted">${last?"Last time: "+fmtSets(last.sets):ex.name?"First time: today sets your baseline":""}</span>
     <div class="wp-sets">${ex.sets.map((x,i)=>`<button class="wp-chip${x.done?" done":""}${i===si?" cur":""}" data-act="wpSet" data-i="${i}">${x.done?fmtSet(x):"Set "+(i+1)}</button>`).join("")}<button class="wp-chip add" data-act="wpAddSet" aria-label="Add a set">+</button></div>
     ${st?`<div class="wp-step"><button data-act="wpAdj" data-f="kg" data-d="-${kgStep}" aria-label="Less weight">−</button><div><input class="wp-num" type="number" inputmode="decimal" step="any" min="0" data-act="wpType" data-f="kg" value="${fmtN(+st.kg||0)}" aria-label="${bw?"Added kg":"Weight in kg"}, tap to type"><span>${bw?"+kg":"kg"} · tap to type</span></div><button data-act="wpAdj" data-f="kg" data-d="${kgStep}" aria-label="More weight">+</button></div>
@@ -944,6 +953,11 @@ function warmRun(dw,head){const W=S.wu,st=W.stages[W.idx],it=dw.warmup[st.i],ste
     <div class="wp-step"><button data-act="wuAdj" data-f="reps" data-d="-1" aria-label="Fewer reps">−</button><div><input class="wp-num" type="number" inputmode="numeric" step="1" min="0" data-act="wuType" data-f="reps" value="${x.reps}" aria-label="Reps, tap to type"><span>reps</span></div><button data-act="wuAdj" data-f="reps" data-d="1" aria-label="More reps">+</button></div>
     <div class="spread"><button class="btn ghost" data-act="wuSetBack" ${st.pos?"":"disabled"}>‹ Previous</button>${exit}<button class="btn ghost" data-act="wuSet" data-skip="1">Skip ›</button></div></div>
     <button class="wp-big" data-act="wuSet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> Done ramp-up set</button></div>`}
+function wpSetExercise(name){const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei];name=String(name||"").trim();if(!name)return;
+  if(ex.name&&exKey(ex.name)!==exKey(name)){delete ex.mode;ex.rampDone=false;ex.wu=[];
+    // sets not done yet start fresh, so they fill in from this exercise's own history
+    ex.sets.forEach(x=>{if(!x.done){x.kg="";x.reps="";x.secs="";delete x.rir}})}
+  const was=ex.name;ex.name=name;S.wpRename=null;S.wp.si=null;render();if(was&&exKey(was)!==exKey(name))toast("Changed to "+name)}
 function rampPanel(dw,ex){const r=rampSets(dw,ex),done=ex.wu||[],open=S.rampOpen!==false;
   return `<section class="panel" style="gap:8px"><div class="spread"><span class="label">Ramp-up sets for this lift${r.kg?` · to ${fmtN(r.kg)} kg`:""}</span><button class="btn ghost" data-act="rampToggle" aria-expanded="${open}">${open?"Hide":"Show"}</button></div>
     ${open?r.sets.map(([n,d],j)=>`<button class="wp-sub" data-act="rampTick" data-k="${j}" aria-pressed="${done.includes(j)}"><span class="wp-tick">${done.includes(j)?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span><span><b>${esc(n)}</b> <span class="muted">· ${esc(d)}</span></span></button>`).join("")+`<span class="small muted">Optional. Light sets to groove the movement; they don't count towards your working sets.</span>`:""}</section>`}
@@ -2195,6 +2209,9 @@ document.addEventListener("click",e=>{
       if(x.j+1>=x.of){const e=dw.exercises.find(e=>e.name===x.ex);if(e)e.rampDone=true}
       st.pos++;if(st.pos>=st.sets.length){it.done=it.log.length>0;W.idx++;wuGoStage()}else{if(!ds.skip)startRest(60);render();window.scrollTo(0,0)}break}
     case "wuSetBack":{const st=S.wu.stages[S.wu.idx];stopRestQuiet();st.pos=Math.max(0,st.pos-1);render();break}
+    case "wpRename":S.wpRename=wpSteps(S.draftWorkout)[S.wp.step].ei;render();setTimeout(()=>document.getElementById("wpName")?.focus(),50);break;
+    case "wpRenameNo":S.wpRename=null;render();break;
+    case "wpSwap":wpSetExercise(ds.v);break;
     case "wpOpen":S.wpOpen=S.wpOpen===+ds.i?null:+ds.i;render();break;
     case "wuPick":case "wuMins":{const it=S.draftWorkout.warmup[+ds.i];if(a==="wuPick")it.pick=ds.v;else it.mins=+ds.v;S.draftWorkout._auto=false;render();break}
     case "wuSub":{const dw=S.draftWorkout,it=dw.warmup[+ds.i];it.sub=it.sub||[];const k=ds.k,j=it.sub.indexOf(k);if(j<0)it.sub.push(k);else it.sub.splice(j,1);
@@ -2237,7 +2254,7 @@ document.addEventListener("click",e=>{
     case "goCardio":S.tab="train";S.trainView="cardio";render();window.scrollTo(0,0);break;
     case "habitTap":{const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=!x.habits[ds.h];save("day_"+S.day,x);if(x.habits[ds.h]&&navigator.vibrate)navigator.vibrate(20);break}
     case "openSettings":S.tab="settings";S.setPage=null;render();window.scrollTo(0,0);break;
-    case "wpGo":S.wu=null;S.wp.step=Math.max(0,+ds.v);S.wp.si=null;S.wpEnd=false;stopRest();render();window.scrollTo(0,0);break;
+    case "wpGo":S.wu=null;S.wpRename=null;S.wp.step=Math.max(0,+ds.v);S.wp.si=null;S.wpEnd=false;stopRest();render();window.scrollTo(0,0);break;
     case "wpList":S.woList=true;render();window.scrollTo(0,0);break;
     case "wpBack":S.woList=false;if(!S.wp)S.wp={step:0};render();break;
     case "wpEnd":S.wpEnd=true;S.wpDiscard=false;render();break;
@@ -2311,7 +2328,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="woDate")S.draftWorkout.date=t.value;
   if(ds.act==="pdF")S.painDraft[ds.k]=t.value;
   if(ds.act==="pdFlag"){const F=S.painDraft.flags;if(t.checked){if(!F.includes(ds.k))F.push(ds.k)}else S.painDraft.flags=F.filter(x=>x!==ds.k)}
-  if(ds.act==="wpName"&&t.value.trim()){const cur=wpSteps(S.draftWorkout)[S.wp.step];S.draftWorkout.exercises[cur.ei].name=t.value.trim();render()}
+  if(ds.act==="wpName"&&t.value.trim())wpSetExercise(t.value)
   if(ds.act==="setRir")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].rir=t.value;
   if(ds.act==="cF")S.cDraft[ds.k]=t.value;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;render()}
