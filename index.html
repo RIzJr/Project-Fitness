@@ -228,6 +228,12 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .planed{background:var(--sunk);border-radius:14px;padding:12px;gap:12px}
 .plex{display:flex;flex-direction:column;gap:8px;background:var(--surface);border-radius:12px;padding:10px}.plex .demo{flex:none;background:var(--sunk);border-radius:8px}
 .plrx{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.plrx label{display:flex;flex-direction:column;gap:3px}.plrx input,.plrx select{width:100%;min-width:0}
+.drill{display:flex;flex-direction:column;gap:6px;background:var(--sunk);border-radius:12px;padding:8px 10px}.drill.on{outline:1.5px solid var(--accent)}
+.drill-row{display:flex;align-items:center;gap:8px}.wp-tick-b{all:unset;cursor:pointer;flex:none}.wp-tick-b[aria-pressed="true"] .wp-tick{background:var(--accent);border-color:var(--accent)}
+.drill-demo{all:unset;cursor:pointer;flex:none}.drill-demo .demo{background:var(--surface);border-radius:8px}
+.drill-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.drill-reps{display:flex;align-items:center;gap:6px;flex:none}.drill-reps button{width:34px;height:34px;border-radius:10px;border:0;background:var(--surface);color:var(--fg);font-size:18px;font-weight:700}.drill-reps b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
+.drill-open{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .picker{display:flex;flex-direction:column;gap:10px;background:var(--surface);border-radius:18px;padding:14px}
 .pick-q{width:100%;font-size:17px}
 .pick-tabs .qchip{color:var(--fg);cursor:pointer}.pick-tabs .qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -649,6 +655,23 @@ const MOB_DRILLS={
   upper:[["Arm circles, small to big","10 each way"],["Band pull-aparts","15"],["Thoracic rotations (open books)","8 each side"],["Scapular push-ups","10"]],
   core:[["Cat-cow","8"]],full:[["World's greatest stretch","5 each side"]],
   wrists:[["Wrist circles and wrist rocks on the floor","10 each"],["Scapular pull-ups","8"]]};
+const DRILL_INFO={
+  "Leg swings, front to back and side to side":[8,15,"each leg","Hold something steady. Start small and let the swing grow. Go to the top of the range before heavy squats or deadlifts."],
+  "Hip circles and hip openers":[6,10,"each way","Big slow circles, knee lifted. Great before anything for the legs or hips."],
+  "Bodyweight squats, slow":[8,15,"","3 seconds down, chest tall. Doubles as a check of how your knees and hips feel today."],
+  "Walking lunge with a reach":[5,8,"each leg","Long step, reach both arms up and lean slightly back. Opens the hips and the front of the thigh."],
+  "Arm circles, small to big":[8,15,"each way","Small circles first, building to big ones. Then reverse."],
+  "Band pull-aparts":[12,20,"","Arms straight, squeeze the shoulder blades. A light band is plenty. Top of the range before pressing."],
+  "Thoracic rotations (open books)":[6,10,"each side","Lie on your side, knees bent, open the top arm across with your eyes following the hand."],
+  "Scapular push-ups":[8,12,"","Arms stay straight. Let the shoulder blades come together, then push them apart."],
+  "Cat-cow":[6,10,"","Move slowly with your breathing: in as you arch, out as you round."],
+  "World's greatest stretch":[3,6,"each side","Lunge, elbow down to the instep, rotate and reach up. The best all-in-one drill if you only have time for one."],
+  "Wrist circles and wrist rocks on the floor":[8,15,"each","Essential before handstands, push-ups or anything on the hands."],
+  "Scapular pull-ups":[6,10,"","Hang with straight arms and pull the shoulders down away from your ears."]};
+const drillInfo=n=>DRILL_INFO[n]||[6,12,"","Smooth and controlled, through a comfortable range."];
+const drillReps=(it,n,fallback)=>{const r=it&&it.reps&&it.reps[n];if(r)return r;const m=String(fallback||"").match(/\d+/);return m?+m[0]:drillInfo(n)[0]};
+const drillTarget=(it,n,fb)=>{const inf=drillInfo(n),u=inf[2]||(String(fb||"").replace(/^\d+\s*/,""));return `${drillReps(it,n,fb)}${u?" "+u:""}`};
+function chosenDrills(dw,it){const all=mobilityPlan(dw),sel=it&&it.sel||[];const L=sel.length?all.filter(([n])=>sel.includes(n)):all;return L.map(([n,d])=>[n,drillTarget(it,n,d)])}
 function warmType(it){const n=String(it.name||"").toLowerCase();return /ramp/.test(n)?"ramp":/mobility|swings|circles|openers|stretch/.test(n)?"mob":/cardio|bike|rower|walk|jog|skipp|march|row\b/.test(n)?"cardio":null}
 function sessionAreas(dw){const g=dw.exercises.map(e=>LIB_GROUP[String(e.name||"").trim().toLowerCase()]).filter(Boolean);return {upper:g.some(x=>UPPER_G.has(x)),lower:g.some(x=>LOWER_G.has(x)),core:g.includes("Core")}}
 function mobilityPlan(dw){const a=sessionAreas(dw);let L=[];
@@ -674,7 +697,18 @@ function warmOpts(dw,it,i){const t=warmType(it);
   const subs=warmSubs(dw,it),done=it.sub||[];
   if(!subs.length)return `<div class="wp-opts"><span class="small muted">${t==="ramp"?"No exercises picked yet. That's fine: each exercise screen will show its own ramp-up sets before your first working set.":"Nothing to show yet."}</span></div>`;
   const row=x=>`<button class="wp-sub" data-act="wuSub" data-i="${i}" data-k="${esc(x.k)}" aria-pressed="${done.includes(x.k)}"><span class="wp-tick">${done.includes(x.k)?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span><span><b>${esc(x.n)}</b> <span class="muted">· ${esc(x.d)}</span></span></button>`;
-  if(t==="mob")return `<div class="wp-opts"><div class="chips" style="gap:8px">${subs.slice(0,6).map(x=>demoSVG(x.n,64)).filter(Boolean).join("")}</div><span class="small muted">${dw.exercises.some(e=>LIB_GROUP[String(e.name||"").trim().toLowerCase()])?"Picked for the muscles you're training today.":"A full-body mix, since no exercises are picked yet."}</span>${subs.map(row).join("")}</div>`;
+  if(t==="mob"){const sel=it.sel||[],n=sel.length,picked=n?subs.filter(x=>sel.includes(x.n)):subs,mins=Math.max(1,Math.round(picked.reduce((a,x)=>a+drillReps(it,x.n,x.d)*(/each/.test(drillInfo(x.n)[2])?2:1)*3,0)/60));
+    const adv=n===1?`<b>Just one drill?</b> That's fine when time's short. Do 2 rounds of it, and make it the one that matches today's main lift.${sel[0]!=="World's greatest stretch"?" If you only ever do one, the World's greatest stretch covers the most.":""}`
+      :n?`<b>${n} drills</b>, about ${mins} min. Aim for 5–10 minutes of warm-up in total, cardio included.`:`Tick the drills you want, or leave them all unticked to do the full set (about ${mins} min).`;
+    return `<div class="wp-opts"><span class="small muted">${dw.exercises.some(e=>LIB_GROUP[String(e.name||"").trim().toLowerCase()])?"Picked for the muscles you're training today.":"A full-body mix, since no exercises are picked yet."}</span>
+      ${subs.map(x=>{const on=sel.includes(x.n),inf=drillInfo(x.n),r=drillReps(it,x.n,x.d),open=S.wuDemo===x.n;return `<div class="drill${on?" on":""}">
+        <div class="drill-row"><button class="wp-tick-b" data-act="wuSel" data-i="${i}" data-k="${esc(x.n)}" aria-pressed="${on}" aria-label="Include ${esc(x.n)}"><span class="wp-tick">${on?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span></button>
+          <button class="drill-demo" data-act="wuDemo" data-k="${esc(x.n)}" aria-label="Show how to do ${esc(x.n)}">${demoSVG(x.n,46,!open)||'<i class="pick-ph"></i>'}</button>
+          <span class="drill-txt"><b>${esc(x.n)}</b><span class="small muted">Recommended ${inf[0]}–${inf[1]}${inf[2]?" "+inf[2]:""}</span></span>
+          <span class="drill-reps"><button data-act="wuReps" data-i="${i}" data-k="${esc(x.n)}" data-d="-1" aria-label="Fewer reps">−</button><b>${r}</b><button data-act="wuReps" data-i="${i}" data-k="${esc(x.n)}" data-d="1" aria-label="More reps">+</button></span></div>
+        ${r<inf[0]?`<span class="small" style="color:var(--carb)">Below the recommended ${inf[0]}. Fine if you're short on time, but you'll get more from a few extra.</span>`:r>inf[1]?`<span class="small muted">More than you need. Above ${inf[1]} adds little; save the energy for your session.</span>`:""}
+        ${open?`<div class="drill-open"><div class="demo-wrap">${demoSVG(x.n,170)}</div><span class="small">${esc(inf[3])}</span><a class="vidlink" href="${videoLink(x.n)}" target="_blank" rel="noopener">▶ Watch a video of this</a></div>`:""}</div>`}).join("")}
+      <div class="hint small"><span>${adv}</span></div></div>`}
   return `<div class="wp-opts">${subs.map(x=>(x.first?`<span class="label" style="margin-top:4px">${esc(x.ex)}${x.kg?` · working weight ${fmtN(x.kg)} kg`:""}</span>`:"")+row(x)).join("")}<span class="small muted">Rest about a minute between ramp-up sets. They shouldn't tire you out.</span></div>`}
 function newDraft(kind){kind=kind||S.lastKind||"gym";return {type:"workout",date:todayKey(),name:"",kind,warmup:presetList(WARM_PRESET,kind),exercises:[{name:"",sets:[{kg:"",reps:""}]}],cooldown:presetList(COOL_PRESET,kind),_auto:true}}
 function partEditor(part,title,ideas){const L=S.draftWorkout[part]||[];
@@ -1150,7 +1184,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-11";
+const APP_VERSION="2026-10-24-12";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1197,7 +1231,7 @@ function quickSheet(){const items=[["food","Log food","Search, scan or quick-add
 /* ---------- Workout mode: full-screen, one exercise at a time ---------- */
 const playerOn=()=>!!(S.draftWorkout&&S.tab==="train"&&!S.woList&&!S.lock&&!S.onboard);
 function wpSteps(dw){const st=[];if((dw.warmup||[]).length)st.push({t:"warmup"});dw.exercises.forEach((e,ei)=>st.push({t:"ex",ei}));if((dw.cooldown||[]).length)st.push({t:"cooldown"});st.push({t:"finish"});return st}
-function wpStart(){const dw=S.draftWorkout;if(!dw)return;S.wpOpen=null;S.wuAdd=false;S.rampOpen=true;S.wu=null;if(!dw.started)dw.started=Date.now();S.wp={step:0};S.woList=false;S.tab="train";wakeOn()}
+function wpStart(){const dw=S.draftWorkout;if(!dw)return;S.wpOpen=null;S.wuDemo=null;S.wuAdd=false;S.rampOpen=true;S.wu=null;if(!dw.started)dw.started=Date.now();S.wp={step:0};S.woList=false;S.tab="train";wakeOn()}
 let wakeLock=null;async function wakeOn(){try{if("wakeLock" in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>{wakeLock=null})}}catch(e){}}
 function wakeOff(){try{wakeLock&&wakeLock.release()}catch(e){}wakeLock=null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&playerOn())wakeOn()});
@@ -1229,7 +1263,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     return `<div class="player">${head}<div class="wp-body"><span class="label">${title}</span><h1>${cur.t==="warmup"?"Get warm":"Wind down"}</h1>
       ${cur.t==="warmup"&&dw.coachNote?`<div class="coachrx"><span class="label">From ${esc(dw.coachName||"your coach")}</span><span>${esc(dw.coachNote)}</span></div>`:""}
       <div class="wp-list">${L.map((it,i)=>{const t=cur.t==="warmup"?warmType(it):null,open=t&&S.wpOpen===i,subs=t&&t!=="cardio"?warmSubs(dw,it):[],nd=subs.filter(x=>(it.sub||[]).includes(x.k)).length;
-        const det=t==="cardio"&&it.pick?`${it.pick} · ${it.mins||5} min`:subs.length?`${it.detail?it.detail+" · ":""}${nd} of ${subs.length} done`:it.detail;
+        const det=t==="cardio"&&it.pick?`${it.pick} · ${it.mins||5} min`:t==="mob"&&(it.sel||[]).length?`${it.sel.length} drill${it.sel.length===1?"":"s"} chosen${nd?" · "+nd+" done":""}`:subs.length?`${it.detail?it.detail+" · ":""}${nd} of ${subs.length} done`:it.detail;
         return `<div class="wp-card"><div class="wp-row"><button class="wp-item" data-act="partDone" data-part="${cur.t}" data-i="${i}" aria-pressed="${!!it.done}"><span class="wp-tick">${it.done?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span><span><b>${esc(it.name)}</b>${det?`<span class="small muted" style="display:block">${esc(det)}</span>`:""}</span></button>
         ${!t&&demoKey(it.name)?`<button class="wp-more" data-act="wpOpen" data-i="${i}" aria-expanded="${S.wpOpen===i}">${S.wpOpen===i?"Hide ▴":"How to ▾"}</button>`:t?`<button class="wp-more" data-act="wpOpen" data-i="${i}" aria-expanded="${!!open}">${open?"Hide ▴":"Options ▾"}</button>`:it.custom&&cur.t==="warmup"?`<button class="wp-more" data-act="wuDel" data-i="${i}" aria-label="Remove ${esc(it.name)}">×</button>`:""}</div>${open?warmOpts(dw,it,i):!t&&demoKey(it.name)&&S.wpOpen===i?`<div class="wp-opts"><div class="demo-wrap">${demoSVG(it.name,170)}</div><span class="small muted">${esc(demoTip(it.name))}</span><a class="vidlink" href="${videoLink(it.name)}" target="_blank" rel="noopener">▶ Watch a video</a></div>`:""}</div>`}).join("")}
         ${cur.t==="warmup"?(S.wuAdd?`<div class="wp-card"><div class="wp-opts" style="padding-top:14px"><span class="label">Add your own warm-up</span>
@@ -1267,10 +1301,10 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     <div class="spread small muted"><button class="btn ghost" data-act="wpGo" data-v="${Math.max(0,S.wp.step-1)}" ${S.wp.step?"":"disabled"}>‹ Back</button><span>${dw.exercises[cur.ei+1]?"Next: "+esc(dw.exercises[cur.ei+1].name||"exercise"):"Next: "+((dw.cooldown||[]).length?"cool-down":"finish")}</span><button class="btn ghost" data-act="wpGo" data-v="${S.wp.step+1}">Skip ›</button></div></div>
     ${st?`<button class="wp-big" data-act="wpDone" ${ex.name?"":"disabled"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> Done set ${si+1}</button>`:isLastEx?`<button class="wp-big" data-act="wpAddEx">+ Add another exercise</button><button class="btn" style="height:52px" data-act="wpGo" data-v="${S.wp.step+1}">${(dw.cooldown||[]).length?"Finish exercises: wind down ›":"Finish workout ›"}</button>`:`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Next exercise ›</button>`}</div>`}
 /* guided warm-up: runs the ticked items in order (cardio timer, mobility drills, ramp-up sets) then starts training */
-const wuSel=it=>!!(it.done||it.pick);
+const wuSel=it=>!!(it.done||it.pick||(it.sel&&it.sel.length));
 function wuStagesFor(dw){const out=[];(dw.warmup||[]).forEach((it,i)=>{if(!wuSel(it))return;const t=warmType(it);
     if(t==="cardio")out.push({t,i});
-    else if(t==="mob")out.push({t,i,drills:mobilityPlan(dw),pos:0});
+    else if(t==="mob")out.push({t,i,drills:chosenDrills(dw,it),pos:0});
     else if(t==="ramp"){const sets=rampPlan(dw).flatMap(r=>r.sets.map(([n,d],j)=>{const kg=/^\d/.test(n)?parseFloat(n):"";return {ex:r.name,j,of:r.sets.length,label:n,target:d,kg,reps:parseInt(d)||5,key:r.name+"|"+j}}));if(sets.length)out.push({t,i,sets,pos:0})}});
   return out}
 const wuNames={cardio:"Easy cardio",mob:"Dynamic mobility",ramp:"Ramp-up sets"};
@@ -1295,7 +1329,7 @@ function warmRun(dw,head){const W=S.wu,st=W.stages[W.idx],it=dw.warmup[st.i],ste
     return `<div class="player">${head}<div class="wp-body"><span class="label">${step} · Dynamic mobility · drill ${st.pos+1} of ${st.drills.length}</span>
       <div class="wp-seg">${st.drills.map((_,k)=>`<i class="${k<st.pos?"on":k===st.pos?"cur":""}"></i>`).join("")}</div>
       ${demoSVG(d[0])?`<div class="demo-wrap">${demoSVG(d[0],170)}</div>`:""}<h1 class="wp-ex">${esc(d[0])}</h1><div class="wp-target">${esc(d[1])}</div>
-      <span class="small muted">Smooth and controlled, through a comfortable range. No pain.</span>
+      <span class="small">${esc(drillInfo(d[0])[3])}</span><a class="vidlink" href="${videoLink(d[0])}" target="_blank" rel="noopener">▶ Watch a video of this</a>
       ${st.drills[st.pos+1]?`<section class="panel"><span class="label">Up next</span>${st.drills.slice(st.pos+1).map(x=>`<div class="small">${esc(x[0])} <span class="muted">· ${esc(x[1])}</span></div>`).join("")}</section>`:""}</div>
       <button class="wp-big" data-act="wuDrill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> Done${st.drills[st.pos+1]?"":" · "+wuNextLabel().toLowerCase()}</button>
       <div class="spread"><button class="btn ghost" data-act="wuDrillBack" ${st.pos?"":"disabled"}>‹ Previous</button>${exit}<button class="btn ghost" data-act="wuDrill" data-skip="1">Skip ›</button></div></div>`}
@@ -2706,6 +2740,9 @@ document.addEventListener("click",e=>{
     case "plSave":savePlanDraft();break;
     case "pickTab":S.pick.g=ds.v;render();break;
     case "wpSwap":wpSetExercise(ds.v);break;
+    case "wuSel":{const it=S.draftWorkout.warmup[+ds.i];it.sel=it.sel||[];const j=it.sel.indexOf(ds.k);if(j<0)it.sel.push(ds.k);else it.sel.splice(j,1);S.draftWorkout._auto=false;if(navigator.vibrate)navigator.vibrate(10);render();break}
+    case "wuReps":{const it=S.draftWorkout.warmup[+ds.i],sub=warmSubs(S.draftWorkout,it).find(x=>x.n===ds.k);it.reps=it.reps||{};it.reps[ds.k]=Math.max(1,Math.min(40,drillReps(it,ds.k,sub&&sub.d)+(+ds.d)));if(it.sel&&!it.sel.includes(ds.k))it.sel.push(ds.k);else if(!it.sel)it.sel=[ds.k];render();break}
+    case "wuDemo":S.wuDemo=S.wuDemo===ds.k?null:ds.k;render();break;
     case "wpOpen":S.wpOpen=S.wpOpen===+ds.i?null:+ds.i;render();break;
     case "wuPick":case "wuMins":{const it=S.draftWorkout.warmup[+ds.i];if(a==="wuPick")it.pick=ds.v;else it.mins=+ds.v;S.draftWorkout._auto=false;render();break}
     case "wuSub":{const dw=S.draftWorkout,it=dw.warmup[+ds.i];it.sub=it.sub||[];const k=ds.k,j=it.sub.indexOf(k);if(j<0)it.sub.push(k);else it.sub.splice(j,1);
@@ -2788,7 +2825,7 @@ document.addEventListener("click",e=>{
     case "delSet":S.draftWorkout.exercises[+ds.ei].sets.splice(+ds.si,1);render();break;
     case "saveWo":{const w=S.draftWorkout;if(w&&w.started&&w.exercises.some(e=>e.sets.some(x=>x.done)))w.exercises.forEach(e=>{e.sets=e.sets.filter(x=>x.done)});
       w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";return o}).filter(e=>e.sets.length);
-      ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
+      ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:x.sel&&x.sel.length?x.sel.map(n=>n.split(",")[0]+" × "+drillTarget(x,n)).join(", "):(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
       if(!w.exercises.length&&!w.warmup.some(x=>x.done)&&!w.cooldown.some(x=>x.done)){toast("Nothing to save yet. Log a set, or tick off your warm-up");break}
       delete w._auto;delete w._repeat;const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
       S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();save(id,w);if(w.planId)setTimeout(()=>pushReports(true),2000);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
