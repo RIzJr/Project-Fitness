@@ -421,6 +421,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
 <input type="file" id="lookIn" accept="image/*" hidden>
 <input type="file" id="importIn" accept="application/json,.json" hidden>
 <input type="file" id="reportIn" accept="application/json,.json" hidden>
+<input type="file" id="progIn" accept=".csv,.json,.txt,text/csv,application/json" hidden>
 
 <script>
 (function(){
@@ -1184,7 +1185,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-13";
+const APP_VERSION="2026-10-24-14";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1993,11 +1994,112 @@ function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=week
   const xl=n?`<text x="${x(0)}" y="${H-6}" font-size="9.5" fill="var(--muted)" ${n<2?'text-anchor="middle"':""}>${fmtDay(weeks[0].week)}</text>${n>1?`<text x="${x(n-1)}" y="${H-6}" font-size="9.5" fill="var(--muted)" text-anchor="end">${fmtDay(weeks[n-1].week)}</text>`:""}`:"";
   const legend=series.length>1?`<div class="legend">${series.map(sr=>`<span><i style="background:${sr.color}"></i>${sr.label}</span>`).join("")}</div>`:"";
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label||series.map(s=>s.label).join(", "))}">${grid}${tgt}${marks}${xl}</svg>${legend}`}
-function renderClients(){if(CL.user&&(!CL.repAt||Date.now()-CL.repAt>60000)){CL.repAt=Date.now();fetchClientReports()}
+/* ---------- programmes: build a multi-week block once, assign it to a client, every session is created for you ---------- */
+const PROG_MODES=[["double","Reps, then weight","Reps climb through the range each week, then weight goes up and reps reset (double progression)"],["load","Add weight weekly","Same reps, weight goes up by each exercise's increment every week"],["none","No progression","Same sets, reps and weights every week"]];
+const WEEKDAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const parseReps=r=>{const m=String(r||"").match(/(\d+)\s*(?:-|–|to)\s*(\d+)/);if(m)return [+m[1],Math.max(+m[1],+m[2])];const n=parseInt(r)||10;return [n,n]};
+const blankProgEx=()=>({name:"",rx:{sets:3,reps:"8-12",kg:"",rir:"2",inc:"2.5",secs:""},note:""});
+function newProg(){return {name:"",weeks:6,prog:"double",deload:true,note:"",days:[{name:"Upper A",kind:"gym",exercises:[blankProgEx()]},{name:"Lower A",kind:"gym",exercises:[blankProgEx()]}]}}
+function progRx(P,rx,w,del){const [lo,hi]=parseReps(rx.reps),inc=+rx.inc||0,base=rx.kg===""||rx.kg==null?null:+rx.kg,steps=Math.max(0,(del?w-2:w-1));let reps=lo,kg=base;
+  if(P.prog==="load"){if(base!=null)kg=base+inc*steps}
+  else if(P.prog==="double"){const span=hi-lo+1;reps=lo+(steps%span);if(base!=null)kg=base+inc*Math.floor(steps/span)}
+  let sets=Math.max(1,+rx.sets||3),rir=rx.rir;
+  if(del){sets=Math.max(1,Math.round(sets/2));if(kg!=null)kg=kg*0.9;rir=rir===""||rir==null?3:Math.min(4,+rir+2)}
+  return {sets,reps:rx.secs?"":reps,range:!rx.secs&&lo!==hi?`${lo}-${hi}`:"",kg:kg==null?"":Math.round(kg*4)/4,rir:rir??"",secs:rx.secs||""}}
+function progSessions(P,A){const out=[];for(let w=1;w<=P.weeks;w++){const del=!!P.deload&&P.weeks>2&&w===P.weeks;
+  P.days.forEach((d,di)=>{const wd=A.days[di];if(wd==null||wd==="")return;const date=addDays(A.start,(w-1)*7+(+wd));
+    const exercises=d.exercises.filter(e=>String(e.name||"").trim()).map(e=>{const mode=exMode(e.name),rx=progRx(P,e.rx,w,del);return {name:e.name.trim(),...(mode==="time"?{mode}:{}),note:e.note||"",rx,sets:rxToSets(rx,mode)}});
+    if(exercises.length)out.push({date,name:`${d.name||"Day "+(di+1)} · Wk ${w}`,kind:d.kind||"gym",note:(del?"Deload week: lighter weights and fewer sets. Recover now, come back stronger. ":"")+(P.note||""),exercises,progId:P.id,progName:P.name,week:w,weeks:P.weeks})})}
+  return out}
+async function pushPlans(docs){const c=await sbClient();if(!c||!CL.user||!docs.length)return false;
+  for(let i=0;i<docs.length;i+=100){const {error}=await c.from("plans").upsert(docs.slice(i,i+100).map(d=>({coach_id:CL.user.id,client_id:d.clientUid,id:d.pid,data:planPayload(d)})),{onConflict:"coach_id,client_id,id"});
+    if(error){toast(isPlanTableMissing(error)?"Planning needs a one-off database update. Run supabase-update-2.sql in Supabase":"Couldn't send yet. It'll retry next sync");return false}}return true}
+async function assignProg(){const A=S.assign,P=S.docs[A.progId];if(!P||!A.clientUid){toast("Pick a client");return}if(!A.start){toast("Pick a start date");return}
+  if(!A.days.some(x=>x!==""&&x!=null)){toast("Pick a day of the week for each session");return}
+  const list=progSessions(P,A),coachName=activeProf().name,stamp=Date.now().toString(36),docs=[];
+  list.forEach((x,i)=>{const id="cplan_"+stamp+"p"+i;const doc={type:"cplan",clientUid:A.clientUid,pid:id.replace(/^cplan_/,""),coachName,pending:true,...x};save(id,doc);docs.push(S.docs[id])});
+  const ok=await pushPlans(docs);if(ok)docs.forEach(d=>{const cur=S.docs[d.id];if(cur){delete cur.pending;save(d.id,cur)}});
+  const cl=ofType("client").find(c=>c.clientUid===A.clientUid);S.assign=null;render();toast(`${ok?"Sent":"Saved"} ${list.length} sessions${cl?" for "+cl.name.split(" ")[0]:""}${ok?"":". They'll send when you're back online"}`)}
+// spreadsheet import / export
+function parseCSV(txt){const rows=[];let row=[],cur="",q=false;for(let i=0;i<txt.length;i++){const ch=txt[i];
+  if(q){if(ch==='"'){if(txt[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
+  else if(ch==='"')q=true;else if(ch===","||ch===";"||ch==="\t"){row.push(cur);cur=""}else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&txt[i+1]==="\n")i++;row.push(cur);cur="";if(row.some(x=>x.trim()))rows.push(row);row=[]}else cur+=ch}
+  row.push(cur);if(row.some(x=>x.trim()))rows.push(row);return rows}
+function progFromCSV(txt,fname){const rows=parseCSV(txt.replace(/^﻿/,""));if(rows.length<2)throw new Error("empty");
+  const meta={};let hi=rows.findIndex(r=>r.some(c=>/^exercise$/i.test(c.trim())));if(hi<0)throw new Error("no header");
+  rows.slice(0,hi).forEach(r=>{const k=String(r[0]||"").trim().toLowerCase(),v=String(r[1]||"").trim();if(k)meta[k.replace(/[^a-z]/g,"")]=v});
+  const H=rows[hi].map(c=>c.trim().toLowerCase()),col=(...n)=>H.findIndex(h=>n.includes(h.replace(/[^a-z]/g,"")));
+  const ci={day:col("day","session","workout"),ex:col("exercise"),sets:col("sets"),reps:col("reps","rep","repetitions"),kg:col("kg","weight","load"),rir:col("rir","inreserve","repsinreserve"),inc:col("increment","inc","kgperweek","progression"),secs:col("secs","seconds","time"),note:col("notes","note","cue","cues"),kind:col("style","type","kind")};
+  const days=[];rows.slice(hi+1).forEach(r=>{const g=i=>i<0?"":String(r[i]??"").trim(),name=g(ci.ex);if(!name)return;const dn=g(ci.day)||"Day 1";let d=days.find(x=>x.name===dn);
+    if(!d){const k=g(ci.kind).toLowerCase();d={name:dn,kind:KINDS.some(([kk])=>kk===k)?k:"gym",exercises:[]};days.push(d)}
+    d.exercises.push({name,rx:{sets:g(ci.sets)||"3",reps:g(ci.reps)||"10",kg:g(ci.kg).replace(/kg/i,""),rir:g(ci.rir),inc:g(ci.inc)||"2.5",secs:g(ci.secs)},note:g(ci.note)})});
+  if(!days.length)throw new Error("no rows");
+  const mode=(meta.progression||"").toLowerCase();
+  return {name:meta.programme||meta.program||meta.name||String(fname||"Imported programme").replace(/\.[a-z]+$/i,"").replace(/[-_]+/g," "),weeks:Math.max(1,Math.min(16,+meta.weeks||6)),prog:/weight|load/.test(mode)?"load":/none/.test(mode)?"none":"double",deload:!/^(no|false|0)$/i.test(meta.deload||"yes"),note:meta.notes||meta.note||"",days}}
+function progToCSV(P){const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  return [["Programme",P.name],["Weeks",P.weeks],["Progression",(PROG_MODES.find(m=>m[0]===P.prog)||PROG_MODES[0])[1]],["Deload",P.deload?"yes":"no"],["Notes",P.note||""],[],["Day","Style","Exercise","Sets","Reps","Kg","RIR","Increment","Secs","Notes"],
+    ...P.days.flatMap(d=>d.exercises.filter(e=>e.name).map(e=>[d.name,d.kind,e.name,e.rx.sets,e.rx.reps,e.rx.kg,e.rx.rir,e.rx.inc,e.rx.secs,e.note]))].map(r=>r.map(q).join(",")).join("\n")}
+const PROG_TEMPLATE='Programme,My programme\nWeeks,6\nProgression,Reps then weight\nDeload,yes\nNotes,\n\nDay,Style,Exercise,Sets,Reps,Kg,RIR,Increment,Secs,Notes\nUpper A,gym,Barbell bench press,3,6-10,40,2,2.5,,\nUpper A,gym,Lat pulldown,3,8-12,35,2,2.5,,\nLower A,gym,Back squat,3,6-10,50,2,5,,\nLower A,gym,Plank,3,,,,,30,Squeeze glutes\n';
+function downloadText(name,text,type){const f=new File([text],name,{type:type||"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function importProgFile(file){const r=new FileReader();r.onload=()=>{try{let P;const t=String(r.result);
+    if(/^\s*\{/.test(t)){const j=JSON.parse(t);if(j.kind!=="programme"||!Array.isArray(j.days))throw new Error("not programme");P={name:j.name,weeks:j.weeks||6,prog:j.prog||"double",deload:j.deload!==false,note:j.note||"",days:j.days.map(d=>({name:d.name,kind:d.kind||"gym",exercises:(d.exercises||[]).map(e=>({name:e.name,rx:{sets:String(e.sets??3),reps:String(e.reps??"10"),kg:e.kg??"",rir:e.rir??"",inc:String(e.inc??"2.5"),secs:e.secs??""},note:e.note||""}))}))}}
+    else P=progFromCSV(t,file.name);
+    S.progDraft={...P,id:null};S.progDay=0;S.progView="edit";render();window.scrollTo(0,0);toast(`Imported ${P.days.length} day${P.days.length===1?"":"s"}, ${P.days.reduce((a,d)=>a+d.exercises.length,0)} exercises. Check it, then save`)}
+  catch(e){toast("Couldn't read that file. Use the spreadsheet template (Download template)")}};r.readAsText(file)}
+function saveProgDraft(){const D=S.progDraft;if(!String(D.name||"").trim()){toast("Give the programme a name");document.getElementById("pg_name")?.focus();return}
+  if(!D.days.some(d=>d.exercises.some(e=>String(e.name||"").trim()))){toast("Add at least one exercise");return}
+  const id=D.id||"cprog_"+Date.now().toString(36);save(id,{type:"cprog",name:D.name.trim(),weeks:+D.weeks||6,prog:D.prog,deload:!!D.deload,note:D.note||"",days:D.days.map(d=>({name:d.name||"Day",kind:d.kind||"gym",exercises:d.exercises.filter(e=>String(e.name||"").trim())}))});
+  S.progDraft=null;S.progView="list";render();toast("Programme saved")}
+function progPreview(P){const w1=progSessions(P,{start:todayKey(),days:P.days.map((_,i)=>i)});const by={};w1.forEach(x=>{(by[x.week]=by[x.week]||[]).push(x)});const first=P.days[0]&&P.days[0].exercises.find(e=>e.name);
+  if(!first)return"";const lines=[1,2,3,P.weeks].filter((w,i,a)=>w<=P.weeks&&a.indexOf(w)===i).map(w=>{const del=P.deload&&P.weeks>2&&w===P.weeks,rx=progRx(P,first.rx,w,del);return `Wk ${w}: ${rx.sets} × ${rx.secs?rx.secs+"s":rx.reps}${rx.kg!==""?" @ "+fmtN(rx.kg)+" kg":""}${del?" (deload)":""}`});
+  return `<span class="small muted">How ${esc(first.name)} progresses: ${lines.join(" · ")}</span>`}
+function progEditor(){const D=S.progDraft,di=Math.min(S.progDay||0,D.days.length-1),d=D.days[di];
+  return `<section class="panel"><div class="spread"><button class="btn ghost" style="padding:4px 0" data-act="progBack">‹ Programmes</button>${D.id?`<button class="btn ghost" data-act="progCsv" data-id="${D.id}">Download as spreadsheet</button>`:""}</div>
+    <label class="field"><span class="label">Programme name</span><input id="pg_name" data-act="pgF" data-k="name" value="${esc(D.name)}" placeholder="e.g. Upper/Lower hypertrophy"></label>
+    <div class="grid2"><label class="field"><span class="label">Length</span><select data-act="pgF" data-k="weeks">${[2,3,4,5,6,8,10,12].map(n=>`<option value="${n}" ${+D.weeks===n?"selected":""}>${n} weeks</option>`).join("")}</select></label>
+      <label class="habit" style="align-self:end"><input type="checkbox" data-act="pgDeload" ${D.deload?"checked":""}><span class="small">Last week is a deload</span></label></div>
+    <div class="field"><span class="label">Progression</span><div class="seg" role="group" style="grid-template-columns:repeat(3,1fr)">${PROG_MODES.map(([k,l])=>`<button data-act="pgMode" data-v="${k}" aria-pressed="${D.prog===k}">${l}</button>`).join("")}</div><span class="small muted">${(PROG_MODES.find(m=>m[0]===D.prog)||PROG_MODES[0])[2]}.${D.deload?" Deload week: half the sets, about 10% lighter, 2 more reps in reserve.":""}</span></div>
+    ${progPreview(D)}
+    <label class="field"><span class="label">Note for the client (shown on every session)</span><input data-act="pgF" data-k="note" value="${esc(D.note)}" placeholder="e.g. Rest 90 s on big lifts, 60 s on the rest"></label></section>
+  <section class="panel"><div class="chiprow pick-tabs">${D.days.map((x,i)=>`<button class="qchip" data-act="pgDay" data-i="${i}" aria-pressed="${i===di}">${esc(x.name||"Day "+(i+1))}</button>`).join("")}<button class="qchip" data-act="pgDayAdd">+ Day</button></div>
+    <div class="grid2"><label class="field"><span class="label">Day name</span><input data-act="pgDayF" data-k="name" value="${esc(d.name)}"></label>
+      <label class="field"><span class="label">Style</span><select data-act="pgDayF" data-k="kind">${KINDS.map(([k,l])=>`<option value="${k}" ${d.kind===k?"selected":""}>${l}</option>`).join("")}</select></label></div>
+    <datalist id="pgexlib">${exOptions(d.kind)}</datalist>
+    ${d.exercises.map((e,i)=>{const timed=exMode(e.name)==="time";return `<div class="plex"><div class="row" style="flex-wrap:nowrap">${demoSVG(e.name,40,1)}<input id="pgx${i}" list="pgexlib" data-act="pgEx" data-i="${i}" data-k="name" value="${esc(e.name)}" placeholder="Exercise" autocomplete="off">
+        <button class="x" data-act="pgMove" data-i="${i}" data-d="-1" aria-label="Move up" ${i?"":"disabled"}>↑</button><button class="x" data-act="pgExDel" data-i="${i}" aria-label="Remove">×</button></div>
+      <div class="plrx" style="grid-template-columns:repeat(5,1fr)"><label><span class="label">Sets</span><input type="number" inputmode="numeric" data-act="pgRx" data-i="${i}" data-k="sets" value="${esc(e.rx.sets)}"></label>
+        <label><span class="label">${timed?"Secs":"Reps"}</span><input ${timed?'type="number" inputmode="numeric"':'inputmode="text"'} data-act="pgRx" data-i="${i}" data-k="${timed?"secs":"reps"}" value="${esc(timed?e.rx.secs:e.rx.reps)}" placeholder="${timed?"30":"8-12"}"></label>
+        <label><span class="label">Kg</span><input type="number" inputmode="decimal" step="any" data-act="pgRx" data-i="${i}" data-k="kg" value="${esc(e.rx.kg)}" placeholder="–"></label>
+        <label><span class="label">+kg</span><input type="number" inputmode="decimal" step="any" data-act="pgRx" data-i="${i}" data-k="inc" value="${esc(e.rx.inc)}"></label>
+        <label><span class="label">RIR</span><select data-act="pgRx" data-i="${i}" data-k="rir"><option value="">–</option>${[0,1,2,3,4].map(n=>`<option value="${n}" ${String(e.rx.rir)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label></div>
+      <input data-act="pgEx" data-i="${i}" data-k="note" value="${esc(e.note)}" placeholder="Cue (optional)"></div>`}).join("")}
+    <div class="row"><button class="btn" data-act="pgExAdd">+ Add exercise</button>${D.days.length>1?`<button class="btn ghost" style="color:var(--protein)" data-act="pgDayDel">Remove this day</button>`:""}</div>
+    <span class="small muted">Reps can be a range, e.g. 8-12. Kg is the starting weight; leave it blank and they use their own weights. "+kg" is how much weight is added when it progresses.</span></section>
+  <div class="row" style="margin-bottom:14px"><button class="btn primary" data-act="pgSave">Save programme</button><button class="btn ghost" data-act="progBack">Cancel</button></div>`}
+function progAssignPanel(){const A=S.assign,P=S.docs[A.progId],clients=ofType("client").filter(c=>c.clientUid);if(!P)return"";
+  const n=P.days.length*P.weeks;
+  return `<section class="panel"><div class="spread"><h2>Assign “${esc(P.name)}”</h2><button class="btn ghost" data-act="assignCancel">Cancel</button></div>
+    ${clients.length?`<label class="field"><span class="label">Client</span><select data-act="asF" data-k="clientUid"><option value="">Choose…</option>${clients.map(c=>`<option value="${c.clientUid}" ${A.clientUid===c.clientUid?"selected":""}>${esc(c.name)}</option>`).join("")}</select></label>`
+      :`<p class="small muted" style="margin:0">No linked clients yet. Clients link to you with your coach code (Settings → Cloud account).</p>`}
+    <label class="field"><span class="label">Start date (week 1)</span><input type="date" data-act="asF" data-k="start" value="${esc(A.start)}"></label>
+    <div class="field"><span class="label">Which day each session falls on</span>${P.days.map((d,i)=>`<div class="spread" style="padding:4px 0"><span class="small"><b>${esc(d.name)}</b></span><div class="seg" style="grid-template-columns:repeat(8,1fr);flex:1;max-width:330px;margin-left:10px">${WEEKDAYS.map((w,k)=>`<button data-act="asDay" data-i="${i}" data-v="${k}" aria-pressed="${String(A.days[i])===String(k)}" style="font-size:11.5px;padding:7px 0">${w}</button>`).join("")}<button data-act="asDay" data-i="${i}" data-v="" aria-pressed="${A.days[i]===""}" style="font-size:11.5px;padding:7px 0" aria-label="Skip">–</button></div></div>`).join("")}</div>
+    <span class="small muted">Creates ${n} sessions over ${P.weeks} weeks, each with the right sets, reps and weights for that week. You can still edit any single session afterwards.</span>
+    <div class="row"><button class="btn primary" data-act="assignGo" ${clients.length?"":"disabled"}>Send ${n} sessions</button></div></section>`}
+function renderProgrammes(){if(S.progView==="edit"&&S.progDraft)return progEditor();
+  const L=ofType("cprog").sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="stack"><section class="panel"><div class="spread"><button class="btn ghost" style="padding:4px 0" data-act="progClose">‹ Clients</button><button class="btn primary" data-act="progNew">+ New programme</button></div>
+    <h2>Programmes</h2><p class="small" style="margin:0">Build a block once, then assign it to any client. Every session is created with the right weights for each week.</p>
+    <div class="row"><button class="btn" data-act="progImport">Import spreadsheet</button><button class="btn ghost" data-act="progTpl">Download template</button></div></section>
+    ${S.assign?progAssignPanel():""}
+    ${L.length?`<section class="panel" style="padding:4px 16px">${L.map(P=>`<div class="item" style="padding:12px 0;border-bottom:1px solid var(--line)"><div class="spread"><span><b>${esc(P.name)}</b><span class="small muted" style="display:block">${P.weeks} weeks · ${P.days.length} days a week (${P.days.map(d=>esc(d.name)).join(", ")}) · ${(PROG_MODES.find(m=>m[0]===P.prog)||PROG_MODES[0])[1].toLowerCase()}</span></span></div>
+      <div class="row" style="gap:4px"><button class="btn primary" data-act="assignNew" data-id="${P.id}">Assign</button><button class="btn ghost" data-act="progEdit" data-id="${P.id}">Edit</button><button class="btn ghost" data-act="progDup" data-id="${P.id}">Duplicate</button><button class="btn ghost" style="color:var(--protein)" data-act="progDel" data-id="${P.id}">${S.confirmProgDel===P.id?"Tap to delete":"Delete"}</button></div></div>`).join("")}</section>`
+      :`<section class="panel"><p class="small muted" style="margin:0">No programmes yet. Build one, or fill in the spreadsheet template and import it.</p></section>`}</div>`}
+const nextMonday=()=>{const d=new Date(todayKey()+"T12:00:00"),k=(8-d.getDay())%7||7;return addDays(todayKey(),k)};
+function renderClients(){if(S.progView)return renderProgrammes();if(CL.user&&(!CL.repAt||Date.now()-CL.repAt>60000)){CL.repAt=Date.now();fetchClientReports()}
   const list=ofType("client").sort((a,b)=>String(a.name).localeCompare(String(b.name)));const c=S.clientOpen&&S.docs[S.clientOpen];
   const head="";
   if(c)return head+clientDetail(S.clientOpen,c);
-  return head+`<div class="stack">${list.length?`<section class="panel" style="padding:4px 16px">${list.map(cl=>{const w=cl.weeks.filter(x=>x.weight!=null),ch=w.length>1?r1(w[w.length-1].weight-w[0].weight):null,last=cl.weeks[cl.weeks.length-1];
+  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="panel" style="padding:4px 16px">${list.map(cl=>{const w=cl.weeks.filter(x=>x.weight!=null),ch=w.length>1?r1(w[w.length-1].weight-w[0].weight):null,last=cl.weeks[cl.weeks.length-1];
       return `<button class="setrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small muted" style="display:block">${esc(GOALS[cl.goal]||"No goal set")} · report ${fmtDay(String(cl.received||cl.date).slice(0,10))}</span></span></span>
         <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none">${w.length?fmtN(w[w.length-1].weight)+" kg":"—"}${ch!=null?`<span class="muted" style="display:block">${ch>0?"+":""}${fmtN(ch)} kg</span>`:""}</span></button>`}).join("")}</section>`
     :`<section class="panel"><h2>No clients yet</h2><p class="small" style="margin:0">Ask your client to open <b>You → Check-in</b> in their own app and tap <b>Create and send report</b>. When they send you the file, tap <b>Import report</b> above and choose it.</p></section>`}
@@ -2243,7 +2345,7 @@ async function fetchPlans(){const c=await sbClient();if(!c||!CL.user||!CL.links|
 const planDoneIds=()=>new Set(ofType("workout").map(w=>w.planId).filter(Boolean));
 function upcomingPlans(){const done=planDoneIds(),from=addDays(todayKey(),-3);return myPlans().filter(p=>p.date>=from&&!done.has(p.id)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0)}
 const planDayLabel=d=>{const t=todayKey();return d===t?"Today":d===addDays(t,1)?"Tomorrow":d<t?"Missed · "+fmtDay(d):fmtDay(d)};
-const rxText=e=>{const r=e.rx||{},n=(e.sets||[]).length||r.sets||0;return `${n} × ${r.secs?r.secs+"s":(r.reps||"?")}${r.kg?" @ "+fmtN(+r.kg)+" kg":""}${r.rir!==""&&r.rir!=null?" · "+r.rir+" in reserve":""}`};
+const rxText=e=>{const r=e.rx||{},n=(e.sets||[]).length||r.sets||0;return `${n} × ${r.secs?r.secs+"s":(r.reps||"?")}${r.range?" (range "+r.range+")":""}${r.kg?" @ "+fmtN(+r.kg)+" kg":""}${r.rir!==""&&r.rir!=null?" · "+r.rir+" in reserve":""}`};
 function startPlan(id){const P=myPlans().find(x=>x.id===id);if(!P)return;const kind=P.kind||"gym",cp=L=>(L||[]).map(x=>({name:x.name,detail:x.detail||"",done:false}));
   S.draftWorkout={type:"workout",date:todayKey(),name:P.name||"Coach's session",kind,planId:P.id,coachNote:P.note||"",coachName:P.coachName||"",
     warmup:P.warmup&&P.warmup.length?cp(P.warmup):presetList(WARM_PRESET,kind),cooldown:P.cooldown&&P.cooldown.length?cp(P.cooldown):presetList(COOL_PRESET,kind),
@@ -2259,7 +2361,7 @@ const isPlanTableMissing=e=>/plans|relation|schema cache|does not exist|Could no
 async function pushPlan(doc){const c=await sbClient();if(!c||!CL.user)return false;const {id,clientUid}=doc;
   const {error}=await c.from("plans").upsert({coach_id:CL.user.id,client_id:clientUid,id:doc.pid,data:planPayload(doc)},{onConflict:"coach_id,client_id,id"});
   if(error){if(isPlanTableMissing(error))toast("Planning needs a one-off database update. Run supabase-update-2.sql in Supabase");else toast("Couldn't send the plan yet. It'll retry next sync");return false}return true}
-const planPayload=d=>({type:"plan",date:d.date,name:d.name,kind:d.kind,note:d.note||"",coachName:d.coachName||"",exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],updated:new Date().toISOString()});
+const planPayload=d=>({type:"plan",date:d.date,name:d.name,kind:d.kind,note:d.note||"",coachName:d.coachName||"",progName:d.progName||"",week:d.week||null,weeks:d.weeks||null,exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],updated:new Date().toISOString()});
 async function pushPendingPlans(){if(!CL.user)return;for(const d of ofType("cplan").filter(x=>x.pending)){if(await pushPlan(d)){const cur=S.docs[d.id];if(cur){delete cur.pending;save(d.id,cur)}}}}
 async function deletePlanRemote(d){const c=await sbClient();if(!c||!CL.user)return;await c.from("plans").delete().eq("coach_id",CL.user.id).eq("client_id",d.clientUid).eq("id",d.pid)}
 function rxToSets(rx,mode){const n=Math.max(1,Math.min(12,+rx.sets||3));return [...Array(n)].map(()=>mode==="time"?{kg:rx.kg===""?"":+rx.kg||"",secs:+rx.secs||30,rir:rx.rir===""?"":rx.rir}:{kg:rx.kg===""?"":+rx.kg||"",reps:+rx.reps||10,rir:rx.rir===""?"":rx.rir})}
@@ -2287,7 +2389,7 @@ function planEditor(){const D=S.planDraft,tpls=ofType("template");
 function plansSection(c){if(!c.clientUid)return `<section class="panel"><h2>Planned sessions</h2><p class="small muted" style="margin:0">To plan sessions for ${esc(c.name)}, they need to link to you with your coach code (Settings → Cloud account → Share with a coach).</p></section>`;
   const done=new Set((c.planDone||[]).map(x=>x.id||x)),t=todayKey(),mine=ofType("cplan").filter(x=>x.clientUid===c.clientUid&&x.date>=addDays(t,-21)).sort((a,b)=>a.date<b.date?-1:1);
   const open=S.planDraft&&S.planDraft.clientUid===c.clientUid;
-  return `<section class="panel"><div class="spread"><h2>Planned sessions</h2>${open?"":`<button class="btn primary" data-act="plNew" data-id="${c.clientUid}">+ Plan a session</button>`}</div>
+  return `<section class="panel"><div class="spread"><h2>Planned sessions</h2>${open?"":`<span class="row" style="gap:4px"><button class="btn" data-act="assignFor" data-id="${c.clientUid}">Assign programme</button><button class="btn primary" data-act="plNew" data-id="${c.clientUid}">+ Session</button></span>`}</div>
     ${open?planEditor():""}
     ${mine.length?`<div class="hist">${mine.map(p=>{const st=done.has(p.pid)?`<span class="small good">✓ Done</span>`:p.date<t?`<span class="small" style="color:var(--protein)">Missed</span>`:p.date===t?`<span class="small" style="color:var(--accent)">Today</span>`:"";
       return `<div class="item"><div class="spread"><span><b>${fmtDay(p.date)}</b> · ${esc(p.name||"Session")} <span class="small muted">${(p.exercises||[]).length} ex · ${kindName(p.kind)}</span>${p.pending?` <span class="small muted">(not sent yet)</span>`:""}</span>${st}</div>
@@ -2757,6 +2859,29 @@ document.addEventListener("click",e=>{
     case "wpRenameNo":S.wpRename=null;S.pick=null;render();break;
     case "demoToggle":{const nm=ds.v,dw=S.draftWorkout,cur=dw&&S.wp?wpSteps(dw)[S.wp.step]:null,ex=cur&&dw.exercises[cur.ei],had=ex&&exHistory(ex.name)[0];const openNow=S.demoOpen!=null?S.demoOpen===nm:!had;S.demoOpen=openNow?"":nm;render();break}
     case "srcTab":{S.searchSrc=ds.v;const q=document.getElementById("q")?.value.trim();render();if(q){if(document.getElementById("q"))document.getElementById("q").value=q;runSearch(q)}else document.getElementById("q")?.focus();break}
+    case "progOpen":S.progView="list";render();window.scrollTo(0,0);break;
+    case "progClose":S.progView=null;S.assign=null;render();break;
+    case "progNew":S.progDraft=newProg();S.progDay=0;S.progView="edit";render();window.scrollTo(0,0);break;
+    case "progEdit":{const P=S.docs[ds.id];S.progDraft=clone(P);S.progDay=0;S.progView="edit";render();window.scrollTo(0,0);break}
+    case "progDup":{const P=clone(S.docs[ds.id]);delete P.id;delete P._t;save("cprog_"+Date.now().toString(36),{...P,name:P.name+" (copy)"});toast("Duplicated");break}
+    case "progDel":{if(S.confirmProgDel!==ds.id){S.confirmProgDel=ds.id;render();break}S.confirmProgDel=null;remove(ds.id);toast("Programme deleted. Sessions already sent stay with your clients");break}
+    case "progBack":S.progDraft=null;S.progView="list";render();break;
+    case "progImport":document.getElementById("progIn").click();break;
+    case "progTpl":downloadText("programme-template.csv",PROG_TEMPLATE);toast("Template downloaded. Fill it in, then Import");break;
+    case "progCsv":{const P=S.docs[ds.id];if(P)downloadText(P.name.replace(/[^a-z0-9]+/gi,"-").toLowerCase()+".csv",progToCSV(P));break}
+    case "pgSave":saveProgDraft();break;
+    case "pgMode":S.progDraft.prog=ds.v;render();break;
+    case "pgDay":S.progDay=+ds.i;render();break;
+    case "pgDayAdd":{const D=S.progDraft;D.days.push({name:"Day "+(D.days.length+1),kind:D.days[0]?D.days[0].kind:"gym",exercises:[blankProgEx()]});S.progDay=D.days.length-1;render();break}
+    case "pgDayDel":{const D=S.progDraft;D.days.splice(S.progDay,1);S.progDay=0;render();break}
+    case "pgExAdd":{const d=S.progDraft.days[S.progDay];d.exercises.push(blankProgEx());render();setTimeout(()=>document.getElementById("pgx"+(d.exercises.length-1))?.focus(),30);break}
+    case "pgExDel":S.progDraft.days[S.progDay].exercises.splice(+ds.i,1);render();break;
+    case "pgMove":{const L=S.progDraft.days[S.progDay].exercises,i=+ds.i;if(i>0){[L[i-1],L[i]]=[L[i],L[i-1]];render()}break}
+    case "assignNew":{const P=S.docs[ds.id];S.assign={progId:ds.id,clientUid:(S.assign&&S.assign.clientUid)||"",start:nextMonday(),days:P.days.map((_,i)=>[0,1,3,5,2,4,6][i]??"")};render();window.scrollTo(0,0);break}
+    case "assignFor":{S.clientOpen=null;S.progView="list";const first=ofType("cprog")[0];S.assign=first?{progId:first.id,clientUid:ds.id,start:nextMonday(),days:first.days.map((_,i)=>[0,1,3,5,2,4,6][i]??"")}:null;render();window.scrollTo(0,0);if(!first)toast("Build a programme first, then assign it");else if(ofType("cprog").length>1)toast("Tap Assign on the programme you want");break}
+    case "assignCancel":S.assign=null;render();break;
+    case "asDay":S.assign.days[+ds.i]=ds.v===""?"":+ds.v;render();break;
+    case "assignGo":assignProg();break;
     case "planStart":startPlan(ds.id);break;
     case "plNew":S.planDraft=newPlanDraft(ds.id);render();break;
     case "plEdit":{const d=S.docs[ds.id];S.planDraft=newPlanDraft(d.clientUid,d);render();break}
@@ -2867,6 +2992,10 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
+  if(S.progDraft&&["pgF","pgDayF","pgRx","pgEx"].includes(ds.act)){const D=S.progDraft,d=D.days[S.progDay];if(ds.act==="pgF")D[ds.k]=t.value;else if(ds.act==="pgDayF")d[ds.k]=t.value;else if(ds.act==="pgRx")d.exercises[+ds.i].rx[ds.k]=t.value;else d.exercises[+ds.i][ds.k]=t.value;
+    if(ds.act!=="pgEx"||ds.k==="name")render()}
+  if(ds.act==="pgDeload"&&S.progDraft){S.progDraft.deload=t.checked;render()}
+  if(S.assign&&ds.act==="asF"){S.assign[ds.k]=t.value;render()}
   if(S.planDraft&&(ds.act==="plF"||ds.act==="plRx")){if(ds.act==="plF")S.planDraft[ds.k]=t.value;else S.planDraft.ex[+ds.i].rx[ds.k]=t.value}
   if(S.planDraft&&ds.act==="plEx"&&ds.k==="name"){S.planDraft.ex[+ds.i].name=t.value;render()}
   if(ds.act==="wuType"&&S.wu){const st=S.wu.stages[S.wu.idx],x=st&&st.sets&&st.sets[st.pos];if(x){const v=Math.max(0,+String(t.value).replace(",",".")||0);x[ds.f]=ds.f==="kg"?r1(v):Math.round(v);render()}}
@@ -2901,6 +3030,10 @@ document.addEventListener("focusin",e=>{if(e.target.classList&&e.target.classLis
 document.addEventListener("beforeinput",e=>{if(e.target.classList&&e.target.classList.contains("wp-num"))e.target._typed=true});
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList&&e.target.classList.contains("wp-num")){e.preventDefault();e.target.blur()}});
 document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
+  if(S.progDraft&&ds.act==="pgF"){S.progDraft[ds.k]=t.value;return}
+  if(S.progDraft&&ds.act==="pgDayF"){S.progDraft.days[S.progDay][ds.k]=t.value;return}
+  if(S.progDraft&&ds.act==="pgEx"){S.progDraft.days[S.progDay].exercises[+ds.i][ds.k]=t.value;return}
+  if(S.progDraft&&ds.act==="pgRx"){S.progDraft.days[S.progDay].exercises[+ds.i].rx[ds.k]=t.value;return}
   if(S.planDraft&&ds.act==="plF"){S.planDraft[ds.k]=t.value;return}
   if(S.planDraft&&ds.act==="plEx"){S.planDraft.ex[+ds.i][ds.k]=t.value;return}
   if(S.planDraft&&ds.act==="plRx"){S.planDraft.ex[+ds.i].rx[ds.k]=t.value;return}
@@ -2970,6 +3103,7 @@ document.getElementById("photoIn").addEventListener("change",e=>{const f=e.targe
 
 /* ---------- boot ---------- */
 document.getElementById("lookIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)loadPhoto(f)});
+document.getElementById("progIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importProgFile(f)});
 document.getElementById("reportIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importReport(f)});
 document.getElementById("phIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)addPhotoFile(f)});
 document.getElementById("importIn").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importData(f)});
