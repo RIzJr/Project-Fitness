@@ -1,5 +1,5 @@
 // Project Fitness service worker: works offline, always tries for the newest version first.
-const CACHE = "pf-v5";
+const CACHE = "pf-v6";
 const CORE = ["./", "./index.html", "./privacy.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
@@ -23,9 +23,21 @@ self.addEventListener("fetch", e => {
   );
 });
 
-// Tapping a rest-timer notification brings the app back.
+// Reminders sent from the server (works even when the app is closed)
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Project Fitness", {
+    body: d.body || "", tag: d.tag || "pf", renotify: true, icon: "icon-192.png", badge: "icon-192.png", data: { url: d.url || "./" }
+  }));
+});
+
+// Tapping a notification brings the app back, on the right screen.
 self.addEventListener("notificationclick", e => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true })
-    .then(cs => cs.length ? cs[0].focus() : self.clients.openWindow("./")));
+  const url = (e.notification.data && e.notification.data.url) || "./";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(cs => {
+    if (cs.length) { const c = cs[0]; return (c.navigate ? c.navigate(url).catch(() => c) : Promise.resolve(c)).then(w => (w || c).focus()); }
+    return self.clients.openWindow(url);
+  }));
 });

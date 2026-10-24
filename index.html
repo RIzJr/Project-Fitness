@@ -234,6 +234,7 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .drill-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:14px}
 .drill-reps{display:flex;align-items:center;gap:6px;flex:none}.drill-reps button{width:34px;height:34px;border-radius:10px;border:0;background:var(--surface);color:var(--fg);font-size:18px;font-weight:700}.drill-reps b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
 .drill-open{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.remrow{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:4px 0}.remrow input[type=time],.remrow select{width:auto;flex:none}
 .picker{display:flex;flex-direction:column;gap:10px;background:var(--surface);border-radius:18px;padding:14px}
 .pick-q{width:100%;font-size:17px}
 .pick-tabs .qchip{color:var(--fg);cursor:pointer}.pick-tabs .qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -1185,7 +1186,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-14";
+const APP_VERSION="2026-10-24-15";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1198,7 +1199,12 @@ function showUpdateBar(){let el=document.getElementById("updbar");if(!el){el=doc
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkUpdate(true)});
 setInterval(()=>{if(!document.hidden)checkUpdate(false)},30*60*1000);
 // keep an unfinished session safe if the app reloads or closes
-function persistDraft(){try{const k="pf-draft:"+PROF.active;if(S.draftWorkout)localStorage.setItem(k,JSON.stringify(S.draftWorkout));else localStorage.removeItem(k)}catch(e){}}
+function persistDraft(){const dw=S.draftWorkout;
+  // any change to the session counts as activity; the cloud copy lets the server spot a workout left running
+  if(dw){const {lastAct,...rest}=dw,j=JSON.stringify(rest);if(j!==persistDraft._j){const first=persistDraft._j==null&&dw.lastAct;persistDraft._j=j;if(first)return void scheduleReminders();dw.lastAct=Date.now();if(Date.now()-(persistDraft._sync||0)>120000){persistDraft._sync=Date.now();setTimeout(()=>{if(S.draftWorkout)save("active",{type:"active",started:dw.started||Date.now(),last:dw.lastAct,name:dw.name||""})},0)}}}
+  else if(S.docs.active&&!persistDraft._clearing){persistDraft._clearing=true;persistDraft._j=null;persistDraft._sync=0;setTimeout(()=>{if(!S.draftWorkout&&S.docs.active)remove("active");persistDraft._clearing=false},0)}
+  try{const k="pf-draft:"+PROF.active;if(dw)localStorage.setItem(k,JSON.stringify(dw));else localStorage.removeItem(k)}catch(e){}
+  scheduleReminders()}
 function restoreDraft(){try{const d=JSON.parse(localStorage.getItem("pf-draft:"+PROF.active)||"null");if(d&&d.exercises){S.draftWorkout=d;S.tab="train"}}catch(e){}}
 
 
@@ -1248,6 +1254,10 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     <div class="wp-title"><b>${esc(dw.name||kindName(dw.kind)+" session")}</b><span id="wpClock">${elapsed()}</span></div>
     <button class="iconbtn" data-act="wpList" aria-label="Show full list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button></header>
     <div class="wp-seg" aria-label="Step ${S.wp.step+1} of ${steps.length}">${seg}</div>`;
+  if(S.idlePrompt&&dw.lastAct){const t=new Date(dw.lastAct),hm=t.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),gone=Math.round(idleMins()),gh=gone>=60?Math.floor(gone/60)+" h "+(gone%60)+" min":gone+" min";
+    return `<div class="player">${head}<div class="wp-body" style="justify-content:center"><span class="label">Welcome back</span><h1>Still training?</h1><p class="small" style="margin:0">This session has had no activity for <b>${gh}</b>. Your last change was at ${hm}.</p>
+    <button class="wp-big" data-act="idleSave">Finish and save (ended ${hm})</button><button class="btn" style="height:52px" data-act="idleKeep">Keep going</button>
+    <button class="btn ghost" style="color:var(--protein)" data-act="wpDiscard">${S.wpDiscard?"Tap again to discard":"Discard workout"}</button></div></div>`}
   if(S.wpEnd)return `<div class="player">${head}<div class="wp-body" style="justify-content:center"><h1>End workout?</h1>
     <button class="wp-big" data-act="wpGo" data-v="${steps.length-1}">Finish and save</button>
     <button class="btn" style="height:52px" data-act="wpEndNo">Keep going</button>
@@ -1892,6 +1902,53 @@ function loadPhoto(file){const img=new Image(),url=URL.createObjectURL(file);
 
 
 /* ---------- rest timer ---------- */
+/* ---------- reminders: on this phone (while the app is open or in the background) and, once set up, real push notifications ---------- */
+const REM_DEF={food:{on:false,time:"19:00"},ready:{on:false,time:"09:00"},plan:{on:false,time:"17:00"},idle:{on:true,mins:45}};
+const remCfg=()=>{const r=settings().reminders||{};return {food:{...REM_DEF.food,...r.food},ready:{...REM_DEF.ready,...r.ready},plan:{...REM_DEF.plan,...r.plan},idle:{...REM_DEF.idle,...r.idle}}};
+const FN_URL=()=>CLOUD_URL?CLOUD_URL+"/functions/v1/reminders":"";
+async function showNote(title,body,tag,url){if(!("Notification" in window)||Notification.permission!=="granted"){if(!document.hidden)toast(title+" "+body);return}
+  const opt={body,tag,renotify:true,icon:"icon-192.png",badge:"icon-192.png",data:{url:url||"./"}};
+  try{if(navigator.serviceWorker&&navigator.serviceWorker.controller){const r=await navigator.serviceWorker.ready;return r.showNotification(title,opt)}new Notification(title,opt)}catch(e){}}
+const remSentKey=()=>"pf-remsent:"+PROF.active;
+function remSent(k){try{return (JSON.parse(lsGet(remSentKey())||"{}"))[k]}catch(e){return false}}
+function markRem(k){try{const o=JSON.parse(lsGet(remSentKey())||"{}");o[k]=Date.now();Object.keys(o).forEach(x=>{if(Date.now()-o[x]>3*864e5)delete o[x]});lsSet(remSentKey(),JSON.stringify(o))}catch(e){}}
+function idleMins(){const dw=S.draftWorkout;return dw&&dw.lastAct?(Date.now()-dw.lastAct)/60000:0}
+function scheduleReminders(){clearTimeout(scheduleReminders._d);scheduleReminders._d=setTimeout(()=>{(scheduleReminders._t||[]).forEach(clearTimeout);scheduleReminders._t=[];
+  if(S.lock||S.example)return;const R=remCfg(),now=new Date(),today=todayKey(),at=t=>{const [h,m]=String(t).split(":").map(Number),d=new Date();d.setHours(h||0,m||0,0,0);return d.getTime()-now.getTime()};
+  const add=(ms,fn)=>{if(ms>=0&&ms<864e5)scheduleReminders._t.push(setTimeout(fn,ms))};
+  if(R.food.on)add(at(R.food.time),()=>{const d=S.docs["day_"+todayKey()];if(!(d&&d.foods&&d.foods.length)&&!remSent("food|"+today)){markRem("food|"+today);showNote("Log today's food 🍽️","Nothing logged yet today. A quick log keeps you on track.","food","./?go=food")}});
+  if(R.ready.on)add(at(R.ready.time),()=>{if(!S.docs["ready_"+todayKey()]&&!remSent("ready|"+today)){markRem("ready|"+today);showNote("Morning check-in ⚡","30 seconds: how did you sleep and how do you feel?","ready","./?go=ready")}});
+  if(R.plan.on)add(at(R.plan.time),()=>{const p=upcomingPlans().find(x=>x.date===todayKey());if(p&&!S.draftWorkout&&!remSent("plan|"+today)){markRem("plan|"+today);showNote("Today's session is ready 💪",(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.","plan","./?go=train")}});
+  const dw=S.draftWorkout;if(R.idle.on&&dw&&dw.lastAct)add(dw.lastAct+R.idle.mins*60000-now.getTime()+1000,()=>{const d=S.draftWorkout;if(!d||idleMins()<R.idle.mins)return;
+    if(document.hidden){if(!remSent("idle|"+d.started)){markRem("idle|"+d.started);showNote("Still training?",`Your workout has had no activity for ${Math.round(idleMins())} min. Tap to finish and save it, or keep going.`,"idle","./?go=train")}}else{S.idlePrompt=true;render()}});
+},50)}
+// opening the app (or coming back to it) with a session left running
+setTimeout(()=>{const dw=S.draftWorkout,R=remCfg();if(dw&&R.idle.on&&idleMins()>=R.idle.mins&&!S.lock){S.idlePrompt=true;S.tab="train";render()}},600);
+// coming back to the app with a session left running
+document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const dw=S.draftWorkout,R=remCfg();if(dw&&R.idle.on&&idleMins()>=R.idle.mins){S.idlePrompt=true;S.tab="train";render()}});
+const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function enablePush(){if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))return "unsupported";
+  const perm=Notification.permission==="granted"?"granted":await Notification.requestPermission();if(perm!=="granted")return "denied";
+  if(!CL.user||!FN_URL())return "local";
+  let key;try{const r=await fetch(FN_URL(),{headers:{apikey:CLOUD_KEY}});if(!r.ok)throw 0;key=(await r.json()).publicKey;if(!key)throw 0}catch(e){return "noserver"}
+  try{const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(key)});
+    const j=sub.toJSON(),c=await sbClient();const {error}=await c.from("push_subs").upsert({user_id:CL.user.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,tz:Intl.DateTimeFormat().resolvedOptions().timeZone},{onConflict:"user_id,endpoint"});
+    if(error)return /push_subs|relation|schema|does not exist/i.test(error.message)?"noserver":"error";lsSet("pf-push:"+PROF.active,"on");return "on"}catch(e){return "error"}}
+function setReminders(){const R=remCfg(),perm="Notification" in window?Notification.permission:"unsupported",pushOn=lsGet("pf-push:"+PROF.active)==="on",st=S.pushStatus;
+  const standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone,ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const row=(k,label,sub,extra)=>`<div class="remrow"><label class="habit" style="flex:1"><input type="checkbox" data-act="remOn" data-k="${k}" ${R[k].on?"checked":""}><span><b>${label}</b><span class="small muted" style="display:block">${sub}</span></span></label>${extra}</div>`;
+  return `<section class="panel"><h2>Phone notifications</h2>
+    ${perm==="granted"&&pushOn?`<div class="small good"><b>On.</b> Reminders arrive even when the app is closed.</div>`
+      :perm==="denied"?`<div class="hint small"><b>Notifications are blocked.</b><span>Turn them on for this app in your phone's settings, then come back.</span></div>`
+      :`<p class="small" style="margin:0">Turn these on so reminders reach you even when the app is closed.</p><button class="btn primary" style="align-self:flex-start" data-act="pushOn">Turn on notifications</button>`}
+    ${st==="noserver"?`<div class="hint small"><span>Notifications are allowed, but the reminder service isn't set up on the server yet, so for now reminders only work while the app is open or in the background. (Coach: run supabase-update-3.sql and deploy the reminders function.)</span></div>`:st==="local"?`<div class="hint small"><span>Sign in to a cloud account (Settings → Cloud account) so reminders can reach you when the app is closed. Until then they work while the app is open or in the background.</span></div>`:st==="unsupported"?`<div class="hint small"><span>This browser can't show notifications.${ios&&!standalone?" On iPhone, add the app to your Home Screen first (Share → Add to Home Screen), then open it from there.":""}</span></div>`:st==="error"?`<div class="hint small"><span>Couldn't turn on notifications. Try again in a moment.</span></div>`:""}
+    ${ios&&!standalone?`<span class="small muted">iPhone: notifications only work when the app is added to your Home Screen.</span>`:""}</section>
+  <section class="panel"><h2>Remind me</h2>
+    ${row("food","Log food","If nothing's logged by",`<input type="time" data-act="remTime" data-k="food" value="${R.food.time}">`)}
+    ${row("ready","Morning readiness check","If not done by",`<input type="time" data-act="remTime" data-k="ready" value="${R.ready.time}">`)}
+    ${row("plan","Coach's planned session","On days with a session, if not started by",`<input type="time" data-act="remTime" data-k="plan" value="${R.plan.time}">`)}
+    ${row("idle","Workout left running","If a session has no activity for",`<select data-act="remMins">${[20,30,45,60,90].map(n=>`<option value="${n}" ${R.idle.mins===n?"selected":""}>${n} min</option>`).join("")}</select>`)}
+    <span class="small muted">You only get a reminder when it's needed: nothing logged yet, check not done, or the session not started. One per day each. If you leave a workout running, the app also asks when you come back whether to save it at the time you stopped.</span></section>`}
 const REST_DEF={secs:90,sound:true,vibrate:true,notify:false};
 const restCfg=()=>({...REST_DEF,...(settings().rest||{})});
 let actx=null;
@@ -2495,7 +2552,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="deleteAccount">${CL.confirmDel?"Tap again to delete for good":"Delete my account"}</button></section>`}
 
 /* ---------- settings ---------- */
-const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
+const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["reminders","Reminders","Food, morning check-in, coach's session, workout left running"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
 const GOALS={lose:"Lose fat",maintain:"Maintain",gain:"Build muscle",perform:"Performance"};
 const ACT=[["1.2","Mostly sitting, little exercise"],["1.375","Light: 1–3 sessions a week"],["1.55","Moderate: 3–5 sessions a week"],["1.725","Very active: 6–7 sessions or a physical job"]];
 const initials=n=>String(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
@@ -2515,7 +2572,7 @@ function renderSettings(){const pg=S.setPage,me=activeProf(),pr=S.docs.profile||
       ${PROF.list.length>1?`<button class="btn" style="align-self:flex-start" data-act="setPage" data-v="users">Switch user</button>`:""}</section>
     <section class="panel" style="padding:2px 16px">${SET_PAGES.map(([k,l,d])=>`<button class="setrow" data-act="setPage" data-v="${k}"><span style="min-width:0"><b>${l}</b><span class="small muted" style="display:block">${k==="users"?PROF.list.length+" user"+(PROF.list.length===1?"":"s")+" on this phone":d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</section></div>`;
   const title=(SET_PAGES.find(x=>x[0]===pg)||[0,""])[1];
-  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="look"?lookPanel():pg==="data"?setData():setAbout();
+  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="reminders"?setReminders():pg==="look"?lookPanel():pg==="data"?setData():setAbout();
   return `<header class="top"><div><button class="btn ghost back" data-act="setPage" data-v="">‹ Settings</button><h1>${title}</h1></div></header><div class="stack">${body}</div>`}
 function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??"");
   const sel=(id,opts,cur)=>`<select id="${id}">${opts.map(([val,l])=>`<option value="${val}" ${String(cur??"")===String(val)?"selected":""}>${l}</option>`).join("")}</select>`;
@@ -2859,6 +2916,9 @@ document.addEventListener("click",e=>{
     case "wpRenameNo":S.wpRename=null;S.pick=null;render();break;
     case "demoToggle":{const nm=ds.v,dw=S.draftWorkout,cur=dw&&S.wp?wpSteps(dw)[S.wp.step]:null,ex=cur&&dw.exercises[cur.ei],had=ex&&exHistory(ex.name)[0];const openNow=S.demoOpen!=null?S.demoOpen===nm:!had;S.demoOpen=openNow?"":nm;render();break}
     case "srcTab":{S.searchSrc=ds.v;const q=document.getElementById("q")?.value.trim();render();if(q){if(document.getElementById("q"))document.getElementById("q").value=q;runSearch(q)}else document.getElementById("q")?.focus();break}
+    case "pushOn":S.pushStatus="busy";enablePush().then(r=>{S.pushStatus=r;if(r==="on")toast("Notifications on. Reminders will reach you even when the app is closed");else if(r==="local"||r==="noserver")toast("Notifications on for while the app is open");render()});break;
+    case "idleKeep":S.idlePrompt=false;if(S.draftWorkout)S.draftWorkout.lastAct=Date.now();render();break;
+    case "idleSave":{const dw=S.draftWorkout;S.idlePrompt=false;if(!dw)break;dw.ended=dw.lastAct;S.wp=S.wp||{step:0};const btn=document.createElement("button");btn.dataset.act="saveWo";btn.hidden=true;document.body.appendChild(btn);setTimeout(()=>{btn.click();btn.remove()},0);break}
     case "progOpen":S.progView="list";render();window.scrollTo(0,0);break;
     case "progClose":S.progView=null;S.assign=null;render();break;
     case "progNew":S.progDraft=newProg();S.progDay=0;S.progView="edit";render();window.scrollTo(0,0);break;
@@ -2982,7 +3042,7 @@ document.addEventListener("click",e=>{
       w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";return o}).filter(e=>e.sets.length);
       ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:x.sel&&x.sel.length?x.sel.map(n=>n.split(",")[0]+" × "+drillTarget(x,n)).join(", "):(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
       if(!w.exercises.length&&!w.warmup.some(x=>x.done)&&!w.cooldown.some(x=>x.done)){toast("Nothing to save yet. Log a set, or tick off your warm-up");break}
-      delete w._auto;delete w._repeat;const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
+      if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
       S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();save(id,w);if(w.planId)setTimeout(()=>pushReports(true),2000);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
     case "delWo":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Session deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "delBody":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Entry deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
@@ -3014,6 +3074,8 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
   if(ds.act==="clientNotes"){const c=S.docs[ds.id];if(c)save(ds.id,{...c,notes:t.value})}
+  if(ds.act==="remOn"||ds.act==="remTime"||ds.act==="remMins"){const st=clone(settings()),R=remCfg();if(ds.act==="remOn")R[ds.k].on=t.checked;else if(ds.act==="remTime")R[ds.k].time=t.value||R[ds.k].time;else R.idle.mins=+t.value;st.reminders=R;save("settings",st);
+    if(ds.act==="remOn"&&t.checked&&"Notification" in window&&Notification.permission==="default"){enablePush().then(r=>{S.pushStatus=r;render()})}}
   if(ds.act==="restOpt"){const st=clone(settings()),c={...REST_DEF,...(st.rest||{})};
     if(ds.k==="notify"&&t.checked&&"Notification" in window&&Notification.permission!=="granted"){Notification.requestPermission().then(r=>{const s2=clone(settings());s2.rest={...REST_DEF,...(s2.rest||{}),notify:r==="granted"};save("settings",s2);if(r!=="granted")toast("Notifications weren't allowed")});return}
     c[ds.k]=t.checked;st.rest=c;save("settings",st)}
@@ -3112,6 +3174,9 @@ if(activeProf().pin)S.lock={id:PROF.active,boot:true};
 if(!window.claude||!window.claude.use){loadLocal();afterLoad();restoreDraft()}
 setTimeout(()=>checkUpdate(false),4000);
 if("serviceWorker" in navigator&&window.isSecureContext&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+// opened from a reminder: jump to the right place
+(()=>{const go=new URLSearchParams(location.search).get("go");if(!go)return;try{history.replaceState(null,"",location.pathname)}catch(e){}
+  setTimeout(()=>{if(S.lock||S.onboard)return;if(go==="food"){S.tab="today";render();setTimeout(()=>{document.getElementById("logPanel")?.scrollIntoView({behavior:"smooth"});document.getElementById("q")?.focus()},150)}else if(go==="ready"){S.tab="recover";render()}else if(go==="train"){S.tab="train";render()}},400)})();
 render();
 (async function connect(){
   if(!window.claude||!window.claude.use)return;
