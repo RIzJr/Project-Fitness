@@ -311,6 +311,9 @@ nav.tabs .addbtn svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke
 .updbar{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top,0px));max-width:536px;margin:0 auto;z-index:30;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.2)}
 .updbar button{border:1px solid currentColor;background:transparent;color:inherit;border-radius:9px;padding:6px 12px;font-weight:700}
 .ready{display:flex;gap:14px;align-items:center}
+.rplan{display:flex;flex-direction:column;gap:4px;background:var(--sunk);border-radius:12px;padding:10px 12px}
+.rbars{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}.rbar{display:flex;flex-direction:column;gap:4px}
+.rhow summary{cursor:pointer;color:var(--accent);font-weight:700}.rhow a{color:var(--accent)}
 .ring{flex:none;width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--sunk) 0);display:grid;place-items:center}
 .ring b{width:60px;height:60px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:var(--display);font-size:26px}
 .runner{background:var(--bg);color:var(--fg)}
@@ -724,7 +727,7 @@ function deloadInfo(){const d=settings().deload;if(!d||!d.start)return null;cons
 function renderInsights(){const ws=weekStart(),wo=ofType("workout"),thisWk=wo.filter(w=>w.date>=ws),prs=thisWk.flatMap(w=>w.prs||[]),st=stalls(),sets=weeklySets(ws),dl=deloadInfo();
   const lastAny=[...wo,...ofType("cardio")].map(x=>x.date).sort().pop(),gap=lastAny?Math.floor((new Date(todayKey())-new Date(lastAny))/864e5):null;
   const notes=[],rt=S.docs["ready_"+todayKey()],ra=rt?readinessAdvice(readinessScore(rt),rt.pain):null;
-  if(ra)notes.push(`<div class="small">💡 Readiness ${readinessScore(rt)}: <b>${ra[0]}.</b> ${ra[1].replace(" below"," on the Recover tab")}</div>`);
+  if(ra){const pl=readinessPlan(readinessScore(rt),rt.pain)[0];notes.push(`<div class="small">${readinessScore(rt)>=65?"⚡":readinessScore(rt)>=50?"💡":"🌙"} Readiness ${readinessScore(rt)}: <b>${ra[0]}.</b> ${ra[1]} <span class="muted">Today: ${esc(pl)}.</span></div>`)}
   if(dl&&dl.deload)notes.push(`<div class="hint small"><b>Deload week (week ${dl.pos} of ${dl.every}).</b><span>Cut your sets by about half, keep weights around 10% lighter and leave 3–4 reps in reserve. You'll come back stronger.</span></div>`);
   else if(dl&&dl.next)notes.push(`<div class="small">📅 <b>Deload next week.</b> This is week ${dl.pos} of ${dl.every}. Push this week, then ease off.</div>`);
   if(gap!=null&&gap>=7)notes.push(`<div class="small">⏰ It's been <b>${gap} days</b> since your last session. A short one today counts.</div>`);
@@ -742,13 +745,36 @@ function renderInsights(){const ws=weekStart(),wo=ofType("workout"),thisWk=wo.fi
 
 
 /* ---------- recover: readiness, pain log, recovery activities, guided routines ---------- */
-const RQ=[["sleepQ","Sleep quality","Poor","Great"],["soreness","Muscle soreness","None","Very sore"],["energy","Energy","Drained","Full of energy"],["stress","Stress","Calm","Very stressed"]];
-// readiness 0–100 from sleep, soreness, energy and stress; pain caps it at 50
-function readinessScore(r){if(!r)return null;const n=(v,inv)=>v?(inv?(5-v)/4:(v-1)/4):0.5;
-  let sc=Math.min(1,(+r.sleepH||0)/8)*0.2+n(r.sleepQ)*0.2+n(r.soreness,true)*0.2+n(r.energy)*0.25+n(r.stress,true)*0.15;sc=Math.round(sc*100);return r.pain?Math.min(sc,50):sc}
+// The five wellness items used in sport science (McLean et al. 2010; World Rugby), each 1–5. Soreness and stress are "higher = worse".
+const RQ=[["sleepQ","Sleep quality","Poor","Great"],["energy","Energy","Drained","Full of energy"],["soreness","Muscle soreness","None","Very sore"],["stress","Stress","Calm","Very stressed"],["mood","Mood","Low","Great"]];
+const RQ_INV={soreness:1,stress:1};
+const rqVal=(r,k)=>r&&r[k]?(RQ_INV[k]?(5-r[k])/4:(r[k]-1)/4):null;
+function wellnessOf(r){const v=RQ.map(([k])=>rqVal(r,k)).filter(x=>x!=null);return v.length?v.reduce((a,x)=>a+x,0)/v.length*100:null}
+const sleepAdj=h=>!(+h>0)?0:h<5?-12:h<6?-8:h<7?-4:0;
+// readiness 0–100: wellness questionnaire + sleep hours, compared with your own normal once there's enough history
+function readinessDetail(r){if(!r)return null;const w=wellnessOf(r);if(w==null)return null;const date=r.date||todayKey(),hist=[];
+  for(let i=1;i<=28;i++){const x=S.docs["ready_"+addDays(date,-i)],v=x&&wellnessOf(x);if(v!=null)hist.push(v)}
+  const abs=Math.max(0,Math.min(100,20+w*0.8+sleepAdj(r.sleepH)));let z=null,adj=0,mean=null;
+  if(hist.length>=7){mean=hist.reduce((a,x)=>a+x,0)/hist.length;const sd=Math.max(6,Math.sqrt(hist.reduce((a,x)=>a+(x-mean)**2,0)/(hist.length-1)));z=(w-mean)/sd;adj=Math.max(-10,Math.min(10,z*5))}
+  let score=Math.round(Math.max(0,Math.min(100,abs+adj)));if(r.pain)score=Math.min(score,50);
+  const parts=RQ.map(([k,l])=>({k,l,v:rqVal(r,k)}));
+  return {score,wellness:Math.round(20+w*0.8),sleep:sleepAdj(r.sleepH),z,mean:mean!=null?Math.round(20+mean*0.8):null,n:hist.length,parts,pain:!!r.pain,sleepH:+r.sleepH||0}}
+function readinessScore(r){const d=readinessDetail(r);return d?d.score:null}
 function readinessAdvice(sc,pain){if(sc==null)return null;
-  const a=sc>=75?["Good to go","Train as planned. If a personal best is on the cards, go for it.","var(--veg)"]:sc>=55?["Train as planned","Keep the plan, but drop a set if things feel heavy.","var(--accent)"]:sc>=35?["Go lighter today","Cut your volume, leave 3+ reps in reserve, or swap for technique and mobility work.","var(--carb)"]:["Rest or recover","Take a rest day: a walk, mobility or one of the recovery routines below.","var(--protein)"];
+  const a=sc>=80?["Primed","Everything's lined up. This is a day to chase a personal best.","var(--veg)"]
+    :sc>=65?["Good to go","You're well recovered. Train as planned and push your working sets.","var(--veg)"]
+    :sc>=50?["Train smart","Solid enough to train. Keep the plan, but let today's warm-up sets decide your weights.","var(--accent)"]
+    :sc>=35?["Go lighter","Your body's asking for a lighter day. Showing up still counts, and you'll recover faster for it.","var(--carb)"]
+    :["Recovery day","Today's job is recovery. Rest is when the gains from your training actually happen.","var(--protein)"];
   if(pain)a[1]+=" You flagged pain, so avoid anything that makes it worse.";return a}
+function readinessPlan(sc,pain){if(sc==null)return[];
+  const p=sc>=80?["Work up to a heavy top set at 1 rep in reserve, then your back-off sets","Good day to try for a rep or a little more weight on your main lift","Full session, full rest periods"]
+    :sc>=65?["Hit your planned weights and reps, leaving 1–2 reps in reserve","If the first working set flies, add a little weight","Normal session length"]
+    :sc>=50?["Start at last session's weights, leave 2–3 reps in reserve","If the warm-up feels heavy, drop one set from each exercise","Take full rest between sets"]
+    :sc>=35?["Cut your sets by about a third and leave 3+ reps in reserve","Or swap the session for technique work, mobility or easy cardio","Extra warm-up time, no max attempts"]
+    :["Rest day, or 20–30 minutes of walking or easy cycling","A guided mobility or wind-down routine below","Prioritise food, water and an early night"];
+  if(pain)p.push("Skip or change any exercise that hurts. Pain that lasts or gets worse needs a physio or GP");return p}
+const READY_TIPS={sleepQ:"Sleep quality was low. Keep a fixed wake-up time, a cool dark room, and no caffeine after about 2pm.",energy:"Energy was low. Eat a proper meal with carbs and protein 2–3 hours before training, and check you're drinking enough.",soreness:"You're sore. Light movement (a walk, easy bike or mobility) clears it faster than total rest. Keep protein up.",stress:"Stress was high. Life stress adds to training stress. Ten minutes of box breathing or a walk outside genuinely helps.",mood:"Mood was low. Training often lifts it, so a shorter, enjoyable session can be the right call.",sleepH:"You slept under 7 hours. Most adults need 7–9. An earlier night tonight will lift tomorrow's score more than anything else."};
 const PAIN_AREAS=["Neck","Shoulder","Elbow","Wrist / hand","Chest","Upper back","Lower back","Hip","Glute","Groin","Thigh","Knee","Shin","Calf","Ankle / foot","Other"];
 const PAIN_KINDS=["Sharp","Dull ache","Stiff","Burning","Throbbing"];
 const RED_FLAGS=[["numb","Numbness, tingling or weakness"],["swell","Swelling, bruising or a visible change"],["impact","Started after a fall, impact or a 'pop'"],["weight","Can't put weight on it or move it normally"],["night","Worse at night or wakes you up"]];
@@ -1062,13 +1088,33 @@ function painForm(){const d=S.painDraft;return `<div class="stack" style="gap:10
   <label class="field"><span class="label">What makes it worse?</span><input id="pd_worse" data-act="pdF" data-k="worse" value="${esc(d.worse||"")}" placeholder="e.g. squatting below parallel, overhead pressing"></label>
   <div class="label">Any of these?</div>${RED_FLAGS.map(([k,l])=>`<label class="habit"><input type="checkbox" data-act="pdFlag" data-k="${k}" ${d.flags.includes(k)?"checked":""}><span class="small">${l}</span></label>`).join("")}
   <div class="row"><button class="btn primary" data-act="painSave">Save</button><button class="btn" data-act="painCancel">Cancel</button></div></div>`}
+function readinessCard(r,sc,adv){const D=readinessDetail(r),plan=readinessPlan(sc,r.pain);
+  const weak=[...D.parts.filter(x=>x.v!=null).map(x=>({k:x.k,v:x.v})),...(D.sleepH&&D.sleepH<7?[{k:"sleepH",v:Math.max(0,(D.sleepH-4)/3)*0.9}]:[])].sort((a,b)=>a.v-b.v)[0];
+  const streak=(()=>{let n=0;for(let i=0;i<60;i++){if(S.docs["ready_"+addDays(todayKey(),-i)])n++;else break}return n})();
+  const vs=D.z==null?`<span class="small muted">After 7 check-ins your score is compared with <b>your own normal</b>, which makes it far more accurate. ${7-D.n>0?`${7-D.n} to go.`:""}</span>`
+    :`<span class="small">${Math.abs(D.z)<0.5?"Right on your normal.":D.z>0?`<b>${D.z>=1?"Well above":"Above"} your normal</b> (${D.wellness} vs your usual ${D.mean}).`:`<b>${D.z<=-1?"Well below":"Below"} your normal</b> (${D.wellness} vs your usual ${D.mean}).`}${D.z<=-1?" A dip like this is worth respecting today.":""}</span>`;
+  return `<div class="ready"><div class="ring" style="--p:${sc};--c:${adv[2]}"><b>${sc}</b></div><div><b style="font-size:20px">${adv[0]}</b><div class="small">${adv[1]}</div></div></div>
+    <div class="rplan"><span class="label">Today's plan</span>${plan.map(x=>`<div class="small">› ${esc(x)}</div>`).join("")}</div>
+    <div class="rbars">${D.parts.map(x=>`<div class="rbar"><span class="small">${x.l}</span><div class="bar thin"><i style="width:${x.v==null?0:Math.round(x.v*100)}%;background:${x.v==null?"var(--line)":x.v>=0.75?"var(--veg)":x.v>=0.5?"var(--accent)":x.v>=0.25?"var(--carb)":"var(--protein)"}"></i></div></div>`).join("")}
+      <div class="rbar"><span class="small">Sleep · ${fmtN(D.sleepH)} h</span><div class="bar thin"><i style="width:${Math.min(100,Math.round(D.sleepH/9*100))}%;background:${D.sleepH>=7?"var(--veg)":D.sleepH>=6?"var(--carb)":"var(--protein)"}"></i></div></div></div>
+    ${vs}
+    ${weak&&weak.v<0.6&&READY_TIPS[weak.k]?`<div class="hint small"><b>Biggest lift for tomorrow</b><span>${READY_TIPS[weak.k]}</span></div>`:""}
+    ${streak>=3?`<span class="small muted">🔥 ${streak}-day check-in streak. Consistent check-ins make this score smarter.</span>`:""}
+    <details class="rhow"><summary class="small">How is this worked out?</summary><div class="small stack" style="gap:6px;margin-top:8px">
+      <span><b>1. Five wellness questions.</b> Sleep quality, energy, soreness, stress and mood, each scored 1–5. Their average sets the starting score: all 3s ≈ 60, all 4s ≈ 80, all 5s = 100. This is the same short questionnaire sports scientists use with professional teams (McLean et al., 2010, used by World Rugby). A large review of 56 studies found these simple self-reports track how your body is coping with training <i>better</i> than blood tests or heart-rate measures (Saw, Main &amp; Gastin, 2016).</span>
+      <span><b>2. Sleep hours.</b> Under 7 hours takes points off (−4 under 7 h, −8 under 6 h, −12 under 5 h). Adults need 7–9 hours, and short sleep reduces strength, power and motivation.</span>
+      <span><b>3. Your own normal.</b> Everyone answers these questions a bit differently, so after 7 check-ins the app compares today with your average over the last 4 weeks. Dropping more than your usual day-to-day variation (about 1 standard deviation) is the warning sign researchers look for, so that moves the score up to 10 points either way.</span>
+      <span><b>4. Pain.</b> If you report pain, the score is capped at 50.</span>
+      <span><b>The plan</b> uses reps in reserve: how many more good reps you could have done. Adjusting the load by how you feel on the day is called autoregulation, and research supports it for strength training.</span>
+      <span class="muted">Honest note: the questions and the idea of comparing with your own normal come from research. Combining them into one 0–100 number and the cut-offs for each band are our own way of making it easy to act on. It's a guide, not a medical test. Use it alongside how your warm-up feels.</span>
+      <span><a href="https://bjsm.bmj.com/content/50/5/281" target="_blank" rel="noopener">Saw et al. 2016, BJSM</a> · <a href="https://passport.world.rugby/conditioning-for-rugby/introduction-to-conditioning-adult/managing-the-training-plan/monitoring-the-training-load/wellness-questionnaires/" target="_blank" rel="noopener">World Rugby wellness questionnaire</a></span></div></details>`}
 function renderRecover(){const today=todayKey(),r=S.docs["ready_"+today],editing=!r||S.rdEdit,draft=S.rdDraft||(S.rdDraft=r?clone(r):{type:"readiness",date:today}),sc=readinessScore(r),adv=readinessAdvice(sc,r&&r.pain);
   const pains=ofType("pain"),active=pains.filter(x=>x.status!=="resolved"),resolved=pains.filter(x=>x.status==="resolved");
   const ws=weekStart(),recs=ofType("recovery"),wk=recs.filter(x=>x.date>=ws),dl=deloadInfo();
   const last3=[0,1,2].map(i=>readinessScore(S.docs["ready_"+addDays(today,-i)])).filter(x=>x!=null),low=last3.length===3&&last3.every(x=>x<50);
   return `<header class="top"><div><h1>Recover</h1><div class="sub">Readiness, pain and recovery</div></div></header><div class="stack">
   <section class="panel"><div class="spread"><h2>Today's readiness</h2>${r&&!S.rdEdit?`<button class="btn ghost" data-act="rdEdit">Edit</button>`:""}</div>
-    ${editing?readinessForm(draft):`<div class="ready"><div class="ring" style="--p:${sc};--c:${adv[2]}"><b>${sc}</b></div><div><b style="font-size:18px">${adv[0]}</b><div class="small">${adv[1]}</div><div class="small muted">${fmtN(+r.sleepH||0)} h sleep · soreness ${r.soreness||"–"}/5 · energy ${r.energy||"–"}/5 · stress ${r.stress||"–"}/5</div></div></div>`}
+    ${editing?readinessForm(draft):readinessCard(r,sc,adv)}
     ${low?`<div class="hint small"><b>Three low days in a row.</b><span>Consider an extra rest day or bringing your deload forward. Look at sleep, stress and food too.</span></div>`:""}
     ${dl?`<div class="small muted">Deload cycle: week ${dl.pos} of ${dl.every}${dl.deload?". This is your deload week.":dl.next?". Deload next week.":""}</div>`:""}
     ${readinessTrend()}</section>
@@ -1080,7 +1126,7 @@ function renderRecover(){const today=todayKey(),r=S.docs["ready_"+today],editing
   <section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">this week: ${wk.length} · ${wk.reduce((a,x)=>a+(+x.mins||0),0)} min</span></div>
     <div class="chiprow">${REC_ACTS.map(([a,m])=>`<button class="qchip" data-act="recLog" data-v="${a}" data-m="${m}">+ ${a}${m?` <span class="muted">${m}m</span>`:""}</button>`).join("")}</div>
     <div class="hist">${recs.slice(0,8).map(x=>`<div class="item spread"><span class="small"><b>${esc(x.activity)}</b>${+x.mins?` · ${x.mins} min`:""}<span class="muted"> · ${fmtDay(x.date)}</span></span><button class="x" data-act="recDel" data-id="${x.id}" aria-label="Delete">×</button></div>`).join("")||'<p class="small muted" style="margin:0">Tap an activity to log it. Recovery counts as training too.</p>'}</div></section>
-  <section class="panel"><h2>Guided routines</h2><div class="hist">${ROUTINES.map(rt=>`<div class="item"><div class="spread"><span><b>${rt.name}</b><span class="small muted" style="display:block">${routineMins(rt)} min · ${rt.steps.length} moves</span></span><span class="row" style="gap:4px"><button class="btn ghost" data-act="rtPeek" data-id="${rt.id}" aria-expanded="${S.rtPeek===rt.id}">${S.rtPeek===rt.id?"Hide":"See moves"}</button><button class="btn primary" data-act="rtStart" data-id="${rt.id}">Start</button></span></div>
+  <section class="panel"><h2>Guided routines</h2><div class="hist">${ROUTINES.map(rt=>`<div class="item"><div class="spread"><span><b>${rt.name}</b><span class="small muted" style="display:block">${routineMins(rt)} min · ${rt.steps.length} moves</span></span><span class="row" style="gap:4px;flex-wrap:nowrap;flex:none"><button class="btn ghost" data-act="rtPeek" data-id="${rt.id}" aria-expanded="${S.rtPeek===rt.id}">${S.rtPeek===rt.id?"Hide":"See moves"}</button><button class="btn primary" data-act="rtStart" data-id="${rt.id}">Start</button></span></div>
       ${S.rtPeek===rt.id?`<div class="stack" style="gap:8px;margin-top:10px">${rt.steps.filter((x,i,a)=>a.findIndex(y=>y[0].replace(/, (left|right)$/,"")===x[0].replace(/, (left|right)$/,""))===i).map(x=>{const nm=x[0].replace(/, (left|right)$/,"");return `<div class="demo-mini">${demoSVG(nm,84)||`<div style="width:84px;height:84px" class="demo"></div>`}<div><b>${esc(nm)}</b><div class="small muted">${esc(x[2])}</div>${demoKey(nm)&&!/^breath/.test(demoKey(nm))?`<a class="vidlink" href="${videoLink(nm)}" target="_blank" rel="noopener">▶ Video</a>`:""}</div></div>`}).join("")}</div>`:""}</div>`).join("")}</div>
     <span class="small muted">Move gently and never into pain. Each routine logs itself when you finish.</span></section></div>`}
 function routineRunner(){const R=S.routine,rt=ROUTINES.find(x=>x.id===R.id);if(!rt)return"";
@@ -1097,7 +1143,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-8";
+const APP_VERSION="2026-10-24-9";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -2555,7 +2601,7 @@ document.addEventListener("click",e=>{
     case "rdS":S.rdDraft[ds.k]=+ds.n;render();break;
     case "rdPain":S.rdDraft.pain=ds.v==="yes";render();break;
     case "rdEdit":S.rdEdit=true;S.rdDraft=clone(S.docs["ready_"+todayKey()]);render();break;
-    case "rdSave":{const d=S.rdDraft;if(!(+d.sleepH>0)||RQ.some(([k])=>!d[k])){toast("Fill in sleep hours and all four scores");break}if(d.pain==null){toast("Answer the pain question");break}
+    case "rdSave":{const d=S.rdDraft;if(!(+d.sleepH>0)||RQ.some(([k])=>!d[k])){toast("Fill in sleep hours and all five scores");break}if(d.pain==null){toast("Answer the pain question");break}
       const k=todayKey();d.date=k;d.type="readiness";d.sleepH=+d.sleepH;S.rdEdit=false;S.rdDraft=null;if(d.pain&&!ofType("pain").some(x=>x.status!=="resolved"))S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};save("ready_"+k,d);toast(S.painDraft?"Saved. Tell us about the pain below":"Readiness saved");break}
     case "painNew":S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};render();break;
     case "painCancel":S.painDraft=null;render();break;
