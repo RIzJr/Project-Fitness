@@ -235,6 +235,9 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .drill-reps{display:flex;align-items:center;gap:6px;flex:none}.drill-reps button{width:34px;height:34px;border-radius:10px;border:0;background:var(--surface);color:var(--fg);font-size:18px;font-weight:700}.drill-reps b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
 .drill-open{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .remrow{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:4px 0}.remrow input[type=time],.remrow select{width:auto;flex:none}
+.dashsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.dashsum div{background:var(--surface);border-radius:14px;padding:10px;display:flex;flex-direction:column}.dashsum b{font-family:var(--display);font-size:24px;font-weight:850}.dashsum span{font-size:11.5px;color:var(--muted)}
+.clientrow .flags{order:3;width:100%;display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.flag{font-style:normal;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--sunk)}
+.flag.red{background:color-mix(in srgb,var(--protein) 22%,transparent);color:var(--protein)}.flag.amber{background:color-mix(in srgb,var(--carb) 22%,transparent);color:var(--carb)}.flag.green{background:color-mix(in srgb,var(--veg) 20%,transparent);color:var(--veg)}.flag.grey{color:var(--muted)}
 .picker{display:flex;flex-direction:column;gap:10px;background:var(--surface);border-radius:18px;padding:14px}
 .pick-q{width:100%;font-size:17px}
 .pick-tabs .qchip{color:var(--fg);cursor:pointer}.pick-tabs .qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -1186,7 +1189,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-15";
+const APP_VERSION="2026-10-24-16";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -2021,7 +2024,10 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date}))}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity()}}
+function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
+  const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
+  return {lastFood:days.pop()||null,lastWorkout:(ofType("workout")[0]||{}).date||null,ready,lastCheckin:(ofType("checkin")[0]||{}).date||null,at:todayKey()}}
 async function shareReport(){const sh=S.share||{weeks:8,notes:true};let pr=S.docs.profile||{type:"profile",name:activeProf().name};
   if(!pr.shareId){pr={...pr,shareId:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)};save("profile",pr)}
   const rep=buildReport(sh.weeks,sh.notes,pr.shareId);
@@ -2152,12 +2158,25 @@ function renderProgrammes(){if(S.progView==="edit"&&S.progDraft)return progEdito
       <div class="row" style="gap:4px"><button class="btn primary" data-act="assignNew" data-id="${P.id}">Assign</button><button class="btn ghost" data-act="progEdit" data-id="${P.id}">Edit</button><button class="btn ghost" data-act="progDup" data-id="${P.id}">Duplicate</button><button class="btn ghost" style="color:var(--protein)" data-act="progDel" data-id="${P.id}">${S.confirmProgDel===P.id?"Tap to delete":"Delete"}</button></div></div>`).join("")}</section>`
       :`<section class="panel"><p class="small muted" style="margin:0">No programmes yet. Build one, or fill in the spreadsheet template and import it.</p></section>`}</div>`}
 const nextMonday=()=>{const d=new Date(todayKey()+"T12:00:00"),k=(8-d.getDay())%7||7;return addDays(todayKey(),k)};
+const daysSince=d=>d?Math.floor((new Date(todayKey())-new Date(String(d).slice(0,10)))/864e5):null;
+function clientFlags(c){const F=[],t=todayKey(),R=c.recent||{},done=new Set((c.planDone||[]).map(x=>x.id||x));
+  if(c.health&&c.health.pain&&c.health.pain.length)F.push(["red",`Pain: ${c.health.pain.map(x=>x.area).join(", ")}`]);
+  if(c.health&&c.health.flagged)F.push(["red","Health check needs GP clearance"]);
+  if(c.clientUid){const missed=ofType("cplan").filter(p=>p.clientUid===c.clientUid&&p.date<t&&p.date>=addDays(t,-7)&&!done.has(p.pid)).length;if(missed)F.push(["red",`Missed ${missed} planned session${missed>1?"s":""} (last 7 days)`])}
+  const rs=(R.ready||[]).slice(0,3).map(x=>x.s).filter(x=>x!=null);if(rs.length===3&&rs.every(x=>x<50))F.push(["amber","Low readiness 3 days running"]);
+  const lf=daysSince(R.lastFood);if(R.at&&!c.habitsOnly&&(lf==null||lf>=3))F.push(["amber",lf==null?"No food logged yet":`No food logged for ${lf} days`]);
+  const lw=daysSince(R.lastWorkout);if(R.at&&(lw==null||lw>=7))F.push(["amber",lw==null?"No sessions logged yet":`No session for ${lw} days`]);
+  const lr=daysSince(c.received||c.date);if(lr!=null&&lr>=7)F.push(["grey",`No update from their app for ${lr} days`]);
+  return F}
+const flagRank=F=>F.reduce((a,[c])=>a+(c==="red"?100:c==="amber"?10:1),0);
 function renderClients(){if(S.progView)return renderProgrammes();if(CL.user&&(!CL.repAt||Date.now()-CL.repAt>60000)){CL.repAt=Date.now();fetchClientReports()}
-  const list=ofType("client").sort((a,b)=>String(a.name).localeCompare(String(b.name)));const c=S.clientOpen&&S.docs[S.clientOpen];
+  const list=ofType("client").map(c=>({c,F:clientFlags(c)})).sort((a,b)=>flagRank(b.F)-flagRank(a.F)||String(a.c.name).localeCompare(String(b.c.name))).map(x=>Object.assign(x.c,{_F:x.F}));const c=S.clientOpen&&S.docs[S.clientOpen];
+  const need=list.filter(x=>x._F.some(f=>f[0]!=="grey")).length;
   const head="";
   if(c)return head+clientDetail(S.clientOpen,c);
-  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="panel" style="padding:4px 16px">${list.map(cl=>{const w=cl.weeks.filter(x=>x.weight!=null),ch=w.length>1?r1(w[w.length-1].weight-w[0].weight):null,last=cl.weeks[cl.weeks.length-1];
-      return `<button class="setrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small muted" style="display:block">${esc(GOALS[cl.goal]||"No goal set")} · report ${fmtDay(String(cl.received||cl.date).slice(0,10))}</span></span></span>
+  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="dashsum"><div><b>${need}</b><span>need attention</span></div><div><b>${list.length-need}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length}</b><span>sessions planned this week</span></div></section>`:""}${list.length?`<section class="panel" style="padding:4px 16px">${list.map(cl=>{const w=cl.weeks.filter(x=>x.weight!=null),ch=w.length>1?r1(w[w.length-1].weight-w[0].weight):null,last=cl.weeks[cl.weeks.length-1];
+      const F=cl._F||[],wk=cl.weeks[cl.weeks.length-1]||{},rd=(cl.recent&&cl.recent.ready||[])[0];
+      return `<button class="setrow clientrow" data-act="openClient" data-id="${cl.id}" style="flex-wrap:wrap">${F.length?`<span class="flags">${F.slice(0,3).map(([k,t])=>`<i class="flag ${k}">${esc(t)}</i>`).join("")}</span>`:`<span class="flags"><i class="flag green">On track</i></span>`}<span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small muted" style="display:block">${esc(GOALS[cl.goal]||"No goal set")} · report ${fmtDay(String(cl.received||cl.date).slice(0,10))}</span></span></span>
         <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none">${w.length?fmtN(w[w.length-1].weight)+" kg":"—"}${ch!=null?`<span class="muted" style="display:block">${ch>0?"+":""}${fmtN(ch)} kg</span>`:""}</span></button>`}).join("")}</section>`
     :`<section class="panel"><h2>No clients yet</h2><p class="small" style="margin:0">Ask your client to open <b>You → Check-in</b> in their own app and tap <b>Create and send report</b>. When they send you the file, tap <b>Import report</b> above and choose it.</p></section>`}
     <section class="panel"><h2>How this protects your clients</h2><p class="small" style="margin:0">You only see what each client chooses to send: weekly summaries, never individual meals or their account. Reports are stored in your app on this phone only. Delete a client here when you stop working together.</p></section></div>`}
@@ -2168,6 +2187,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   <section class="panel"><h2>Health check</h2>${c.health&&c.health.date?(c.health.flagged?`<div class="hint"><b>Answered yes to ${c.health.yes.length} question${c.health.yes.length===1?"":"s"}</b> (${fmtDay(c.health.date)}). Ask them to get GP clearance before increasing intensity.<ul class="small" style="margin:4px 0 0;padding-left:18px">${c.health.yes.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:`<div class="small good"><b>All clear</b> (${fmtDay(c.health.date)})</div>`)
     :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check and pain log with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}
     ${c.health&&c.health.pain&&c.health.pain.length?`<div class="hint small"><b>Active pain reported</b>${c.health.pain.map(x=>`<span>${esc(x.area)}${x.side&&x.side!=="n/a"?" ("+esc(x.side)+")":""}: ${x.score}/10${x.kind?", "+esc(x.kind).toLowerCase():""}, since ${fmtDay(x.since)}${x.flags?", warning signs ticked":""}</span>`).join("")}</div>`:""}</section>
+  ${(()=>{const F=clientFlags(c);return F.length?`<section class="panel"><h2>Needs attention</h2><div class="flags" style="display:flex;flex-wrap:wrap;gap:6px">${F.map(([k,t])=>`<i class="flag ${k}">${esc(t)}</i>`).join("")}</div></section>`:""})()}
   ${plansSection(c)}
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
   ${measPanel(id,c)}
@@ -2389,7 +2409,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 /* ---------- coach-planned sessions ---------- */
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
