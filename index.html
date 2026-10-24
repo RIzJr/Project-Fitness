@@ -299,6 +299,7 @@ nav.tabs .addbtn svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke
 :root[data-theme="light"] .htile[aria-pressed="true"] svg{stroke:var(--accent)}
 /* search loading */
 .status.busy{display:flex;align-items:center;gap:8px;color:var(--fg)}
+.srctabs .qchip{color:var(--fg);cursor:pointer}.srctabs .qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .srctag{font-size:10px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:6px;background:var(--line,#2B2F35);color:var(--muted);vertical-align:2px}
 .spin{width:16px;height:16px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--fg) 25%,transparent);border-top-color:var(--accent);display:inline-block;animation:spin .8s linear infinite;flex:none}
 .spin.dark{border-color:color-mix(in srgb,var(--accent-ink) 30%,transparent);border-top-color:var(--accent-ink);vertical-align:middle}
@@ -584,7 +585,8 @@ function renderToday(){
   ${habitTiles}
   <section class="panel" id="logPanel"><h2>Log food</h2>
     <div class="mealpick" role="group" aria-label="Add to meal">${MEALS.map(([k,l])=>`<button data-act="addTo" data-m="${k}" aria-pressed="${(S.addTo||(S.addTo=defaultMeal()))===k}">${l}</button>`).join("")}</div>
-    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="Food, brand or barcode" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""} style="min-width:92px">${S.searching?'<span class="spin dark" aria-hidden="true"></span>':"Search"}</button></form>
+    <div class="chiprow srctabs" role="tablist" aria-label="Search in">${SEARCH_SRC.map(([k,l])=>`<button class="qchip" role="tab" data-act="srcTab" data-v="${k}" aria-pressed="${(S.searchSrc||"all")===k}">${l}</button>`).join("")}</div>
+    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="${({menu:"e.g. Nando's chicken wrap, Big Mac",shop:"Product, brand or barcode",basic:"e.g. chicken breast, rice, banana"})[S.searchSrc]||"Food, restaurant item, brand or barcode"}" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""} style="min-width:92px">${S.searching?'<span class="spin dark" aria-hidden="true"></span>':"Search"}</button></form>
     <div class="row"><button class="btn" data-act="photo" ${S.searching?"disabled":""}>Scan barcode or label</button><button class="btn" data-act="newFood">Add manually</button></div>
     ${quick}
     ${mealCard()}
@@ -1143,7 +1145,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-9";
+const APP_VERSION="2026-10-24-10";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -2411,6 +2413,28 @@ function mergeResults(lists){const seen=new Set(),off=[],us=[];
   // UK products first, then USDA's generic foods
   const a=off.slice(0,6),b=us.slice(0,10-a.length);return a.concat(b,off.slice(6,10-b.length)).slice(0,10)}
 async function readBarcode(img){if(!("BarcodeDetector" in window))return null;try{const bd=new BarcodeDetector();const bmp=await createImageBitmap(img);const c=await bd.detect(bmp);return c[0]&&c[0].rawValue||null}catch(e){return null}}
+/* UK restaurant and takeaway menu items (the chains you'll find on Deliveroo, Uber Eats and Just Eat).
+   Delivery apps don't share nutrition data, so these are approximate: calories from the chains' published menus, macros estimated to match. */
+const CHAINS={"McDonald's":"mcdonalds,mcdonald's,maccies,maccys,mcd,mickey d's","Nando's":"nandos,nando's,nandoz","KFC":"kfc,kentucky","Greggs":"greggs,gregs","Subway":"subway","Wagamama":"wagamama,wagas","Five Guys":"five guys,5 guys","Domino's":"dominos,domino's","Pizza Express":"pizza express,pizzaexpress","Burger King":"burger king,bk","Pret":"pret,pret a manger","Costa":"costa","Starbucks":"starbucks"};
+const MENU_DB=[
+["McDonald's","Big Mac","1 burger",509,27,42,25],["McDonald's","Quarter Pounder with Cheese","1 burger",514,30,37,26],["McDonald's","Double Quarter Pounder with Cheese","1 burger",749,49,38,43],["McDonald's","Cheeseburger","1 burger",303,15,31,12],["McDonald's","Double Cheeseburger","1 burger",452,26,32,23],["McDonald's","McChicken Sandwich","1 burger",371,16,40,15],["McDonald's","Mayo Chicken","1 burger",282,11,30,12],["McDonald's","McCrispy","1 burger",484,26,48,20],["McDonald's","Chicken McNuggets, 6","6 pieces",261,14,17,15],["McDonald's","Chicken McNuggets, 9","9 pieces",391,21,25,23],["McDonald's","Chicken Selects, 3","3 pieces",336,23,22,17],["McDonald's","Fries, small","small",237,2.5,29,11.5],["McDonald's","Fries, medium","medium",337,3.5,42,16],["McDonald's","Fries, large","large",444,4.5,55,21],["McDonald's","Sausage & Egg McMuffin","1 muffin",424,23,27,24],["McDonald's","Hash Brown","1",127,1,13,8],["McDonald's","McFlurry, Smarties","regular",273,6,41,9],
+["Nando's","1/4 chicken (breast)","1 quarter",289,45,1,12],["Nando's","1/2 chicken","1 half",579,74,1,31],["Nando's","Chicken butterfly","1",332,58,1,11],["Nando's","5 chicken wings","5 wings",393,36,1,27],["Nando's","Grilled chicken wrap","1 wrap",514,38,46,19],["Nando's","Butterfly chicken burger","1 burger",448,38,40,14],["Nando's","Spicy rice, regular","regular",246,5,47,4],["Nando's","Peri-salted chips, regular","regular",498,6,60,25],["Nando's","Macho peas, regular","regular",155,8,14,6],["Nando's","Corn on the cob, regular","regular",142,4,20,5],["Nando's","Garlic bread, regular","regular",372,10,44,17],["Nando's","Halloumi","1 portion",267,18,1,21],["Nando's","Creamy mash, regular","regular",308,5,30,18],["Nando's","Rainbow slaw, regular","regular",132,1.5,9,10],["Nando's","Long-stem broccoli","regular",32,3,2,1],
+["KFC","Original Recipe chicken piece","1 piece",241,22,8,13],["KFC","Original Recipe drumstick","1 piece",179,15,5,11],["KFC","Original Recipe thigh","1 piece",268,20,8,17],["KFC","Hot wing","1 wing",91,6,4,6],["KFC","Chicken mini fillet","1 piece",125,11,7,6],["KFC","Popcorn chicken, regular","regular",307,20,20,16],["KFC","Zinger burger","1 burger",468,27,46,19],["KFC","Fillet burger","1 burger",463,29,46,17],["KFC","Zinger Tower burger","1 burger",652,33,60,31],["KFC","Fries, regular","regular",261,3,33,13],["KFC","Gravy, regular","regular",73,1,9,3.5],["KFC","BBQ beans, regular","regular",93,4,16,0.5],["KFC","Corn cobette","1",57,2,9,1.5],["KFC","Rice bowl, Original","1 bowl",558,27,62,22],
+["Greggs","Sausage roll","1",338,9,24,23],["Greggs","Vegan sausage roll","1",308,11,25,18],["Greggs","Steak bake","1",411,13,32,25],["Greggs","Chicken bake","1",440,15,36,26],["Greggs","Cheese & onion bake","1",430,11,34,28],["Greggs","Ham & cheese baguette","1",482,24,58,16],["Greggs","Tuna crunch baguette","1",480,22,58,17],["Greggs","Bacon breakfast roll","1",269,14,32,9],["Greggs","Sausage breakfast roll","1",330,15,33,15],["Greggs","Southern fried chicken goujons","1 portion",250,17,17,12],["Greggs","Potato wedges","1 portion",186,3,24,8],["Greggs","Glazed ring doughnut","1",191,3,25,9],
+["Subway","Chicken Tikka, 6-inch","6-inch",345,25,42,7],["Subway","Chicken breast, 6-inch","6-inch",340,25,42,6],["Subway","Italian B.M.T., 6-inch","6-inch",386,19,41,15],["Subway","Rotisserie-style chicken, 6-inch","6-inch",310,24,40,5],["Subway","Steak & cheese, 6-inch","6-inch",330,23,41,8],["Subway","Meatball marinara, 6-inch","6-inch",430,20,51,16],["Subway","Veggie Delite, 6-inch","6-inch",220,8,40,3],["Subway","Cookie","1",214,2.5,28,10],
+["Wagamama","Chicken katsu curry","1 bowl",995,45,135,30],["Wagamama","Grilled chicken ramen","1 bowl",529,45,55,13],["Wagamama","Chilli chicken ramen","1 bowl",541,42,60,14],["Wagamama","Chicken & prawn pad thai","1 plate",789,48,95,23],["Wagamama","Chicken & prawn yaki soba","1 plate",804,44,100,25],["Wagamama","Chicken teriyaki donburi","1 bowl",877,45,125,21],["Wagamama","Steak teriyaki soba","1 plate",856,44,105,28],["Wagamama","Chicken gyoza","5 pieces",195,10,22,7],["Wagamama","Chilli squid","1 portion",411,17,35,22],
+["Five Guys","Hamburger","1 burger",700,39,40,43],["Five Guys","Cheeseburger","1 burger",840,47,40,55],["Five Guys","Little hamburger","1 burger",480,23,39,26],["Five Guys","Fries, regular","regular",950,14,120,46],["Five Guys","Fries, little","little",530,8,67,26],
+["Domino's","Pepperoni Passion, medium","1 slice",200,9,21,9],["Domino's","Margherita, medium","1 slice",160,7,21,5.5],["Domino's","Pepperoni Passion, large","1 slice",230,10,24,10.5],
+["Pizza Express","Margherita (Classic)","whole pizza",760,34,100,25],["Pizza Express","American (Classic)","whole pizza",900,40,100,37],
+["Burger King","Whopper","1 burger",635,29,49,35],["Burger King","Chicken Royale","1 burger",585,25,50,30],["Burger King","Fries, regular","regular",280,3,35,14],
+["Pret","Chicken Caesar & bacon baguette","1",560,31,51,25],["Pret","Egg mayo & cress sandwich","1",370,15,33,19],["Pret","Butter croissant","1",340,7,35,19],
+["Costa","Flat white","regular",115,6.5,9,6],["Costa","Latte, medium","medium",150,10,15,5],["Costa","Cappuccino, medium","medium",110,7,11,4],["Starbucks","Latte, tall","tall",150,10,15,5.5],["Starbucks","Flat white","short",110,6,9,6]
+].map(([chain,item,serving,kcal,p,c,f])=>({chain,item,serving,kcal,p,c,f}));
+const normQ=t=>String(t||"").toLowerCase().replace(/[’'.]/g,"").replace(/&/g," and ").replace(/[^a-z0-9/ ]+/g," ").replace(/\s+/g," ").trim();
+const MENU_IDX=MENU_DB.map(m=>({m,t:normQ(m.chain+" "+(CHAINS[m.chain]||"")+" "+m.item)}));
+function menuSearch(q){const tk=normQ(q).split(" ").filter(w=>w.length>1&&!["and","with","the","a","from"].includes(w));if(!tk.length)return[];
+  return MENU_IDX.filter(x=>tk.every(w=>x.t.includes(w))).slice(0,24).map(({m})=>({name:`${m.item} · ${m.chain}`,serving:m.serving,kcal:m.kcal,protein_g:m.p,carbs_g:m.c,fat_g:m.f,src:"Menu"}))}
+const SEARCH_SRC=[["all","All"],["menu","Restaurants & takeaway"],["shop","Supermarket & brands"],["basic","Basic foods"]];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const SEARCH_LIMIT=60000,RETRY_WAIT=[2000,4000,7000,10000,15000];
 function cancelSearch(){S.searchTok=(S.searchTok||0)+1;clearInterval(S.searchClock);S.searching=false;S.searchMsg=S.results.length?S.searchMsg:"Search cancelled. Try again, or add it manually.";render()}
@@ -2419,11 +2443,14 @@ async function runOffSearch(q,img){
   const tok=S.searchTok=(S.searchTok||0)+1,live=()=>S.searchTok===tok;
   S.searching=true;S.results=[];S.searchMsg=img?"Reading the barcode…":"Searching food databases…";render();
   if(img){const code=await readBarcode(img);if(!live())return;if(!code){S.searchMsg="Couldn't read a barcode from that photo. Type the numbers under the barcode into search instead.";S.searching=false;render();return}q=code}
-  const key=q.trim().toLowerCase();
+  const src=S.searchSrc||"all",key=src+"|"+q.trim().toLowerCase(),isCode=/^\d{8,14}$/.test(q.replace(/\s/g,""));
+  const menuHits=!isCode&&(src==="all"||src==="menu")?menuSearch(q):[];
+  function doneMsg(){const hasMenu=S.results.some(x=>x.src==="Menu");return S.results.length?((hasMenu?"Restaurant items are approximate (published calories, estimated macros). ":"")+(S.meal?"Tap Add, then Edit to change the amount.":"Tap Add, then Edit to change the amount. USDA values are per 100g.")):S.meal?"":src==="menu"?"No menu match. Try the restaurant's name (e.g. Nando's, Greggs, Wagamama) or search All.":"No match. Try a brand name (e.g. 'Warburtons crumpets'), the barcode number, or add it manually."}
+  if(src==="menu"){S.results=menuHits;S.searching=false;S.searchMsg=doneMsg();render();return}
   if(searchCache.has(key)){S.results=searchCache.get(key);S.searching=false;S.searchMsg=doneMsg();render();return}
-  const t0=Date.now(),lists=[],srcs=searchSources(q);let attempts=0,failed=0;
-  function doneMsg(){return S.results.length?(S.meal?"More options online (tap Add, then Edit to change the amount):":"Tap Add, then Edit to change the amount. Values marked USDA are per 100g."):S.meal?"":"No match. Try a brand name (e.g. 'Warburtons crumpets'), the barcode number, or add it manually."}
-  const show=()=>{if(!live())return;const r=mergeResults(lists);if(!r.length)return;S.results=r;if(S.searching){S.searching=false;clearInterval(S.searchClock)}S.searchMsg=doneMsg();render()};
+  if(menuHits.length){S.results=menuHits;render()}
+  const t0=Date.now(),lists=[],srcs=searchSources(q).filter(x=>src==="all"||(src==="shop"?x.name!=="USDA":x.name==="USDA"));let attempts=0,failed=0;
+  const show=()=>{if(!live())return;const r=menuHits.concat(mergeResults(lists));if(!r.length)return;S.results=r;if(lists.some(l=>l&&l.length)&&S.searching){S.searching=false;clearInterval(S.searchClock)}S.searchMsg=doneMsg();render()};
   // tick the status line while we keep trying
   clearInterval(S.searchClock);S.searchClock=setInterval(()=>{if(!live()||!S.searching){clearInterval(S.searchClock);return}
     if(attempts>srcs.length){S.searchMsg=`Still searching… the food databases are busy, trying again (${Math.round((Date.now()-t0)/1000)}s)`;const el=document.querySelector(".status.busy .msg");if(el)el.textContent=S.searchMsg;else render()}},1000);
@@ -2434,12 +2461,12 @@ async function runOffSearch(q,img){
       try{const out=await src.run(n?12000:8000);if(!live())return "cancel";lists[i]=out;show();return out.length?"hit":"empty"}
       catch(e){}
       // stop retrying once another source has answered, or when time's up
-      if(S.results.length||Date.now()-t0+RETRY_WAIT[Math.min(n,RETRY_WAIT.length-1)]>SEARCH_LIMIT)return "fail";
+      if(lists.some(l=>l&&l.length)||Date.now()-t0+RETRY_WAIT[Math.min(n,RETRY_WAIT.length-1)]>SEARCH_LIMIT)return "fail";
       await sleep(RETRY_WAIT[Math.min(n,RETRY_WAIT.length-1)]);
     }}));
   if(!live())return;
   clearInterval(S.searchClock);
-  const r=mergeResults(lists);
+  const r=menuHits.concat(mergeResults(lists));
   if(r.length||results.every(x=>x==="empty"))searchCache.set(key,r);
   S.results=r;S.searching=false;
   S.searchMsg=r.length||results.every(x=>x!=="fail")?doneMsg():navigator.onLine===false?"You're offline. Use the quick estimate above, or add it manually.":results.includes("empty")?"No match found, and one food database didn't answer. Try a different wording or a brand name, or add it manually.":"The food databases didn't answer after a minute of trying. Check your signal, try again shortly, or add it manually.";
@@ -2587,6 +2614,7 @@ document.addEventListener("click",e=>{
     case "wpRename":S.wpRename=wpSteps(S.draftWorkout)[S.wp.step].ei;S.pick=null;render();break;
     case "wpRenameNo":S.wpRename=null;S.pick=null;render();break;
     case "demoToggle":{const nm=ds.v,dw=S.draftWorkout,cur=dw&&S.wp?wpSteps(dw)[S.wp.step]:null,ex=cur&&dw.exercises[cur.ei],had=ex&&exHistory(ex.name)[0];const openNow=S.demoOpen!=null?S.demoOpen===nm:!had;S.demoOpen=openNow?"":nm;render();break}
+    case "srcTab":{S.searchSrc=ds.v;const q=document.getElementById("q")?.value.trim();render();if(q){if(document.getElementById("q"))document.getElementById("q").value=q;runSearch(q)}else document.getElementById("q")?.focus();break}
     case "pickTab":S.pick.g=ds.v;render();break;
     case "wpSwap":wpSetExercise(ds.v);break;
     case "wpOpen":S.wpOpen=S.wpOpen===+ds.i?null:+ds.i;render();break;
