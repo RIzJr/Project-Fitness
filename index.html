@@ -224,6 +224,10 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .wp-exbtn{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:flex-start}.wp-exbtn:focus-visible{outline:2px solid var(--accent);border-radius:8px}
 .wp-change{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:700;color:var(--accent);border:1px solid var(--line);border-radius:99px;padding:5px 10px}
 .wp-change svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2}
+.coachrx{display:flex;flex-direction:column;gap:3px;border-left:3px solid var(--accent);background:var(--surface);border-radius:4px 12px 12px 4px;padding:8px 12px}
+.planed{background:var(--sunk);border-radius:14px;padding:12px;gap:12px}
+.plex{display:flex;flex-direction:column;gap:8px;background:var(--surface);border-radius:12px;padding:10px}.plex .demo{flex:none;background:var(--sunk);border-radius:8px}
+.plrx{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.plrx label{display:flex;flex-direction:column;gap:3px}.plrx input,.plrx select{width:100%;min-width:0}
 .picker{display:flex;flex-direction:column;gap:10px;background:var(--surface);border-radius:18px;padding:14px}
 .pick-q{width:100%;font-size:17px}
 .pick-tabs .qchip{color:var(--fg);cursor:pointer}.pick-tabs .qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -713,6 +717,7 @@ function renderStrength(){const wo=ofType("workout"),dw=S.draftWorkout;
 function renderTrain(){const v=S.draftWorkout?"strength":(S.trainView||"strength");
   return `${exampleBanner()}<header class="top"><div><h1>Train</h1><div class="sub">${v==="cardio"?"Cardio and activity minutes":"Strength, bodyweight, functional and calisthenics"}</div></div></header>
   ${S.draftWorkout?"":`<div class="seg" role="tablist" aria-label="Training type" style="margin-bottom:14px;grid-template-columns:1fr 1fr">${[["strength","Workouts"],["cardio","Cardio"]].map(([k,l])=>`<button role="tab" data-act="trainView" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join("")}</div>`}
+  ${!S.draftWorkout&&v!=="cardio"?coachPlansPanel():""}
   ${v==="cardio"?renderCardio():renderStrength()}`}
 
 
@@ -1145,7 +1150,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-10";
+const APP_VERSION="2026-10-24-11";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1179,6 +1184,8 @@ function nextTemplate(){const T=ofType("template");if(!T.length)return null;cons
 function nextUpCard(){const today=todayKey(),doneToday=ofType("workout").filter(w=>w.date===today),dw=S.draftWorkout,t=nextTemplate();
   if(dw)return `<section class="nextup"><span class="label">In progress</span><span class="nu-name">${esc(dw.name||kindName(dw.kind)+" session")}</span><span class="small">${dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0)} of ${dw.exercises.reduce((a,e)=>a+e.sets.length,0)} sets done</span><button class="nu-btn" data-act="resumeWo">${PLAY} Continue workout</button></section>`;
   if(doneToday.length)return `<section class="panel"><div class="spread"><div><span class="label">Done today</span><h2 style="margin-top:4px">${esc(doneToday[0].name||kindName(doneToday[0].kind))} ✓</h2></div><button class="btn" data-act="goCardio">Log cardio</button></div></section>`;
+  const cp=upcomingPlans().find(p=>p.date<=today);
+  if(cp)return `<section class="nextup"><span class="label">${cp.date===today?"Today":"Missed"} · from ${esc(cp.coachName||"your coach")}</span><span class="nu-name">${esc(cp.name||"Coach's session")}</span><span class="small">${(cp.exercises||[]).length} exercises · ${kindName(cp.kind)}${cp.note?" · 💬 "+esc(cp.note):""}</span><button class="nu-btn" data-act="planStart" data-id="${cp.id}">${PLAY} Start workout</button></section>`;
   if(!t)return `<section class="nextup"><span class="label">Next up</span><span class="nu-name">Pick a session</span><span class="small">Save a workout as a template and it'll appear here, ready to start.</span><button class="nu-btn" data-tab="train">${PLAY} Go to Train</button></section>`;
   return `<section class="nextup"><span class="label">Next up</span><span class="nu-name">${esc(t.name)}</span><span class="small">${t.exercises.length} exercise${t.exercises.length===1?"":"s"} · ${kindName(t.kind)}</span><button class="nu-btn" data-act="tplStart" data-id="${t.id}">${PLAY} Start workout</button></section>`}
 const PLAY='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
@@ -1220,6 +1227,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
   if(cur.t==="warmup"&&S.wu)return warmRun(dw,head);
   if(cur.t==="warmup"||cur.t==="cooldown"){const L=dw[cur.t],title=cur.t==="warmup"?"Warm-up":"Cool-down";
     return `<div class="player">${head}<div class="wp-body"><span class="label">${title}</span><h1>${cur.t==="warmup"?"Get warm":"Wind down"}</h1>
+      ${cur.t==="warmup"&&dw.coachNote?`<div class="coachrx"><span class="label">From ${esc(dw.coachName||"your coach")}</span><span>${esc(dw.coachNote)}</span></div>`:""}
       <div class="wp-list">${L.map((it,i)=>{const t=cur.t==="warmup"?warmType(it):null,open=t&&S.wpOpen===i,subs=t&&t!=="cardio"?warmSubs(dw,it):[],nd=subs.filter(x=>(it.sub||[]).includes(x.k)).length;
         const det=t==="cardio"&&it.pick?`${it.pick} · ${it.mins||5} min`:subs.length?`${it.detail?it.detail+" · ":""}${nd} of ${subs.length} done`:it.detail;
         return `<div class="wp-card"><div class="wp-row"><button class="wp-item" data-act="partDone" data-part="${cur.t}" data-i="${i}" aria-pressed="${!!it.done}"><span class="wp-tick">${it.done?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span><span><b>${esc(it.name)}</b>${det?`<span class="small muted" style="display:block">${esc(det)}</span>`:""}</span></button>
@@ -1244,6 +1252,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     ${ex.name&&S.wpRename!==cur.ei?`<button class="wp-exbtn" data-act="wpRename" aria-label="Change exercise: ${esc(ex.name)}"><h1 class="wp-ex">${esc(ex.name)}</h1><span class="wp-change"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Change</span></button>`
       :wpPicker(dw,ex)}
     <span class="small muted">${last?"Last time: "+fmtSets(last.sets):ex.name?"First time: today sets your baseline":""}</span>
+    ${ex.rx?`<div class="coachrx"><span class="label">Coach's plan</span><b>${esc(rxText(ex))}</b>${ex.note?`<span class="small">${esc(ex.note)}</span>`:""}</div>`:""}
     ${ex.name&&S.wpRename!==cur.ei&&anyDemoKey(ex.name)?(()=>{const open=S.demoOpen!=null?S.demoOpen===ex.name:!last;return open
       ?`<section class="exdemo"><div class="demo-wrap">${demoSVG(ex.name,150)}</div><div class="exdemo-txt"><span class="label">Works</span><b>${esc(demoMuscles(ex.name))}</b><span class="small muted">${esc(demoTip(ex.name))}</span>
         <span class="row" style="gap:10px"><a class="vidlink" href="${videoLink(ex.name)}" target="_blank" rel="noopener">▶ Video</a><button class="btn ghost" data-act="demoToggle" data-v="${esc(ex.name)}">Hide</button></span></div></section>`
@@ -1920,7 +1929,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,health,generated:new Date().toISOString(),weeks}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date}))}}
 async function shareReport(){const sh=S.share||{weeks:8,notes:true};let pr=S.docs.profile||{type:"profile",name:activeProf().name};
   if(!pr.shareId){pr={...pr,shareId:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)};save("profile",pr)}
   const rep=buildReport(sh.weeks,sh.notes,pr.shareId);
@@ -1966,6 +1975,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   <section class="panel"><h2>Health check</h2>${c.health&&c.health.date?(c.health.flagged?`<div class="hint"><b>Answered yes to ${c.health.yes.length} question${c.health.yes.length===1?"":"s"}</b> (${fmtDay(c.health.date)}). Ask them to get GP clearance before increasing intensity.<ul class="small" style="margin:4px 0 0;padding-left:18px">${c.health.yes.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:`<div class="small good"><b>All clear</b> (${fmtDay(c.health.date)})</div>`)
     :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check and pain log with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}
     ${c.health&&c.health.pain&&c.health.pain.length?`<div class="hint small"><b>Active pain reported</b>${c.health.pain.map(x=>`<span>${esc(x.area)}${x.side&&x.side!=="n/a"?" ("+esc(x.side)+")":""}: ${x.score}/10${x.kind?", "+esc(x.kind).toLowerCase():""}, since ${fmtDay(x.since)}${x.flags?", warning signs ticked":""}</span>`).join("")}</div>`:""}</section>
+  ${plansSection(c)}
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
   ${measPanel(id,c)}
   <section class="panel"><h2>Calories</h2>${chartSVG(wk,[{key:"kcal",label:"Avg kcal",color:"var(--carb)",bars:true}],{target:t.kcal,zero:true,label:"Average daily calories per week"})}</section>
@@ -2165,7 +2175,7 @@ async function fullSync(){if(!CL.user||CL.syncing)return;CL.syncing=true;CL.stat
     if(first)jset("dirty",[]);
     await pullDocs(first);
     if(first){const d=new Set();Object.keys(S.docs).forEach(id=>{if(!CL.remoteIds.has(id))d.add(id)});jset("dirty",[...d]);lsSet(ckey("synced"),CL.user.id)}
-    CL.syncing=false;await pushDirty();await loadLinks();CL.syncedOnce=true;if(S.docs.profile&&S.docs.profile.coach)loadCode()}
+    CL.syncing=false;await pushDirty();await loadLinks();await fetchPlans();pushPendingPlans();CL.syncedOnce=true;if(S.docs.profile&&S.docs.profile.coach)loadCode()}
   catch(e){CL.status=navigator.onLine===false?"offline":"error";CL.err=(e&&e.message)||"Sync failed"}
   CL.syncing=false;cloudRender()}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&CL.user)fullSync()});
@@ -2186,9 +2196,77 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
-async function unlinkClient(clientUid){const c=await sbClient();if(!c||!CL.user)return;await c.from("reports").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id);await c.from("coach_links").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id)}
+/* ---------- coach-planned sessions ---------- */
+// The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
+const plansKey=()=>"pf-plans:"+PROF.active;
+function myPlans(){if(CL.plans)return CL.plans;try{return JSON.parse(lsGet(plansKey())||"[]")}catch(e){return[]}}
+async function fetchPlans(){const c=await sbClient();if(!c||!CL.user||!CL.links||!CL.links.length){if(CL.links&&!CL.links.length&&myPlans().length){CL.plans=[];lsSet(plansKey(),"[]")}return}
+  const {data,error}=await c.from("plans").select("id,coach_id,data,updated_at").eq("client_id",CL.user.id);if(error)return;
+  const list=data.map(r=>({...r.data,id:r.id,coachId:r.coach_id})),before=JSON.stringify(myPlans());CL.plans=list;lsSet(plansKey(),JSON.stringify(list));
+  if(before!==JSON.stringify(list)&&!S.draftWorkout&&["today","train"].includes(S.tab))render()}
+const planDoneIds=()=>new Set(ofType("workout").map(w=>w.planId).filter(Boolean));
+function upcomingPlans(){const done=planDoneIds(),from=addDays(todayKey(),-3);return myPlans().filter(p=>p.date>=from&&!done.has(p.id)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0)}
+const planDayLabel=d=>{const t=todayKey();return d===t?"Today":d===addDays(t,1)?"Tomorrow":d<t?"Missed · "+fmtDay(d):fmtDay(d)};
+const rxText=e=>{const r=e.rx||{},n=(e.sets||[]).length||r.sets||0;return `${n} × ${r.secs?r.secs+"s":(r.reps||"?")}${r.kg?" @ "+fmtN(+r.kg)+" kg":""}${r.rir!==""&&r.rir!=null?" · "+r.rir+" in reserve":""}`};
+function startPlan(id){const P=myPlans().find(x=>x.id===id);if(!P)return;const kind=P.kind||"gym",cp=L=>(L||[]).map(x=>({name:x.name,detail:x.detail||"",done:false}));
+  S.draftWorkout={type:"workout",date:todayKey(),name:P.name||"Coach's session",kind,planId:P.id,coachNote:P.note||"",coachName:P.coachName||"",
+    warmup:P.warmup&&P.warmup.length?cp(P.warmup):presetList(WARM_PRESET,kind),cooldown:P.cooldown&&P.cooldown.length?cp(P.cooldown):presetList(COOL_PRESET,kind),
+    exercises:(P.exercises||[]).map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];return {name:e.name,mode:e.mode,note:e.note||"",rx:e.rx||null,
+      sets:(e.sets||[]).map((st,i)=>{const ls=last[i]||last[last.length-1]||{};return {kg:st.kg!==""&&st.kg!=null?st.kg:(ls.kg??""),reps:st.reps??"",secs:st.secs??"",rir:st.rir??""}})}})};
+  S.tab="train";wpStart();render();window.scrollTo(0,0);toast("Your coach's session is ready. Let's go 💪")}
+function coachPlansPanel(){const L=upcomingPlans().slice(0,8);if(!L.length)return"";
+  return `<section class="panel"><div class="spread"><h2>From your coach</h2><span class="label">${L.length} planned</span></div><div class="hist">${L.map(p=>`<div class="item"><div class="spread"><span style="min-width:0"><span class="label" style="${p.date<todayKey()?"color:var(--protein)":""}">${planDayLabel(p.date)}</span><b style="display:block">${esc(p.name||"Session")}</b><span class="small muted">${(p.exercises||[]).length} exercises · ${kindName(p.kind)}${p.coachName?" · from "+esc(p.coachName):""}</span></span><button class="btn ${p.date<=todayKey()?"primary":""}" data-act="planStart" data-id="${p.id}">${PLAY} Start</button></div>
+    ${p.note?`<div class="small" style="margin-top:6px">💬 ${esc(p.note)}</div>`:""}
+    <details><summary class="small muted">See exercises</summary>${(p.exercises||[]).map(e=>`<div class="small" style="padding:2px 0"><b>${esc(e.name)}</b> <span class="muted">${esc(rxText(e))}</span>${e.note?`<span class="muted"> · ${esc(e.note)}</span>`:""}</div>`).join("")}</details></div>`).join("")}</div></section>`}
+// coach side
+const isPlanTableMissing=e=>/plans|relation|schema cache|does not exist|Could not find/i.test((e&&e.message)||"");
+async function pushPlan(doc){const c=await sbClient();if(!c||!CL.user)return false;const {id,clientUid}=doc;
+  const {error}=await c.from("plans").upsert({coach_id:CL.user.id,client_id:clientUid,id:doc.pid,data:planPayload(doc)},{onConflict:"coach_id,client_id,id"});
+  if(error){if(isPlanTableMissing(error))toast("Planning needs a one-off database update. Run supabase-update-2.sql in Supabase");else toast("Couldn't send the plan yet. It'll retry next sync");return false}return true}
+const planPayload=d=>({type:"plan",date:d.date,name:d.name,kind:d.kind,note:d.note||"",coachName:d.coachName||"",exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],updated:new Date().toISOString()});
+async function pushPendingPlans(){if(!CL.user)return;for(const d of ofType("cplan").filter(x=>x.pending)){if(await pushPlan(d)){const cur=S.docs[d.id];if(cur){delete cur.pending;save(d.id,cur)}}}}
+async function deletePlanRemote(d){const c=await sbClient();if(!c||!CL.user)return;await c.from("plans").delete().eq("coach_id",CL.user.id).eq("client_id",d.clientUid).eq("id",d.pid)}
+function rxToSets(rx,mode){const n=Math.max(1,Math.min(12,+rx.sets||3));return [...Array(n)].map(()=>mode==="time"?{kg:rx.kg===""?"":+rx.kg||"",secs:+rx.secs||30,rir:rx.rir===""?"":rx.rir}:{kg:rx.kg===""?"":+rx.kg||"",reps:+rx.reps||10,rir:rx.rir===""?"":rx.rir})}
+function newPlanDraft(clientUid,src){const d=src?clone(src):{date:addDays(todayKey(),1),name:"",kind:"gym",note:"",exercises:[]};
+  return {clientUid,editId:src&&src.id||null,date:d.date,name:d.name,kind:d.kind||"gym",note:d.note||"",repeat:1,
+    ex:(d.exercises||[]).map(e=>({name:e.name,note:e.note||"",rx:e.rx?{...e.rx}:{sets:(e.sets||[]).length||3,reps:(e.sets&&e.sets[0]&&e.sets[0].reps)||10,kg:(e.sets&&e.sets[0]&&e.sets[0].kg)||"",rir:"",secs:(e.sets&&e.sets[0]&&e.sets[0].secs)||""}}))}}
+function planEditor(){const D=S.planDraft,tpls=ofType("template");
+  return `<div class="planed stack">
+    <div class="grid2"><label class="field"><span class="label">Day</span><input type="date" id="pl_date" data-act="plF" data-k="date" value="${esc(D.date)}"></label>
+      <label class="field"><span class="label">Session name</span><input id="pl_name" data-act="plF" data-k="name" value="${esc(D.name)}" placeholder="e.g. Upper A"></label></div>
+    <div class="seg" role="group" aria-label="Training style" style="grid-template-columns:repeat(4,1fr)">${KINDS.map(([k,l])=>`<button data-act="plKind" data-v="${k}" aria-pressed="${D.kind===k}">${l}</button>`).join("")}</div>
+    ${tpls.length?`<div class="field"><span class="label">Start from one of your templates</span><div class="chiprow">${tpls.map(t=>`<button class="qchip" data-act="plTpl" data-id="${t.id}">${esc(t.name)}</button>`).join("")}</div></div>`:""}
+    <datalist id="plexlib">${exOptions(D.kind)}</datalist>
+    ${D.ex.map((e,i)=>{const timed=exMode(e.name)==="time";return `<div class="plex"><div class="row" style="flex-wrap:nowrap">${demoSVG(e.name,40,1)}<input id="plx${i}" list="plexlib" data-act="plEx" data-i="${i}" data-k="name" value="${esc(e.name)}" placeholder="Exercise" autocomplete="off"><button class="x" data-act="plDel" data-i="${i}" aria-label="Remove exercise">×</button></div>
+      <div class="plrx"><label><span class="label">Sets</span><input type="number" inputmode="numeric" min="1" max="12" data-act="plRx" data-i="${i}" data-k="sets" value="${esc(e.rx.sets)}"></label>
+        <label><span class="label">${timed?"Secs":"Reps"}</span><input type="number" inputmode="numeric" min="1" data-act="plRx" data-i="${i}" data-k="${timed?"secs":"reps"}" value="${esc(timed?e.rx.secs:e.rx.reps)}"></label>
+        <label><span class="label">${D.kind==="gym"?"kg":"+kg"}</span><input type="number" inputmode="decimal" step="any" data-act="plRx" data-i="${i}" data-k="kg" value="${esc(e.rx.kg)}" placeholder="auto"></label>
+        <label><span class="label">In reserve</span><select data-act="plRx" data-i="${i}" data-k="rir"><option value="">–</option>${[0,1,2,3,4].map(n=>`<option value="${n}" ${String(e.rx.rir)===String(n)?"selected":""}>${n}</option>`).join("")}</select></label></div>
+      <input data-act="plEx" data-i="${i}" data-k="note" value="${esc(e.note)}" placeholder="Note for this exercise (optional), e.g. 3 s down, pause at the bottom"></div>`}).join("")}
+    <button class="btn" style="align-self:flex-start" data-act="plAdd">+ Add exercise</button>
+    <label class="field"><span class="label">Message to your client (optional)</span><textarea id="pl_note" rows="2" data-act="plF" data-k="note" placeholder="e.g. Keep 2 reps in the tank on the squats this week">${esc(D.note)}</textarea></label>
+    ${D.editId?"":`<label class="field"><span class="label">Repeat</span><select data-act="plF" data-k="repeat">${[1,2,3,4,6,8].map(n=>`<option value="${n}" ${+D.repeat===n?"selected":""}>${n===1?"Just this day":`Same day every week for ${n} weeks`}</option>`).join("")}</select></label>`}
+    <span class="small muted">Leave the weight blank to let them use last session's weights. They'll see the plan on Today and Train, press Start, and everything is filled in.</span>
+    <div class="row"><button class="btn primary" data-act="plSave">${D.editId?"Save changes":"Send to client"}</button><button class="btn ghost" data-act="plCancel">Cancel</button></div></div>`}
+function plansSection(c){if(!c.clientUid)return `<section class="panel"><h2>Planned sessions</h2><p class="small muted" style="margin:0">To plan sessions for ${esc(c.name)}, they need to link to you with your coach code (Settings → Cloud account → Share with a coach).</p></section>`;
+  const done=new Set((c.planDone||[]).map(x=>x.id||x)),t=todayKey(),mine=ofType("cplan").filter(x=>x.clientUid===c.clientUid&&x.date>=addDays(t,-21)).sort((a,b)=>a.date<b.date?-1:1);
+  const open=S.planDraft&&S.planDraft.clientUid===c.clientUid;
+  return `<section class="panel"><div class="spread"><h2>Planned sessions</h2>${open?"":`<button class="btn primary" data-act="plNew" data-id="${c.clientUid}">+ Plan a session</button>`}</div>
+    ${open?planEditor():""}
+    ${mine.length?`<div class="hist">${mine.map(p=>{const st=done.has(p.pid)?`<span class="small good">✓ Done</span>`:p.date<t?`<span class="small" style="color:var(--protein)">Missed</span>`:p.date===t?`<span class="small" style="color:var(--accent)">Today</span>`:"";
+      return `<div class="item"><div class="spread"><span><b>${fmtDay(p.date)}</b> · ${esc(p.name||"Session")} <span class="small muted">${(p.exercises||[]).length} ex · ${kindName(p.kind)}</span>${p.pending?` <span class="small muted">(not sent yet)</span>`:""}</span>${st}</div>
+        <div class="row" style="gap:4px"><button class="btn ghost" data-act="plEdit" data-id="${p.id}">Edit</button><button class="btn ghost" data-act="plCopy" data-id="${p.id}">Copy</button><button class="btn ghost" style="color:var(--protein)" data-act="plRemove" data-id="${p.id}">${S.confirmPlanDel===p.id?"Tap to delete":"Delete"}</button></div></div>`}).join("")}</div>`:open?"":`<p class="small muted" style="margin:0">Nothing planned yet. Plan a session and it appears in their app with a Start button, sets and weights ready.</p>`}
+    <span class="small muted">"Done" updates when they finish the session and their app syncs.</span></section>`}
+async function savePlanDraft(){const D=S.planDraft,ex=D.ex.filter(e=>String(e.name||"").trim());if(!D.date){toast("Pick a day");return}if(!ex.length){toast("Add at least one exercise");return}
+  const exercises=ex.map(e=>{const mode=exMode(e.name);return {name:e.name.trim(),...(mode==="time"?{mode}:{}),note:e.note||"",rx:{...e.rx},sets:rxToSets(e.rx,mode)}});
+  const reps=D.editId?1:Math.max(1,+D.repeat||1),coachName=activeProf().name;let sent=0;
+  for(let w=0;w<reps;w++){const id=D.editId||"cplan_p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+w,old=S.docs[id]||{};
+    const doc={...old,type:"cplan",clientUid:D.clientUid,pid:old.pid||id.replace(/^cplan_/,""),date:addDays(D.date,7*w),name:D.name.trim()||kindName(D.kind)+" session",kind:D.kind,note:D.note.trim(),coachName,exercises,pending:true};
+    save(id,doc);if(await pushPlan(S.docs[id])){const cur=S.docs[id];delete cur.pending;save(id,cur);sent++}}
+  S.planDraft=null;render();if(sent)toast(reps>1?`Sent ${sent} sessions to your client`:"Sent to your client")}
+async function unlinkClient(clientUid){const c=await sbClient();if(!c||!CL.user)return;await c.from("plans").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id);await c.from("reports").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id);await c.from("coach_links").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id)}
 /* ---------- welcome: sign in or create an account (skipped when already signed in on this phone) ---------- */
 // supabase keeps the sign-in on the phone, so we can tell straight away, before the account service has even loaded
 function hasStoredSession(){try{const j=JSON.parse(localStorage.getItem("pf-sb-"+PROF.active)||"null");return !!(j&&(j.refresh_token||j.access_token||j.user||(j.currentSession&&j.currentSession.refresh_token)))}catch(e){return false}}
@@ -2615,6 +2693,17 @@ document.addEventListener("click",e=>{
     case "wpRenameNo":S.wpRename=null;S.pick=null;render();break;
     case "demoToggle":{const nm=ds.v,dw=S.draftWorkout,cur=dw&&S.wp?wpSteps(dw)[S.wp.step]:null,ex=cur&&dw.exercises[cur.ei],had=ex&&exHistory(ex.name)[0];const openNow=S.demoOpen!=null?S.demoOpen===nm:!had;S.demoOpen=openNow?"":nm;render();break}
     case "srcTab":{S.searchSrc=ds.v;const q=document.getElementById("q")?.value.trim();render();if(q){if(document.getElementById("q"))document.getElementById("q").value=q;runSearch(q)}else document.getElementById("q")?.focus();break}
+    case "planStart":startPlan(ds.id);break;
+    case "plNew":S.planDraft=newPlanDraft(ds.id);render();break;
+    case "plEdit":{const d=S.docs[ds.id];S.planDraft=newPlanDraft(d.clientUid,d);render();break}
+    case "plCopy":{const d=S.docs[ds.id];S.planDraft=newPlanDraft(d.clientUid,{...d,id:null,date:addDays(d.date,7)});S.planDraft.editId=null;render();toast("Copied to the same day next week. Change the day if you like");break}
+    case "plRemove":{if(S.confirmPlanDel!==ds.id){S.confirmPlanDel=ds.id;render();break}const d=S.docs[ds.id];S.confirmPlanDel=null;remove(ds.id);deletePlanRemote(d);toast("Planned session deleted");break}
+    case "plCancel":S.planDraft=null;render();break;
+    case "plKind":S.planDraft.kind=ds.v;render();break;
+    case "plAdd":S.planDraft.ex.push({name:"",note:"",rx:{sets:3,reps:10,kg:"",rir:"",secs:""}});render();setTimeout(()=>document.getElementById("plx"+(S.planDraft.ex.length-1))?.focus(),30);break;
+    case "plDel":S.planDraft.ex.splice(+ds.i,1);render();break;
+    case "plTpl":{const t=S.docs[ds.id];if(!t)break;const D=S.planDraft;D.kind=t.kind||D.kind;if(!D.name)D.name=t.name;D.ex=t.exercises.map(e=>({name:e.name,note:"",rx:{sets:e.sets||3,reps:e.reps||10,kg:"",rir:"",secs:e.secs||""}}));render();break}
+    case "plSave":savePlanDraft();break;
     case "pickTab":S.pick.g=ds.v;render();break;
     case "wpSwap":wpSetExercise(ds.v);break;
     case "wpOpen":S.wpOpen=S.wpOpen===+ds.i?null:+ds.i;render();break;
@@ -2702,7 +2791,7 @@ document.addEventListener("click",e=>{
       ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
       if(!w.exercises.length&&!w.warmup.some(x=>x.done)&&!w.cooldown.some(x=>x.done)){toast("Nothing to save yet. Log a set, or tick off your warm-up");break}
       delete w._auto;delete w._repeat;const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
-      S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();save(id,w);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
+      S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();save(id,w);if(w.planId)setTimeout(()=>pushReports(true),2000);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
     case "delWo":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Session deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "delBody":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Entry deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "ciScale":S.ciDraft[ds.k]=+ds.n;render();break;
@@ -2711,6 +2800,8 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
+  if(S.planDraft&&(ds.act==="plF"||ds.act==="plRx")){if(ds.act==="plF")S.planDraft[ds.k]=t.value;else S.planDraft.ex[+ds.i].rx[ds.k]=t.value}
+  if(S.planDraft&&ds.act==="plEx"&&ds.k==="name"){S.planDraft.ex[+ds.i].name=t.value;render()}
   if(ds.act==="wuType"&&S.wu){const st=S.wu.stages[S.wu.idx],x=st&&st.sets&&st.sets[st.pos];if(x){const v=Math.max(0,+String(t.value).replace(",",".")||0);x[ds.f]=ds.f==="kg"?r1(v):Math.round(v);render()}}
   if(ds.act==="wpType"&&S.draftWorkout&&S.wp){const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=cur&&S.draftWorkout.exercises[cur.ei],si=ex?wpCurSet(ex):-1,st=ex&&ex.sets[si];
     if(st){const old=st[ds.f],raw=String(t.value).replace(",","."),v=Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0));st[ds.f]=v;ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});render()}}
@@ -2743,6 +2834,9 @@ document.addEventListener("focusin",e=>{if(e.target.classList&&e.target.classLis
 document.addEventListener("beforeinput",e=>{if(e.target.classList&&e.target.classList.contains("wp-num"))e.target._typed=true});
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList&&e.target.classList.contains("wp-num")){e.preventDefault();e.target.blur()}});
 document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
+  if(S.planDraft&&ds.act==="plF"){S.planDraft[ds.k]=t.value;return}
+  if(S.planDraft&&ds.act==="plEx"){S.planDraft.ex[+ds.i][ds.k]=t.value;return}
+  if(S.planDraft&&ds.act==="plRx"){S.planDraft.ex[+ds.i].rx[ds.k]=t.value;return}
   if(t.id==="wpPickQ"&&S.pick&&S.draftWorkout){S.pick.q=t.value;const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=cur&&dw.exercises[cur.ei];if(ex){const L=document.getElementById("pickList");if(L)L.innerHTML=pickResults(dw,ex);const T=document.querySelector(".pick-tabs");if(T)T.hidden=!!t.value.trim()}return}
   if(ds.act==="woName")S.draftWorkout.name=t.value;
   if(ds.act==="exName"){S.draftWorkout.exercises[+ds.ei].name=t.value;

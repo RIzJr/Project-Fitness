@@ -20,6 +20,12 @@ What it unlocks:
 
 Also needed: per-permission consent prompts, privacy notice update, store health-data review.
 
+## Programme planning (next step after coach-planned sessions)
+- Multi-week programmes: build a block (e.g. 6 weeks, 4 days a week) once and assign it to a client
+- Automatic progression rules (add weight when all reps are hit, deload week)
+- Coach dashboard: planned vs completed across all clients, what they actually lifted vs the plan
+- Client can swap a planned exercise and the coach sees why
+
 ## Later ideas
 - Check-in: one question per screen, score trends, coach reply / next-week focus, goal progress
 - Smarter deloads (low readiness + stalled lifts)
