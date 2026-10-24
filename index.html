@@ -229,7 +229,9 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .pick-tabs .qchip{color:var(--fg);cursor:pointer}.pick-tabs .qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .pick-list{display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow:auto}
 .pick-row{all:unset;box-sizing:border-box;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border-radius:12px;background:var(--sunk)}
-.pick-row b{font-size:15px}.pick-row span{font-size:12px;color:var(--muted);text-align:right}.pick-row.add b{color:var(--accent)}
+.pick-row b{font-size:15px}.pick-row .pick-l{display:flex;align-items:center;gap:10px;min-width:0;color:var(--fg);font-size:15px;text-align:left}.pick-l .demo{flex:none;background:var(--surface);border-radius:8px}.pick-ph{width:40px;height:40px;flex:none}
+.exdemo{display:flex;gap:12px;align-items:center;background:var(--surface);border-radius:18px;padding:10px}.exdemo .demo-wrap{padding:0;background:var(--sunk);flex:none}.exdemo-txt{display:flex;flex-direction:column;gap:4px;min-width:0}
+.howto{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}.howto .demo{background:var(--surface);border-radius:8px}.howto b{color:var(--fg);font-weight:600}.howto:focus-visible{outline:2px solid var(--accent);border-radius:8px}.pick-row span{font-size:12px;color:var(--muted);text-align:right}.pick-row.add b{color:var(--accent)}
 .pick-row:focus-visible{outline:2px solid var(--accent)}
 .wp-target{font-family:var(--display);font-size:34px;font-weight:900;font-stretch:110%;color:var(--accent);line-height:1.1}
 .wp-ring{width:236px;height:236px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--sunk) 0);display:grid;place-items:center}
@@ -316,6 +318,10 @@ nav.tabs .addbtn svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke
 .demo .dlimb{stroke:currentColor;stroke-width:4.2;stroke-linecap:round;fill:none}.demo .dlimb.far{opacity:.38}.demo .dlimb.thin{stroke-width:2.6}
 .demo .dspine{stroke:currentColor;stroke-width:5.2;stroke-linecap:round;fill:none}.demo .dhead{fill:currentColor}
 .demo .dl{stroke:currentColor;stroke-width:1.6;opacity:.3}.demo .dp{fill:none;stroke:currentColor;stroke-width:1.6;opacity:.45}
+.demo .hl{stroke:var(--accent)}.demo .dspine.hl{stroke:var(--accent)}.demo .dglute{fill:var(--accent)}
+.demo .dplate{fill:none;stroke:currentColor;stroke-width:2.6}.demo .dhub{fill:currentColor}.demo .dobj{fill:currentColor;opacity:.85}.demo .dobj.far{opacity:.35}
+.demo .dbar{stroke:currentColor;stroke-width:2.4;stroke-linecap:round;opacity:.85}.demo .dcable{stroke:currentColor;stroke-width:1;opacity:.5;stroke-dasharray:2 1.5}
+.demo .dbench{stroke:currentColor;stroke-width:3.4;stroke-linecap:round;opacity:.45}
 .demo .db{fill:var(--accent);fill-opacity:.22;stroke:var(--accent);stroke-width:2}.demo .dt{fill:currentColor;font-size:7.5px;font-weight:700;font-family:var(--display)}
 .demo-wrap{background:var(--surface);border-radius:20px;padding:8px;display:flex;justify-content:center}
 .demo-mini{display:flex;gap:10px;align-items:center}.demo-mini .demo{flex:none;background:var(--sunk);border-radius:12px}
@@ -796,7 +802,8 @@ const DEMO_MATCH=[["cat-cow","cat-cow"],["cat cow","cat-cow"],["thread the needl
 function demoKey(name){const n=String(name||"").toLowerCase();const m=DEMO_MATCH.find(([w])=>n.includes(w));return m?m[1]:null}
 const DEMO_PROPS={step:`<rect x="64" y="77" width="20" height="15" rx="2" class="dp"/>`,wall:`<line x1="83" y1="8" x2="83" y2="92" class="dl"/>`,door:`<path d="M60 4V92M60 4H84V92" class="dl" fill="none"/>`,post:`<line x1="81" y1="10" x2="81" y2="92" class="dl" style="stroke-width:3"/>`,
   chair:`<path d="M36 64H64M38 64V92M62 64V92M64 64V34" class="dl" fill="none"/>`,bar:`<line x1="30" y1="10" x2="70" y2="10" class="dl" style="stroke-width:3"/>`};
-function demoSVG(name,size){const key=typeof name==="string"&&DEMOS[name]?name:demoKey(name);const D=key&&DEMOS[key];if(!D)return"";
+const anyDemoKey=name=>typeof name==="string"&&DEMOS[name]?name:(typeof exDemoKey==="function"&&exDemoKey(name))||demoKey(name);
+function demoSVG(name,size,still){const key=anyDemoKey(name);const D=key&&DEMOS[key];if(!D)return"";
   const label=`aria-label="Animated demo: ${esc(String(name))}" role="img"`;
   if(D.breath){const tot=D.breath.reduce((a,x)=>a+x[1],0);let t=0;const kt=[0],rv=[];const r0=24,r1=42;let r=r0;rv.push(r0);
     D.breath.forEach(([l,d])=>{t+=d;kt.push(+(t/tot).toFixed(4));r=/in/i.test(l)?r1:/out/i.test(l)?r0:r;rv.push(r)});
@@ -808,23 +815,225 @@ function demoSVG(name,size){const key=typeof name==="string"&&DEMOS[name]?name:d
   const seq=loop?[...F,F[0]]:[F[0],F[1],F[1],F[0],F[0]],kt=loop?seq.map((_,i)=>+(i/(seq.length-1)).toFixed(4)):[0,0.38,0.58,0.95,1];
   const spl=`calcMode="spline" keySplines="${seq.slice(1).map(()=>".45 0 .55 1").join(";")}"`;
   const pt=(f,k,fb)=>f[k]||(fb&&f[fb])||F[0][k]||[50,50];
-  const anim=(attr,vals)=>{const v=vals.map(x=>+x.toFixed?+x.toFixed(1):x);return v.every(x=>x===v[0])?"":`<animate attributeName="${attr}" values="${v.join(";")}" keyTimes="${kt.join(";")}" dur="${dur}s" repeatCount="indefinite" ${spl}/>`};
-  const seg=(a,b,cls,fa)=>{const A=seq.map(f=>pt(f,a,fa)),B=seq.map(f=>pt(f,b));return `<line class="${cls}" x1="${A[0][0]}" y1="${A[0][1]}" x2="${B[0][0]}" y2="${B[0][1]}">${anim("x1",A.map(x=>x[0]))}${anim("y1",A.map(x=>x[1]))}${anim("x2",B.map(x=>x[0]))}${anim("y2",B.map(x=>x[1]))}</line>`};
+  const anim=(attr,vals)=>{const v=vals.map(x=>+x.toFixed?+x.toFixed(1):x);return still||v.every(x=>x===v[0])?"":`<animate attributeName="${attr}" values="${v.join(";")}" keyTimes="${kt.join(";")}" dur="${dur}s" repeatCount="indefinite" ${spl}/>`};
+  const HL=new Set(D.hl||[]),part={"p-k":"thigh","k-f":"shin","s-e":"upper","e-w":"fore","f-t":"shin"},hlc=(a,b)=>HL.has(part[a.replace(/\d/g,"")+"-"+b.replace(/\d/g,"")])?" hl":"";
+  const seg=(a,b,cls,fa)=>{cls+=hlc(a,b);const A=seq.map(f=>pt(f,a,fa)),B=seq.map(f=>pt(f,b));return `<line class="${cls}" x1="${A[0][0]}" y1="${A[0][1]}" x2="${B[0][0]}" y2="${B[0][1]}">${anim("x1",A.map(x=>x[0]))}${anim("y1",A.map(x=>x[1]))}${anim("x2",B.map(x=>x[0]))}${anim("y2",B.map(x=>x[1]))}</line>`};
   const front=!!F[0].s2,mid=(f,a,b)=>{const A=pt(f,a),B=f[b]||F[0][b]||A;return [(A[0]+B[0])/2,(A[1]+B[1])/2]};
   const spine=seq.map(f=>{const S=front?mid(f,"s","s2"):pt(f,"s"),Pp=front?mid(f,"p","p2"):pt(f,"p"),C=f.c||[(S[0]+Pp[0])/2,(S[1]+Pp[1])/2];return `M${S[0].toFixed(1)} ${S[1].toFixed(1)}Q${C[0].toFixed(1)} ${C[1].toFixed(1)} ${Pp[0].toFixed(1)} ${Pp[1].toFixed(1)}`});
   const neck=seq.map(f=>front?mid(f,"s","s2"):pt(f,"s")),H=seq.map(f=>pt(f,"h"));
   const far=front?"":" far";
-  let out=`<line x1="4" y1="92" x2="96" y2="92" class="dl"/>${D.prop?DEMO_PROPS[D.prop]||"":""}`;
+  let out=`${D.nofloor?"":`<line x1="${D.vb?-20:4}" y1="92" x2="${D.vb?120:96}" y2="92" class="dl"/>`}${D.prop?(typeof D.prop==="function"?D.prop(F[0]):DEMO_PROPS[D.prop]||""):""}`;
+  const W1=seq.map(f=>pt(f,"w1")),W2=seq.map(f=>pt(f,"w2","w1")),mv=(arr,dx,dy)=>arr.map(x=>[x[0]+(dx||0),x[1]+(dy||0)]);
+  const cable=(a,P)=>`<line class="dcable" x1="${a[0]}" y1="${a[1]}" x2="${P[0][0]}" y2="${P[0][1]}">${anim("x2",P.map(x=>x[0]))}${anim("y2",P.map(x=>x[1]))}</line>`;
+  const ball=(P,r,cls)=>`<circle class="${cls}" cx="${P[0][0]}" cy="${P[0][1]}" r="${r}">${anim("cx",P.map(x=>x[0]))}${anim("cy",P.map(x=>x[1]))}</circle>`;
+  if(D.anchor)out+=cable(D.anchor,D.anchorTo?seq.map(f=>pt(f,D.anchorTo)):W1);if(D.anchor2)out+=cable(D.anchor2,W2);if(D.landmine)out+=cable(D.landmine,W1).replace("dcable","dbar");
   out+=seg("p2","k2","dlimb"+far,"p")+seg("k2","f2","dlimb"+far)+seg("s2","e2","dlimb"+far,"s")+seg("e2","w2","dlimb"+far);
   if(front)out+=seg("s","s2","dlimb")+seg("p","p2","dlimb");
-  out+=`<path class="dspine" d="${spine[0]}">${spine.every(x=>x===spine[0])?"":`<animate attributeName="d" values="${spine.join(";")}" keyTimes="${kt.join(";")}" dur="${dur}s" repeatCount="indefinite" ${spl}/>`}</path>`;
+  out+=`<path class="dspine" d="${spine[0]}">${spine.every(x=>x===spine[0])?"":`${still?"":`<animate attributeName="d" values="${spine.join(";")}" keyTimes="${kt.join(";")}" dur="${dur}s" repeatCount="indefinite" ${spl}/>`}`}</path>`;
   out+=`<line class="dlimb" x1="${neck[0][0]}" y1="${neck[0][1]}" x2="${H[0][0]}" y2="${H[0][1]}">${anim("x1",neck.map(x=>x[0]))}${anim("y1",neck.map(x=>x[1]))}${anim("x2",H.map(x=>x[0]))}${anim("y2",H.map(x=>x[1]))}</line>`;
   out+=seg("p","k1","dlimb")+seg("k1","f1","dlimb")+seg("s","e1","dlimb")+seg("e1","w1","dlimb");
   if(F.some(f=>f.n1))out+=seg("w1","n1","dlimb thin");
+  if(F.some(f=>f.t1))out+=seg("f1","t1","dlimb");if(F.some(f=>f.t2))out+=seg("f2","t2","dlimb"+far);
+  if(HL.has("torso")){const sp=out.match(/<path class="dspine"[\s\S]*?<\/path>/);if(sp)out=out.replace(sp[0],sp[0].replace('class="dspine"','class="dspine hl"'))}
+  if(HL.has("glute"))out+=ball(seq.map(f=>pt(f,"p")),3.4,"dglute");
+  const H2=D.hold;if(H2==="bb"){if(front)out+=`<line class="dbar" x1="${W1[0][0]-9}" y1="${W1[0][1]}" x2="${W2[0][0]+9}" y2="${W2[0][1]}">${anim("x1",W1.map(x=>x[0]-9))}${anim("y1",W1.map(x=>x[1]))}${anim("x2",W2.map(x=>x[0]+9))}${anim("y2",W2.map(x=>x[1]))}</line>`;else out+=ball(W1,7.2,"dplate")+ball(W1,2,"dhub")}
+  if(H2==="db"||H2==="db1"){out+=ball(W1,3.6,"dobj");if(H2==="db")out+=ball(W2,3.6,"dobj"+far)}
+  if(H2==="kb")out+=ball(mv(W1,0,4.5),4.6,"dobj");if(H2==="mb")out+=ball(mv(front?W1.map((x,i)=>[(x[0]+W2[i][0])/2,(x[1]+W2[i][1])/2]):W1,front?0:3,front?0:-1),6,"dobj");
+  if(H2==="bag")out+=ball(mv(W1,2,-2),7.5,"dobj");if(H2==="wheel")out+=ball(mv(W1,0,1),4.2,"dplate");
   out+=`<circle class="dhead" cx="${H[0][0]}" cy="${H[0][1]}" r="6.5">${anim("cx",H.map(x=>x[0]))}${anim("cy",H.map(x=>x[1]))}</circle>`;
-  return `<svg class="demo" viewBox="0 0 100 100" width="${size||200}" height="${size||200}" ${label}>${out}</svg>`}
-const demoTip=name=>{const k=typeof name==="string"&&DEMOS[name]?name:demoKey(name);return k&&DEMOS[k].tip||""};
+  return `<svg class="demo" viewBox="${D.vb||"0 0 100 100"}" width="${size||200}" height="${size||200}" ${label}>${out}</svg>`}
+const demoTip=name=>{const k=anyDemoKey(name);return k&&DEMOS[k].tip||""};
+const demoMuscles=name=>{const k=anyDemoKey(name);return k&&DEMOS[k].m||""};
 const videoLink=name=>`https://www.youtube.com/results?search_query=${encodeURIComponent(String(name).replace(/, (left|right)$/i,"")+" how to")}`;
+
+/* ---------- exercise demos: every exercise gets an animated figure, worked muscles lit up ---------- */
+// Poses are built from joint angles so every figure has the same proportions.
+// Angles in degrees: limbs 0 = straight down, +90 = forward (the way the figure faces), 180 = up, -90 = backwards.
+// Torso: 0 = upright, +90 = leaning forward flat, -90 = lying back (head behind).
+const DL={t:26,th:20,sh:20,ua:13,fa:12.5,nk:10};
+function fk(o){const R=a=>a*Math.PI/180,go=(A,a,L)=>[A[0]+L*Math.sin(R(a)),A[1]+L*Math.cos(R(a))];
+  const t=o.t||0,P=[50,51],S=[P[0]+DL.t*Math.sin(R(t)),P[1]-DL.t*Math.cos(R(t))],ha=o.h??t,H=[S[0]+DL.nk*Math.sin(R(ha)),S[1]-DL.nk*Math.cos(R(ha))];
+  const ar=o.ar?t:0,ua1=(o.ua1??0)+ar,fa1=(o.fa1??(o.ua1??0))+ar,ua2=(o.ua2??o.ua1??0)+ar,fa2=(o.fa2??o.fa1??(o.ua2??o.ua1??0))+ar;
+  const th1=o.th1??0,sh1=o.sh1??th1,th2=o.th2??th1,sh2=o.sh2??(o.th2!=null?o.th2:sh1);
+  const E1=go(S,ua1,DL.ua),W1=go(E1,fa1,DL.fa),E2=go(S,ua2,DL.ua),W2=go(E2,fa2,DL.fa),K1=go(P,th1,DL.th),F1=go(K1,sh1,DL.sh),K2=go(P,th2,DL.th),F2=go(K2,sh2,DL.sh);
+  const f={h:H,s:S,p:P,e1:E1,w1:W1,e2:E2,w2:W2,k1:K1,f1:F1,k2:K2,f2:F2};
+  // place it: pin one point (an) to a spot (at), or stand the lowest contact points on the floor
+  let dx=0,dy=0;
+  if(o.at){const a=f[o.an||"f1"];dx=o.at[0]-a[0];dy=o.at[1]-a[1]}
+  else{const g=o.g||["f1","f2"];dy=g[0]==="none"?(o.y??0):(o.gy||91)-Math.max(...g.map(k=>f[k][1]));dx=(o.x??50)-P[0]}
+  Object.keys(f).forEach(k=>f[k]=[+(f[k][0]+dx).toFixed(1),+(f[k][1]+dy).toFixed(1)]);
+  if(o.c)f.c=[+(f.s[0]+(f.p[0]-f.s[0])/2+o.c[0]).toFixed(1),+(f.s[1]+(f.p[1]-f.s[1])/2+o.c[1]).toFixed(1)];
+  return f}
+const fkm=(base,over)=>fk({...base,...over});
+const shiftP=(f,dx,dy)=>{const o={};Object.keys(f).forEach(k=>o[k]=[f[k][0]+dx,f[k][1]+dy]);return o};
+// front-view poses (arms out to the sides etc.)
+const FR=(o)=>({...P_FRONT,...o});
+// props drawn from a frame's joints
+const benchUnder=(f,ext)=>{const s=f.s,p=f.p,ang=Math.atan2(p[1]-s[1],p[0]-s[0]),nx=-Math.sin(ang)*5,ny=Math.cos(ang)*5,e=ext||[8,4],ux=Math.cos(ang),uy=Math.sin(ang);
+  const a=[s[0]-ux*e[0]+nx,s[1]-uy*e[0]+ny],b=[p[0]+ux*e[1]+nx,p[1]+uy*e[1]+ny];return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" class="dbench"/><line x1="${(a[0]+3).toFixed(1)}" y1="${(a[1]+2).toFixed(1)}" x2="${(a[0]+3).toFixed(1)}" y2="92" class="dl"/><line x1="${(b[0]-3).toFixed(1)}" y1="${(b[1]+2).toFixed(1)}" x2="${(b[0]-3).toFixed(1)}" y2="92" class="dl"/>`};
+const seatAt=(x,y,back)=>`<line x1="${x-9}" y1="${y}" x2="${x+11}" y2="${y}" class="dbench"/><line x1="${x-6}" y1="${y}" x2="${x-6}" y2="92" class="dl"/><line x1="${x+8}" y1="${y}" x2="${x+8}" y2="92" class="dl"/>${back?`<line x1="${x-9}" y1="${y}" x2="${x-12}" y2="${y-26}" class="dbench"/>`:""}`;
+const boxAt=(x1,x2,top)=>`<rect x="${x1}" y="${top}" width="${x2-x1}" height="${92-top}" rx="2" class="dp"/>`;
+const barAt=(x,y,w)=>`<line x1="${x-(w||16)}" y1="${y}" x2="${x+(w||16)}" y2="${y}" class="dl" style="stroke-width:3;opacity:.55"/>`;
+const wallAt=x=>`<line x1="${x}" y1="6" x2="${x}" y2="92" class="dl"/>`;
+
+// standing reference poses
+const ST={t:0},
+  RACK_BACK={ar:1,ua1:-35,fa1:157},          // bar resting on the upper back
+  RACK_FRONT={ar:1,ua1:85,fa1:-100},          // bar across the front of the shoulders
+  PRESS_START={ua1:60,fa1:172},               // bar or dumbbells at chin height
+  LIE={t:-90,h:-90,th1:75,sh1:-15,g:["f1"]},  // on a flat bench, feet on the floor
+  PLANK={t:80,th1:-80,sh1:-80,g:["w1","f1"]}, // straight-arm plank
+  HANG={ua1:180,fa1:180,th1:14,sh1:-40,an:"w1",at:[52,9]};
+const sq=(o)=>fkm({t:38,th1:84,sh1:-26},o);
+const WALK=[{th1:24,sh1:6,th2:-22,sh2:-38,ua1:-20,ua2:20},{th1:-22,sh1:-38,th2:24,sh2:6,ua1:20,ua2:-20}];
+
+// movement patterns: frames (2 = there and back, more = loop), props, what's held, highlighted body parts, muscles, a coaching cue
+const EXP={
+  squat:{f:[fkm(RACK_BACK,{at:[48,91]}),sq({...RACK_BACK,at:[48,91]})],hold:"bb",hl:["thigh","glute"],m:"Quads · Glutes · Adductors",tip:"Brace, sit down between your hips, knees out over the toes, drive up through the whole foot."},
+  frontSquat:{f:[fkm(RACK_FRONT,{at:[48,91]}),fkm(RACK_FRONT,{t:18,th1:90,sh1:-36,at:[48,91]})],hold:"bb",hl:["thigh","glute"],m:"Quads · Glutes · Upper back",tip:"Elbows high, chest tall, sit straight down."},
+  gobletSquat:{f:[fk({ar:1,ua1:25,fa1:165,at:[48,91]}),fk({t:24,th1:90,sh1:-34,ar:1,ua1:25,fa1:165,at:[48,91]})],hold:"kb",hl:["thigh","glute"],m:"Quads · Glutes · Core",tip:"Hold the weight at your chest, elbows inside the knees at the bottom."},
+  bwSquat:{f:[fk({at:[48,91]}),sq({ua1:90,fa1:90,at:[48,91]})],hl:["thigh","glute"],m:"Quads · Glutes",tip:"Sit back and down, arms forward for balance, knees track over the toes."},
+  jumpSquat:{vb:"-6 -10 112 104",f:[fk({at:[48,91]}),sq({ua1:-30,at:[48,91]}),fk({ua1:170,sh1:-12,th1:4,at:[48,82]})],loop:1,hl:["thigh","glute","shin"],m:"Quads · Glutes · Calves",tip:"Dip, then explode up. Land softly back into the squat."},
+  legPress:{f:[fk({t:-55,h:-45,th1:160,sh1:72,ua1:-30,fa1:30,g:["p"],gy:76,x:40}),fk({t:-55,h:-45,th1:128,sh1:128,ua1:-30,fa1:30,g:["p"],gy:76,x:40})],prop:f=>benchUnder(f,[6,2]),hl:["thigh","glute"],m:"Quads · Glutes",tip:"Lower until your knees are near your chest without the lower back lifting, press through the heels."},
+  splitSquat:{f:[fk({th1:20,sh1:0,th2:-22,sh2:-22,an:"f1",at:[62,91]}),fk({th1:84,sh1:-4,th2:-12,sh2:-86,an:"f1",at:[62,91]})],hl:["thigh","glute"],m:"Quads · Glutes",tip:"Drop the back knee straight down, front shin stays fairly upright."},
+  lunge:{f:[fk({at:[50,91]}),fk({th1:84,sh1:-4,th2:-12,sh2:-86,an:"f1",at:[64,91]})],hl:["thigh","glute"],m:"Quads · Glutes",tip:"Long step, back knee lightly to the floor, push back up through the front heel."},
+  bulgarian:{f:[fk({th1:14,sh1:2,th2:-34,sh2:-100,an:"f1",at:[64,91]}),fk({th1:84,sh1:-4,th2:-4,sh2:-96,an:"f1",at:[64,91]})],prop:f=>boxAt(f.f2[0]-12,f.f2[0]+5,+(f.f2[1]+2.5).toFixed(1)),hl:["thigh","glute"],m:"Quads · Glutes",tip:"Back foot on the bench, most of your weight on the front leg, sink straight down."},
+  pistol:{f:[fk({th2:30,sh2:30,ua1:60,an:"f1",at:[46,91]}),fk({t:36,th1:88,sh1:-32,th2:86,sh2:86,ua1:92,fa1:92,an:"f1",at:[46,91]})],hl:["thigh","glute"],m:"Quads · Glutes · Balance",tip:"Free leg out in front, sit down on one leg with control, heel stays down."},
+  shrimp:{f:[fk({th2:-10,sh2:-80,ua1:60,an:"f1",at:[50,91]}),fk({t:34,th1:86,sh1:-28,th2:-30,sh2:-110,ua1:92,fa1:92,an:"f1",at:[50,91]})],hl:["thigh","glute"],m:"Quads · Glutes",tip:"Hold the back foot, lower until the back knee touches down."},
+  stepUp:{vb:"-10 -12 120 106",f:[fk({th1:78,sh1:-4,an:"f2",at:[44,91]}),fk({th2:12,sh2:-24,an:"f1",at:[64,73]})],prop:()=>boxAt(54,78,74),hl:["thigh","glute"],m:"Quads · Glutes",tip:"Whole foot on the box, drive through that heel, don't push off the back foot."},
+  boxJump:{vb:"-10 -12 120 106",f:[fk({at:[30,91]}),sq({ua1:-40,at:[30,91]}),fkm({t:30,th1:80,sh1:-30,ua1:80,fa1:80},{an:"f1",at:[62,73]}),fk({an:"f1",at:[62,73]})],loop:1,prop:()=>boxAt(52,80,74),hl:["thigh","glute","shin"],m:"Quads · Glutes · Calves",tip:"Swing the arms, jump, land softly with bent knees. Step down, don't jump down."},
+  wallSit:{f:[fk({t:0,th1:90,sh1:0,ua1:0,an:"f1",at:[64,91]}),fk({t:0,th1:90,sh1:0,ua1:5,an:"f1",at:[64,91.3]})],prop:f=>wallAt(f.s[0]-4),hl:["thigh"],m:"Quads",tip:"Back flat on the wall, thighs parallel to the floor, hold."},
+  legExt:{f:[fk({t:-8,th1:90,sh1:2,ua1:10,g:["p"],gy:62,x:40}),fk({t:-8,th1:90,sh1:86,ua1:10,g:["p"],gy:62,x:40})],prop:()=>seatAt(40,65,1),hl:["thigh"],m:"Quads",tip:"Straighten the legs fully, squeeze, lower slowly."},
+  legCurlLying:{f:[fk({t:-88,h:-95,th1:92,sh1:92,ua1:6,fa1:-10,g:["s","p"],gy:68,x:56}),fk({t:-88,h:-95,th1:92,sh1:205,ua1:6,fa1:-10,g:["s","p"],gy:68,x:56})],prop:f=>benchUnder(f,[4,14]),hl:["thigh"],m:"Hamstrings",tip:"Hips pressed into the pad, curl the heels towards your bum, lower slowly."},
+  legCurlSeated:{f:[fk({t:-6,th1:90,sh1:84,ua1:10,g:["p"],gy:62,x:40}),fk({t:-6,th1:90,sh1:-10,ua1:10,g:["p"],gy:62,x:40})],prop:()=>seatAt(40,65,1),hl:["thigh"],m:"Hamstrings",tip:"Pull the heels down and under, pause, return slowly."},
+  nordic:{f:[fk({th1:0,sh1:-90,ua1:20,an:"k1",at:[40,91]}),fk({t:52,th1:-52,sh1:-90,ua1:130,fa1:118,an:"k1",at:[40,91]})],hl:["thigh"],m:"Hamstrings",tip:"Ankles anchored, lower your body as slowly as you can, catch yourself with your hands."},
+  hipThrust:{f:[fk({t:-72,h:-80,th1:54,sh1:8,ua1:-100,fa1:-40,an:"f1",at:[68,91]}),fk({t:-92,h:-100,th1:82,sh1:-4,ua1:-100,fa1:-40,an:"f1",at:[68,91]})],prop:f=>boxAt(f.s[0]-16,f.s[0]+2,+(f.s[1]+2).toFixed(1)),hold:"bb",hl:["glute","thigh"],m:"Glutes · Hamstrings",tip:"Upper back on the bench, chin tucked, drive the hips up until your body is flat, squeeze."},
+  bridge:{f:[fk({t:-90,h:-90,th1:140,sh1:12,ua1:-90,fa1:-90,g:["s","p"],gy:88,x:52}),fk({t:-62,h:-75,th1:98,sh1:6,ua1:-90,fa1:-90,an:"f1",at:[66,91]})],hl:["glute","thigh"],m:"Glutes · Hamstrings",tip:"Feet flat, push through the heels, squeeze the glutes at the top."},
+  bridge1:{f:[fk({t:-90,h:-90,th1:140,sh1:12,th2:150,sh2:150,ua1:-90,fa1:-90,g:["s","p"],gy:88,x:52}),fk({t:-62,h:-75,th1:98,sh1:6,th2:118,sh2:118,ua1:-90,fa1:-90,an:"f1",at:[66,91]})],hl:["glute","thigh"],m:"Glutes · Hamstrings",tip:"One foot down, the other leg up, lift the hips level without twisting."},
+  kickback:{f:[fk({t:22,ua1:60,fa1:60,th1:0,sh1:0,an:"f2",at:[50,91]}),fk({t:22,ua1:60,fa1:60,th1:-40,sh1:-28,an:"f2",at:[50,91]})],anchor:[92,86],anchorTo:"f1",hl:["glute"],m:"Glutes",tip:"Slight lean, kick the leg back from the hip, don't arch the lower back."},
+  goodMorning:{f:[fkm(RACK_BACK,{at:[48,91]}),fkm(RACK_BACK,{t:74,th1:10,sh1:-4,at:[48,91]})],hold:"bb",hl:["thigh","glute","torso"],m:"Hamstrings · Glutes · Lower back",tip:"Soft knees, push the hips back with a flat back, stand up by squeezing the glutes."},
+  rdl:{f:[fk({at:[48,91]}),fk({t:72,th1:12,sh1:-4,at:[48,91]})],hold:"bb",hl:["thigh","glute"],m:"Hamstrings · Glutes",tip:"Bar close to the legs, hips back, flat back, stop when the hamstrings are tight."},
+  stiffLeg:{f:[fk({at:[48,91]}),fk({t:80,th1:4,sh1:0,at:[48,91]})],hold:"bb",hl:["thigh","glute"],m:"Hamstrings · Glutes · Lower back",tip:"Legs nearly straight, hinge at the hips with a flat back."},
+  deadlift:{f:[fk({t:58,th1:72,sh1:-20,at:[48,91]}),fk({at:[48,91]})],hold:"bb",hl:["thigh","glute","torso"],m:"Glutes · Hamstrings · Back",tip:"Bar over mid-foot, flat back, push the floor away, stand tall."},
+  rackPull:{f:[fk({t:40,th1:26,sh1:-10,at:[48,91]}),fk({at:[48,91]})],hold:"bb",prop:()=>`<line x1="54" y1="73" x2="70" y2="73" class="dl" style="stroke-width:3"/>`,hl:["torso","glute"],m:"Upper back · Glutes · Grip",tip:"Start from the pins near the knee, flat back, drive the hips through."},
+  backExt:{f:[fk({t:132,h:150,th1:-58,sh1:-60,ar:1,ua1:30,fa1:150,g:["none"],x:46}),fk({t:84,h:90,th1:-58,sh1:-60,ar:1,ua1:30,fa1:150,g:["none"],x:46})],prop:()=>`<rect x="40" y="53" width="14" height="5" rx="2" class="dp"/><line x1="47" y1="58" x2="40" y2="92" class="dl"/><line x1="24" y1="78" x2="34" y2="74" class="dbench"/>`,hl:["torso","glute"],m:"Lower back · Glutes",tip:"Hinge over the pad, lift until your body is in a straight line, don't over-arch."},
+  kbSwing:{f:[fk({t:66,th1:22,sh1:-8,ua1:-12,fa1:-12,at:[48,91]}),fk({ua1:96,fa1:96,at:[48,91]})],hold:"kb",hl:["glute","thigh"],m:"Glutes · Hamstrings · Core",tip:"Hike the bell back, snap the hips forward. Arms just guide it to chest height."},
+  kbClean:{vb:"-6 -10 112 104",f:[fk({t:66,th1:22,sh1:-8,ua1:-12,fa1:-12,at:[48,91]}),fk({ar:1,ua1:22,fa1:162,at:[48,91]})],hold:"kb",hl:["glute","thigh","upper"],m:"Glutes · Hamstrings · Shoulders",tip:"Swing it back, drive the hips, let the bell land softly on the back of your forearm."},
+  kbSnatch:{vb:"-6 -10 112 104",f:[fk({t:66,th1:22,sh1:-8,ua1:-12,fa1:-12,at:[48,91]}),fk({ua1:178,fa1:178,at:[48,91]})],hold:"kb",hl:["glute","upper"],m:"Glutes · Shoulders · Back",tip:"One fluid pull from between the legs to locked out overhead."},
+  calfRaise:{f:[{...shiftP(P_STAND,0,0),t1:[57,91],t2:[55,91]},{...shiftP(P_STAND,0,-6),t1:[57,91],t2:[55,91]}],hl:["shin"],m:"Calves",tip:"Rise as high as you can onto the toes, pause, lower all the way down."},
+  calfSeated:{f:[{...fk({t:0,th1:90,sh1:0,ua1:30,fa1:120,g:["f1"],x:40}),t1:[67,91]},{...shiftP(fk({t:0,th1:90,sh1:0,ua1:30,fa1:120,g:["f1"],x:40}),0,-5),t1:[67,91]}],prop:()=>seatAt(38,57,0),hl:["shin"],m:"Calves",tip:"Pad on the knees, rise onto the toes, slow on the way down."},
+
+  bench:{f:[fkm(LIE,{ua1:178,fa1:178}),fkm(LIE,{ua1:-14,fa1:172})],prop:f=>benchUnder(f),hold:"bb",hl:["torso","upper"],m:"Chest · Triceps · Front shoulders",tip:"Shoulder blades squeezed, feet planted, lower to the chest, press up and slightly back."},
+  benchDb:{f:[fkm(LIE,{ua1:178,fa1:178}),fkm(LIE,{ua1:-14,fa1:172})],prop:f=>benchUnder(f),hold:"db",hl:["torso","upper"],m:"Chest · Triceps · Front shoulders",tip:"Lower the dumbbells to the sides of the chest, press up and together."},
+  incline:{f:[fk({t:-56,h:-50,th1:88,sh1:-10,ua1:166,fa1:170,g:["f1"]}),fk({t:-56,h:-50,th1:88,sh1:-10,ua1:-30,fa1:160,g:["f1"]})],prop:f=>benchUnder(f,[6,3]),hold:"bb",hl:["torso","upper"],m:"Upper chest · Front shoulders · Triceps",tip:"Bench at about 30°, lower to the upper chest, press up over the shoulders."},
+  inclineDb:{f:[fk({t:-56,h:-50,th1:88,sh1:-10,ua1:166,fa1:170,g:["f1"]}),fk({t:-56,h:-50,th1:88,sh1:-10,ua1:-30,fa1:160,g:["f1"]})],prop:f=>benchUnder(f,[6,3]),hold:"db",hl:["torso","upper"],m:"Upper chest · Front shoulders · Triceps",tip:"Bench at about 30°, dumbbells down to the upper chest, press up."},
+  decline:{f:[fk({t:-108,h:-112,th1:108,sh1:34,ua1:178,fa1:178,g:["k1"],gy:66,x:58}),fk({t:-108,h:-112,th1:108,sh1:34,ua1:-4,fa1:176,g:["k1"],gy:66,x:58})],prop:f=>benchUnder(f,[6,12]),hold:"bb",hl:["torso","upper"],m:"Lower chest · Triceps",tip:"Feet hooked in, lower to the lower chest, press up."},
+  skull:{f:[fkm(LIE,{ua1:172,fa1:172}),fkm(LIE,{ua1:160,fa1:-76})],prop:f=>benchUnder(f),hold:"bb",hl:["upper"],m:"Triceps",tip:"Upper arms still, bend only at the elbows to bring the bar to your forehead."},
+  chestMachine:{f:[fk({t:-6,th1:90,sh1:0,ua1:-50,fa1:86,g:["p"],gy:62,x:40}),fk({t:-6,th1:90,sh1:0,ua1:86,fa1:86,g:["p"],gy:62,x:40})],prop:()=>seatAt(40,65,1),hl:["torso","upper"],m:"Chest · Triceps",tip:"Handles at mid-chest, press out to almost straight, control the way back."},
+  fly:{f:[FR({e1:[29,30],w1:[17,35],e2:[71,30],w2:[83,35]}),FR({e1:[37,31],w1:[48,32],e2:[63,31],w2:[52,32]})],hold:"db",hl:["torso"],m:"Chest",tip:"Slight bend in the elbows, open wide until you feel the stretch, hug back together."},
+  cableFly:{f:[FR({e1:[29,26],w1:[17,23],e2:[71,26],w2:[83,23]}),FR({e1:[37,33],w1:[48,38],e2:[63,33],w2:[52,38]})],anchor:[6,8],anchor2:[94,8],hl:["torso"],m:"Chest",tip:"Step forward, slight lean, bring the hands together in a wide hug."},
+  cableFlyLow:{f:[FR({e1:[30,40],w1:[19,48],e2:[70,40],w2:[81,48]}),FR({e1:[37,30],w1:[48,24],e2:[63,30],w2:[52,24]})],anchor:[6,90],anchor2:[94,90],hl:["torso"],m:"Upper chest",tip:"Hands sweep from low by the hips up to chin height."},
+  revFly:{f:[FR({e1:[37,31],w1:[48,32],e2:[63,31],w2:[52,32]}),FR({e1:[29,28],w1:[17,28],e2:[71,28],w2:[83,28]})],hold:"db",hl:["upper"],m:"Rear shoulders · Upper back",tip:"Lead with the elbows out to the sides, squeeze the shoulder blades."},
+  pushup:{f:[fkm(PLANK,{x:44}),fkm(PLANK,{ua1:-62,fa1:24,th1:-84,sh1:-84,x:44})],hl:["torso","upper"],m:"Chest · Triceps · Core",tip:"Straight line from head to heels, lower the chest between the hands, push the floor away."},
+  pushupIncline:{f:[fk({t:62,th1:-100,sh1:-100,an:"w1",at:[72,72]}),fk({t:66,th1:-104,sh1:-104,ua1:-66,fa1:16,an:"w1",at:[72,72]})],prop:()=>boxAt(62,84,73),hl:["torso","upper"],m:"Chest · Triceps",tip:"Hands on a bench, body straight, chest to the edge."},
+  pushupDecline:{f:[fk({t:96,th1:-72,sh1:-72,an:"w1",at:[72,91]}),fk({t:98,th1:-70,sh1:-70,ua1:-60,fa1:26,an:"w1",at:[72,91]})],prop:f=>boxAt(f.f1[0]-12,f.f1[0]+4,+(f.f1[1]+2).toFixed(1)),hl:["torso","upper"],m:"Upper chest · Shoulders · Triceps",tip:"Feet up on a bench, keep the hips from sagging."},
+  pike:{f:[fk({t:128,h:150,th1:-42,sh1:-42,an:"w1",at:[66,91]}),fk({t:128,h:150,th1:-42,sh1:-42,ua1:-54,fa1:36,an:"w1",at:[66,91]})],hl:["upper"],m:"Shoulders · Triceps",tip:"Hips high, lower the top of your head towards the floor between your hands."},
+  hspu:{vb:"-10 -12 120 106",f:[fk({t:180,h:180,th1:180,sh1:180,an:"w1",at:[58,91]}),fk({t:180,h:180,th1:180,sh1:180,ua1:-52,fa1:34,an:"w1",at:[58,91]})],prop:f=>wallAt(f.p[0]-5),hl:["upper"],m:"Shoulders · Triceps",tip:"Kick up to the wall, lower your head to the floor with control, press back up."},
+  handstand:{vb:"-10 -12 120 106",f:[fk({t:180,h:180,th1:180,sh1:180,an:"w1",at:[58,91]}),fk({t:178,h:180,th1:182,sh1:182,an:"w1",at:[58,91]})],prop:f=>wallAt(f.p[0]-5),hl:["upper","torso"],m:"Shoulders · Core",tip:"Push tall through the shoulders, squeeze glutes and legs together."},
+  planche:{f:[fkm(PLANK,{ua1:-22,fa1:-22,x:44}),fkm(PLANK,{ua1:-28,fa1:-28,x:42})],hl:["upper","torso"],m:"Shoulders · Core",tip:"Lean the shoulders forward past the hands, arms straight, body tight."},
+  dip:{f:[fk({t:6,ua1:0,fa1:0,th1:12,sh1:-70,an:"w1",at:[52,50]}),fk({t:22,ua1:-96,fa1:38,th1:20,sh1:-70,an:"w1",at:[52,50]})],prop:()=>barAt(52,51,18),hl:["torso","upper"],m:"Chest · Triceps · Shoulders",tip:"Lower until the shoulders are just below the elbows, press back up to straight arms."},
+  dipTri:{f:[fk({t:0,ua1:0,fa1:0,th1:8,sh1:-60,an:"w1",at:[52,50]}),fk({t:6,ua1:-98,fa1:32,th1:10,sh1:-60,an:"w1",at:[52,50]})],prop:()=>barAt(52,51,18),hl:["upper"],m:"Triceps · Chest",tip:"Stay upright, elbows tucked back, lower then lock out."},
+  benchDip:{f:[fk({t:0,ua1:-10,fa1:-10,th1:80,sh1:4,an:"w1",at:[36,66]}),fk({t:0,ua1:-104,fa1:12,th1:60,sh1:-16,an:"w1",at:[36,66]})],prop:()=>boxAt(18,38,67),hl:["upper"],m:"Triceps",tip:"Hands on the bench behind you, bend the elbows straight back, keep the hips close."},
+
+  pullup:{vb:"-12 -18 124 124",f:[fkm(HANG,{}),fkm(HANG,{ua1:30,fa1:174,th1:14,sh1:-30})],prop:()=>barAt(52,9,22),hl:["torso","upper","fore"],m:"Lats · Biceps · Upper back",tip:"From a dead hang, pull your chest towards the bar, lower all the way down."},
+  muscleUp:{vb:"-12 -18 124 124",f:[fkm(HANG,{}),fkm(HANG,{ua1:30,fa1:174,th1:14,sh1:-30}),fk({t:22,ua1:0,fa1:0,th1:16,sh1:-14,an:"w1",at:[52,9]})],loop:1,prop:()=>barAt(52,9,22),hl:["torso","upper"],m:"Lats · Chest · Triceps",tip:"Explosive pull to the hips, roll the wrists over, press to straight arms."},
+  deadHang:{vb:"-12 -18 124 124",f:[fkm(HANG,{}),fkm(HANG,{at:[52,9],ua1:178,fa1:180})],prop:()=>barAt(52,9,22),hl:["fore","upper"],m:"Grip · Shoulders",tip:"Hang relaxed with straight arms, shoulders slightly engaged."},
+  frontLever:{f:[fk({t:-90,h:-90,th1:90,sh1:90,ua1:-170,fa1:-170,an:"w1",at:[36,10]}),fk({t:-92,h:-92,th1:92,sh1:92,ua1:-170,fa1:-170,an:"w1",at:[36,10]})],prop:()=>barAt(36,10,18),hl:["torso","upper"],m:"Lats · Core",tip:"Arms straight, pull the bar down to your hips, body flat and rigid."},
+  pulldown:{f:[fk({t:-6,th1:90,sh1:0,ua1:172,fa1:178,g:["p"],gy:62,x:44}),fk({t:-12,th1:90,sh1:0,ua1:18,fa1:162,g:["p"],gy:62,x:44})],prop:()=>seatAt(44,65,0),anchor:[54,2],hl:["torso","upper"],m:"Lats · Biceps",tip:"Lean back slightly, pull the bar to your upper chest, elbows down and back."},
+  straightPull:{f:[fk({t:22,ua1:150,fa1:150,at:[46,91]}),fk({t:22,ua1:12,fa1:12,at:[46,91]})],anchor:[84,4],hl:["torso"],m:"Lats",tip:"Arms straight, sweep the bar down to your thighs."},
+  row:{f:[fk({t:62,th1:16,sh1:-8,ua1:0,fa1:0,at:[46,91]}),fk({t:62,th1:16,sh1:-8,ua1:-64,fa1:14,at:[46,91]})],hold:"bb",hl:["torso","upper"],m:"Upper back · Lats · Biceps",tip:"Flat back, pull the bar to your lower ribs, squeeze the shoulder blades."},
+  rowDb:{f:[fk({t:70,th1:16,sh1:-8,ua1:0,fa1:0,ua2:60,fa2:0,at:[42,91]}),fk({t:70,th1:16,sh1:-8,ua1:-70,fa1:14,ua2:60,fa2:0,at:[42,91]})],hold:"db1",prop:()=>boxAt(64,90,74),hl:["torso","upper"],m:"Lats · Upper back · Biceps",tip:"Support hand on the bench, pull the dumbbell to your hip."},
+  cableRow:{f:[fk({t:22,th1:84,sh1:72,ua1:84,fa1:84,g:["p"],gy:78,x:34}),fk({t:-12,th1:84,sh1:72,ua1:-42,fa1:84,g:["p"],gy:78,x:34})],prop:()=>`<line x1="24" y1="81" x2="46" y2="81" class="dbench"/>`,anchor:[94,74],hl:["torso","upper"],m:"Upper back · Lats · Biceps",tip:"Sit tall, pull the handle to your belly, shoulders back and down."},
+  ausRow:{f:[fk({t:74,th1:-106,sh1:-106,ua1:172,fa1:172,an:"w1",at:[70,48]}),fk({t:74,th1:-106,sh1:-106,ua1:-150,fa1:150,an:"w1",at:[70,48]})],prop:()=>barAt(70,48,16)+`<line x1="56" y1="48" x2="56" y2="92" class="dl"/><line x1="84" y1="48" x2="84" y2="92" class="dl"/>`,hl:["torso","upper"],m:"Upper back · Lats · Biceps",tip:"Body straight under the bar, pull your chest up to it."},
+  facePull:{f:[fk({ua1:90,fa1:90,at:[46,91]}),fk({ua1:-92,fa1:150,at:[46,91]})],anchor:[94,22],hl:["upper"],m:"Rear shoulders · Upper back",tip:"Rope at face height, pull towards your eyes with elbows high, thumbs back."},
+
+  ohp:{vb:"-6 -10 112 104",f:[fkm(PRESS_START,{at:[48,91]}),fk({ua1:178,fa1:178,at:[48,91]})],hold:"bb",hl:["upper"],m:"Shoulders · Triceps · Upper chest",tip:"Squeeze glutes, press straight up, move your head through once the bar passes it."},
+  ohpSeated:{f:[fk({...PRESS_START,t:0,th1:90,sh1:0,g:["f1"],x:44}),fk({ua1:178,fa1:178,t:0,th1:90,sh1:0,g:["f1"],x:44})],prop:f=>seatAt(44,+(f.p[1]+3).toFixed(1),1),hold:"db",hl:["upper"],m:"Shoulders · Triceps",tip:"Back on the pad, press up until the arms are straight, lower to chin height."},
+  landminePress:{vb:"-6 -10 112 104",f:[fk({t:8,th1:14,sh1:0,th2:-14,sh2:-14,ua1:40,fa1:170,an:"f2",at:[40,91]}),fk({t:14,th1:14,sh1:0,th2:-14,sh2:-14,ua1:138,fa1:138,an:"f2",at:[40,91]})],landmine:[8,91],hl:["upper"],m:"Shoulders · Upper chest · Core",tip:"Staggered stance, press up and forward, finish with a long arm."},
+  lateral:{f:[FR({}),FR({e1:[30,27],w1:[18,27],e2:[70,27],w2:[82,27]})],hold:"db",hl:["upper"],m:"Side shoulders",tip:"Slight lean forward, lift out to the sides to shoulder height, lead with the elbows."},
+  frontRaise:{f:[fk({at:[48,91]}),fk({ua1:90,fa1:90,at:[48,91]})],hold:"db",hl:["upper"],m:"Front shoulders",tip:"Arms nearly straight, raise to shoulder height, lower slowly."},
+  uprightRow:{f:[FR({e1:[42,39],w1:[47,50],e2:[58,39],w2:[53,50]}),FR({e1:[30,23],w1:[45,29],e2:[70,23],w2:[55,29]})],hold:"bb",hl:["upper"],m:"Side shoulders · Traps",tip:"Pull the bar up close to your body, elbows lead and stay above the hands."},
+  shrug:{f:[FR({}),FR({s:[42,21],s2:[58,21],e1:[40,34],w1:[39,46],e2:[60,34],w2:[61,46],h:[50,11]})],hold:"db",hl:["torso"],m:"Traps",tip:"Shoulders straight up towards the ears, pause, lower. No rolling."},
+
+  curl:{f:[fk({at:[48,91]}),fk({ua1:4,fa1:150,at:[48,91]})],hold:"db",hl:["upper"],m:"Biceps · Forearms",tip:"Elbows pinned to your sides, curl up, lower all the way down slowly."},
+  curlBar:{f:[fk({at:[48,91]}),fk({ua1:4,fa1:150,at:[48,91]})],hold:"bb",hl:["upper"],m:"Biceps · Forearms",tip:"Elbows still, no swinging, full range."},
+  curlCable:{f:[fk({at:[48,91]}),fk({ua1:4,fa1:150,at:[48,91]})],anchor:[60,90],hl:["upper"],m:"Biceps",tip:"Step back from the cable, elbows still, squeeze at the top."},
+  curlIncline:{f:[fk({t:-38,h:-30,th1:88,sh1:-8,ua1:-14,fa1:-14,g:["f1"]}),fk({t:-38,h:-30,th1:88,sh1:-8,ua1:-14,fa1:136,g:["f1"]})],prop:f=>benchUnder(f,[6,3]),hold:"db",hl:["upper"],m:"Biceps (long head)",tip:"Lie back on an incline, arms hang straight down, curl without moving the elbows."},
+  preacher:{f:[fk({t:6,th1:90,sh1:0,ua1:44,fa1:46,g:["p"],gy:64,x:40}),fk({t:6,th1:90,sh1:0,ua1:44,fa1:168,g:["p"],gy:64,x:40})],prop:f=>seatAt(40,67,0)+`<line x1="${f.s[0]+1}" y1="${f.s[1]+6}" x2="${f.e1[0]+3}" y2="${f.e1[1]+4}" class="dbench"/>`,hold:"bb",hl:["upper"],m:"Biceps",tip:"Arms on the pad, curl up, lower until the arms are nearly straight."},
+  concCurl:{f:[fk({t:38,th1:90,sh1:-4,ua1:12,fa1:12,g:["f1"],x:42}),fk({t:38,th1:90,sh1:-4,ua1:12,fa1:150,g:["f1"],x:42})],prop:f=>seatAt(40,+(f.p[1]+3).toFixed(1),0),hold:"db1",hl:["upper"],m:"Biceps",tip:"Elbow against the inner thigh, curl up slowly, squeeze."},
+  pushdown:{f:[fk({t:10,ua1:4,fa1:140,at:[46,91]}),fk({t:10,ua1:4,fa1:4,at:[46,91]})],anchor:[60,2],hl:["upper"],m:"Triceps",tip:"Elbows pinned to your sides, push down to straight arms, control the way up."},
+  ohExt:{vb:"-6 -10 112 104",f:[fk({ua1:172,fa1:-14,at:[48,91]}),fk({ua1:172,fa1:176,at:[48,91]})],hold:"db1",hl:["upper"],m:"Triceps (long head)",tip:"Elbows pointing up, lower the weight behind your head, straighten fully."},
+
+  plank:{f:[fk({t:80,th1:-80,sh1:-80,ua1:0,fa1:90,an:"e1",at:[70,91]}),fk({t:80,th1:-80,sh1:-80,ua1:0,fa1:90,an:"e1",at:[70,90.5]})],hl:["torso"],m:"Core · Shoulders",tip:"Elbows under shoulders, squeeze glutes and abs, straight line from head to heels."},
+  sidePlank:{f:[{h:[77,55],s:[69,62],p:[45,74],e1:[69,90],w1:[79,90],e2:[57,58],w2:[49,68],k1:[30,82],f1:[14,90],k2:[30,81],f2:[14,89]},{h:[77,53],s:[69,60],p:[45,70],e1:[69,90],w1:[79,90],e2:[57,56],w2:[49,66],k1:[30,80],f1:[14,90],k2:[30,79],f2:[14,89]}],hl:["torso"],m:"Obliques · Core",tip:"Elbow under the shoulder, lift the hips so your body is a straight line."},
+  hangRaise:{vb:"-12 -18 124 124",f:[fkm(HANG,{th1:4,sh1:4}),fkm(HANG,{th1:92,sh1:92})],prop:()=>barAt(52,9,22),hl:["torso","thigh"],m:"Lower abs · Hip flexors",tip:"Hang still, lift the legs to hip height without swinging, lower slowly."},
+  t2b:{vb:"-12 -18 124 124",f:[fkm(HANG,{th1:4,sh1:4}),fkm(HANG,{t:-22,th1:150,sh1:168})],prop:()=>barAt(52,9,22),hl:["torso"],m:"Abs · Lats",tip:"Pull the bar down and lift your toes to touch it."},
+  cableCrunch:{f:[fk({t:12,th1:0,sh1:-90,ar:1,ua1:172,fa1:-20,g:["k1","f1"],x:44}),fk({t:82,th1:0,sh1:-90,ar:1,ua1:172,fa1:-20,g:["k1","f1"],x:44})],anchor:[58,2],hl:["torso"],m:"Abs",tip:"Kneel, rope by your head, curl your ribs down towards your hips."},
+  abWheel:{f:[fk({t:40,th1:0,sh1:-90,ua1:0,fa1:0,an:"k1",at:[38,91]}),fk({t:84,th1:-64,sh1:-90,ua1:108,fa1:108,an:"k1",at:[38,91]})],hold:"wheel",hl:["torso"],m:"Abs · Lats",tip:"Roll out as far as you can without the lower back sagging, pull back with the abs."},
+  deadBug:{f:[fk({t:-90,h:-90,ua1:180,fa1:180,th1:180,sh1:90,g:["s","p"],gy:88}),fk({t:-90,h:-90,ua1:-96,fa1:-96,ua2:180,fa2:180,th1:180,sh1:90,th2:96,sh2:96,g:["s","p"],gy:88})],hl:["torso"],m:"Deep core",tip:"Lower back pressed down, slowly reach the opposite arm and leg away."},
+  pallof:{f:[fk({ua1:24,fa1:150,at:[48,91]}),fk({ua1:90,fa1:90,at:[48,91]})],anchor:[50,40],hl:["torso"],m:"Obliques · Core",tip:"Stand side-on to the cable, press the handle straight out and resist the twist."},
+  twist:{f:[FR({h:[48,28],s:[40,38],s2:[56,38],p:[45,64],p2:[55,64],e1:[36,48],w1:[34,56],e2:[48,50],w2:[36,56],k1:[42,60],f1:[40,74],k2:[58,60],f2:[60,74]}),FR({h:[52,28],s:[44,38],s2:[60,38],p:[45,64],p2:[55,64],e1:[52,50],w1:[64,56],e2:[64,48],w2:[66,56],k1:[42,60],f1:[40,74],k2:[58,60],f2:[60,74]})],hold:"mb",hl:["torso"],m:"Obliques",tip:"Lean back, feet up if you can, rotate the weight side to side."},
+  declineSitup:{f:[fk({t:-112,h:-116,th1:116,sh1:40,ar:1,ua1:150,fa1:-40,g:["k1"],gy:62,x:58}),fk({t:-14,h:-10,th1:116,sh1:40,ar:1,ua1:150,fa1:-40,g:["k1"],gy:62,x:58})],prop:()=>`<line x1="16" y1="80" x2="72" y2="62" class="dbench"/><line x1="24" y1="80" x2="24" y2="92" class="dl"/><line x1="66" y1="66" x2="66" y2="92" class="dl"/>`,hl:["torso"],m:"Abs",tip:"Feet hooked, curl up one vertebra at a time, lower with control."},
+  hollow:{f:[fk({t:-74,h:-70,ua1:-80,fa1:-80,th1:100,sh1:100,g:["p"],gy:88}),fk({t:-76,h:-72,ua1:-82,fa1:-82,th1:102,sh1:102,g:["p"],gy:88})],hl:["torso"],m:"Abs · Deep core",tip:"Lower back glued down, arms and legs long and low, hold."},
+  birdDog:{f:[P_QUAD,pose(P_QUAD,{e1:[78,62],w1:[90,60],k2:[18,70],f2:[2,70]})],hl:["torso","glute"],m:"Core · Glutes · Lower back",tip:"Reach the opposite arm and leg long, hips level, pause, swap."},
+  superman:{f:[fk({t:90,h:92,ua1:90,fa1:90,th1:-90,sh1:-90,g:["s","p"],gy:88,x:40}),fk({t:80,h:76,ua1:104,fa1:104,th1:-98,sh1:-100,g:["p"],gy:88,x:40})],hl:["torso","glute"],m:"Lower back · Glutes",tip:"Lying face down, lift chest, arms and legs together, hold briefly."},
+  lsit:{f:[fk({t:-6,th1:90,sh1:90,ua1:-6,fa1:-6,an:"w1",at:[48,80]}),fk({t:-6,th1:94,sh1:94,ua1:-6,fa1:-6,an:"w1",at:[48,79.5]})],prop:()=>`<path d="M40 92V81H56V92" class="dbench" fill="none"/>`,hl:["torso","thigh"],m:"Abs · Hip flexors · Triceps",tip:"Hands by your hips, push down, lift the legs straight out in front."},
+  dragonFlag:{f:[fk({t:-162,h:-160,th1:18,sh1:18,ua1:-130,fa1:-60,an:"s",at:[28,78]}),fk({t:-112,h:-115,th1:68,sh1:68,ua1:-130,fa1:-60,an:"s",at:[28,78]})],prop:()=>`<line x1="10" y1="83" x2="64" y2="83" class="dbench"/><line x1="16" y1="83" x2="16" y2="92" class="dl"/><line x1="58" y1="83" x2="58" y2="92" class="dl"/>`,hl:["torso"],m:"Abs · Core",tip:"Grip behind your head, body straight from shoulders to toes, lower as one piece."},
+  woodchop:{f:[FR({h:[52,14],e1:[56,18],w1:[66,10],e2:[66,22],w2:[70,10]}),FR({h:[47,16],s:[40,27],s2:[56,27],e1:[34,40],w1:[28,52],e2:[42,42],w2:[30,52],k1:[42,73],k2:[57,72]})],hold:"mb",hl:["torso"],m:"Obliques · Core",tip:"Rotate from the hips and trunk, chop diagonally from high to low."},
+  rollout:null,
+
+  carry:{f:WALK.map(w=>fk({...w,ua1:2,fa1:2,ua2:-2,fa2:-2})),loop:1,hold:"db",hl:["fore","torso"],m:"Grip · Traps · Core",tip:"Stand tall, shoulders back, walk with short controlled steps."},
+  suitcase:{f:WALK.map(w=>fk({...w,ua1:2,fa1:2})),loop:1,hold:"db1",hl:["torso","fore"],m:"Obliques · Grip",tip:"Weight in one hand, don't lean towards it, walk tall."},
+  sandbag:{f:WALK.map(w=>fk({...w,ar:1,ua1:30,fa1:110,ua2:30,fa2:110})),loop:1,hold:"bag",hl:["torso","upper"],m:"Core · Upper back · Legs",tip:"Hug the bag high on your chest, walk tall."},
+  walk:{f:WALK.map(w=>fk(w)),loop:1,prop:()=>`<line x1="10" y1="94" x2="90" y2="86" class="dbench"/>`,hl:["thigh","shin","glute"],m:"Legs · Cardio",tip:"Brisk pace on an incline, don't hold on to the rails."},
+  sledPush:{f:WALK.map(w=>fk({...w,t:52,ua1:66,fa1:84,ua2:66,fa2:84})),loop:1,prop:()=>`<rect x="78" y="60" width="12" height="32" rx="2" class="dp"/>`,hl:["thigh","glute"],m:"Quads · Glutes · Cardio",tip:"Arms long, low body angle, drive hard with short fast steps."},
+  sledPull:{f:WALK.map(w=>fk({...w,t:-14,ua1:72,fa1:80,ua2:72,fa2:80})),loop:1,anchor:[96,80],hl:["thigh","upper"],m:"Quads · Back · Cardio",tip:"Lean back, walk backwards pulling the rope or straps."},
+  rower:{f:[fk({t:28,h:20,th1:148,sh1:28,ua1:88,fa1:88,g:["p"],gy:80,x:46}),fk({t:-24,h:-16,th1:94,sh1:94,ua1:-42,fa1:84,g:["p"],gy:80,x:30})],prop:()=>`<line x1="14" y1="84" x2="88" y2="84" class="dbench"/>`,anchor:[94,74],hl:["thigh","torso","upper"],m:"Legs · Back · Cardio",tip:"Legs, then lean back, then arms. Reverse on the way forward."},
+  bike:{f:[fk({t:18,th1:66,sh1:-12,th2:110,sh2:24,ua1:70,fa1:70,ua2:40,fa2:40,g:["p"],gy:56,x:40}),fk({t:18,th1:110,sh1:24,th2:66,sh2:-12,ua1:40,fa1:40,ua2:70,fa2:70,g:["p"],gy:56,x:40})],loop:1,prop:()=>`<line x1="34" y1="59" x2="46" y2="59" class="dbench"/><line x1="40" y1="59" x2="56" y2="92" class="dl"/><circle cx="60" cy="74" r="9" class="dp"/>`,hl:["thigh"],m:"Legs · Cardio",tip:"Push and pull with arms and legs together. Sprint or steady."},
+  ropes:{f:[fk({t:30,th1:46,sh1:-22,ua1:78,fa1:100,ua2:36,fa2:50,at:[40,91]}),fk({t:30,th1:46,sh1:-22,ua1:36,fa1:50,ua2:78,fa2:100,at:[40,91]})],loop:1,anchor:[96,88],anchor2:[96,88],hl:["upper","torso"],m:"Shoulders · Arms · Cardio",tip:"Athletic half squat, whip the ropes in fast alternating waves."},
+  burpee:{vb:"-6 -10 112 104",f:[fk({at:[50,91]}),fk({t:62,th1:122,sh1:-34,ua1:0,fa1:0,at:[50,91]}),fkm(PLANK,{x:36}),fk({ua1:172,fa1:172,th1:4,sh1:-10,at:[50,83]})],loop:1,hl:["thigh","torso","upper"],m:"Full body · Cardio",tip:"Squat down, jump the feet back, (push-up), jump them in, jump up."},
+  jacks:{vb:"-6 -10 112 104",f:[FR({}),FR({e1:[33,14],w1:[29,2],e2:[67,14],w2:[71,2],k1:[38,72],f1:[30,91],k2:[62,72],f2:[70,91]})],loop:0,hl:["thigh","upper"],m:"Full body · Cardio",tip:"Jump feet wide as the arms go up, jump back in."},
+  highKnees:{f:[fk({th1:92,sh1:0,ua1:-30,fa1:70,ua2:40,fa2:120,g:["f2"]}),fk({th2:92,sh2:0,ua2:-30,fa2:70,ua1:40,fa1:120,g:["f1"]})],loop:1,hl:["thigh"],m:"Hip flexors · Cardio",tip:"Drive the knees to hip height, quick feet, pump the arms."},
+  climbers:{f:[fkm(PLANK,{th1:40,sh1:-40,x:44}),fkm(PLANK,{th2:40,sh2:-40,x:44})],loop:1,hl:["torso","thigh"],m:"Core · Cardio",tip:"Hands under shoulders, drive the knees to the chest one after the other."},
+  bear:{f:[{...P_QUAD,p:[36,66],k1:[44,84],f1:[24,90],k2:[32,85],f2:[16,90],e1:[72,76],w1:[74,89],e2:[64,76],w2:[62,89]},{...P_QUAD,p:[38,66],k1:[34,85],f1:[18,90],k2:[44,84],f2:[26,90],e1:[64,76],w1:[62,89],e2:[72,76],w2:[74,89]}],loop:1,hl:["torso","upper","thigh"],m:"Core · Shoulders · Legs",tip:"Knees hovering an inch off the floor, crawl with opposite hand and foot."},
+  slam:{vb:"-6 -10 112 104",f:[fk({ua1:172,fa1:172,at:[48,91]}),fk({t:70,th1:30,sh1:-14,ua1:14,fa1:14,at:[48,91]})],hold:"mb",hl:["torso","upper"],m:"Core · Lats · Cardio",tip:"Reach tall, slam the ball down hard in front of you, squat to pick it up."},
+  wallBall:{vb:"-6 -10 112 104",f:[sq({ar:1,ua1:20,fa1:165,at:[44,91]}),fk({ua1:160,fa1:166,at:[44,91]})],hold:"mb",prop:()=>wallAt(84),hl:["thigh","glute","upper"],m:"Legs · Shoulders · Cardio",tip:"Squat with the ball at your chest, drive up and throw it to the target."},
+  thruster:{vb:"-6 -10 112 104",f:[fkm(RACK_FRONT,{t:18,th1:90,sh1:-36,at:[48,91]}),fkm(RACK_FRONT,{at:[48,91]}),fk({ua1:178,fa1:178,at:[48,91]})],loop:1,hold:"bb",hl:["thigh","glute","upper"],m:"Legs · Shoulders",tip:"Front squat, then use the drive up to press the bar overhead in one move."},
+  getUp:{vb:"-6 -10 112 104",f:[fk({t:-90,h:-90,th1:150,sh1:20,th2:92,sh2:92,ua1:180,fa1:180,ua2:-140,fa2:-140,g:["s","p"],gy:88}),fk({t:-40,h:-40,th1:150,sh1:20,th2:92,sh2:92,ua1:180,fa1:180,ua2:-170,fa2:-170,g:["p"],gy:88}),fk({th1:84,sh1:-4,th2:-12,sh2:-86,ua1:180,fa1:180,an:"f1",at:[64,91]}),fk({ua1:180,fa1:180,at:[52,91]})],loop:1,hold:"kb",hl:["torso","upper"],m:"Full body · Shoulders · Core",tip:"Eyes on the bell, arm locked out the whole way. Slow and controlled."},
+  latLunge:{f:[FR({e1:[42,40],w1:[48,48],e2:[58,40],w2:[52,48]}),FR({h:[42,30],s:[34,40],s2:[50,40],p:[38,64],p2:[48,64],e1:[38,52],w1:[44,56],e2:[50,52],w2:[46,56],k1:[28,75],f1:[26,91],k2:[62,77],f2:[76,91]})],hl:["thigh","glute"],m:"Quads · Glutes · Adductors",tip:"Step wide, sit back into one hip, other leg straight, push back to the middle."},
+  abductor:{f:[FR({h:[50,28],s:[42,38],s2:[58,38],p:[45,64],p2:[55,64],e1:[38,50],w1:[38,62],e2:[62,50],w2:[62,62],k1:[39,68],f1:[41,90],k2:[61,68],f2:[59,90]}),FR({h:[50,28],s:[42,38],s2:[58,38],p:[45,64],p2:[55,64],e1:[38,50],w1:[38,62],e2:[62,50],w2:[62,62],k1:[29,68],f1:[35,90],k2:[71,68],f2:[65,90]})],prop:()=>`<line x1="34" y1="67" x2="66" y2="67" class="dbench"/>`,hl:["glute","thigh"],m:"Glutes (side) · Hip abductors",tip:"Sit tall, push the knees out against the pads, return slowly."}
+};
+delete EXP.rollout;
+// which pattern (and what's held) for each exercise in the library
+const EX_PAT={
+  "Barbell bench press":"bench","Incline barbell bench press":"incline","Decline bench press":"decline","Dumbbell bench press":"benchDb","Incline dumbbell press":"inclineDb","Dumbbell fly":"fly","Cable fly":"cableFly","Low-to-high cable fly":"cableFlyLow","Pec deck":"fly","Machine chest press":"chestMachine","Push-up":"pushup","Dips (chest)":"dip",
+  "Deadlift":"deadlift","Barbell row":"row","Pendlay row":"row","Dumbbell row":"rowDb","Chest-supported row":"row","T-bar row":"row","Seated cable row":"cableRow","Lat pulldown":"pulldown","Close-grip lat pulldown":"pulldown","Pull-up":"pullup","Chin-up":"pullup","Straight-arm pulldown":"straightPull","Machine row":"cableRow","Rack pull":"rackPull","Back extension":"backExt",
+  "Overhead press":"ohp","Seated dumbbell shoulder press":"ohpSeated","Arnold press":"ohpSeated","Machine shoulder press":"ohpSeated","Dumbbell lateral raise":"lateral","Cable lateral raise":"lateral","Front raise":"frontRaise","Rear delt fly":"revFly","Reverse pec deck":"revFly","Face pull":"facePull","Upright row":"uprightRow","Barbell shrug":"shrug","Dumbbell shrug":"shrug",
+  "Barbell curl":"curlBar","EZ-bar curl":"curlBar","Dumbbell curl":"curl","Hammer curl":"curl","Incline dumbbell curl":"curlIncline","Preacher curl":"preacher","Cable curl":"curlCable","Concentration curl":"concCurl",
+  "Close-grip bench press":"bench","Triceps pushdown":"pushdown","Rope pushdown":"pushdown","Overhead cable extension":"ohExt","Skull crusher":"skull","Overhead dumbbell extension":"ohExt","Dips (triceps)":"dipTri","Bench dip":"benchDip",
+  "Back squat":"squat","Front squat":"frontSquat","Goblet squat":"gobletSquat","Hack squat":"squat","Leg press":"legPress","Bulgarian split squat":"bulgarian","Walking lunge":"lunge","Reverse lunge":"splitSquat","Step-up":"stepUp","Leg extension":"legExt","Smith machine squat":"squat",
+  "Romanian deadlift":"rdl","Stiff-leg deadlift":"stiffLeg","Lying leg curl":"legCurlLying","Seated leg curl":"legCurlSeated","Nordic curl":"nordic","Good morning":"goodMorning","Hip thrust":"hipThrust","Glute bridge":"bridge","Cable kickback":"kickback","Hip abduction machine":"abductor","Kettlebell swing":"kbSwing",
+  "Standing calf raise":"calfRaise","Seated calf raise":"calfSeated","Leg press calf raise":"calfRaise",
+  "Plank":"plank","Side plank":"sidePlank","Hanging leg raise":"hangRaise","Cable crunch":"cableCrunch","Ab wheel rollout":"abWheel","Dead bug":"deadBug","Pallof press":"pallof","Russian twist":"twist","Decline sit-up":"declineSitup",
+  "Farmer's carry":"carry","Sled push":"sledPush","Rowing machine":"rower","Assault bike":"bike","Treadmill incline walk":"walk","Battle ropes":"ropes","Burpees":"burpee",
+  "Incline push-up":"pushupIncline","Decline push-up":"pushupDecline","Diamond push-up":"pushup","Pike push-up":"pike","Bodyweight squat":"bwSquat","Jump squat":"jumpSquat","Split squat":"splitSquat","Wall sit":"wallSit","Single-leg glute bridge":"bridge1","Calf raise":"calfRaise","Hollow hold":"hollow","Bird dog":"birdDog","Superman":"superman","Mountain climbers":"climbers","Jumping jacks":"jacks","High knees":"highKnees",
+  "Kettlebell clean":"kbClean","Kettlebell snatch":"kbSnatch","Turkish get-up":"getUp","Thruster":"thruster","Wall ball":"wallBall","Box jump":"boxJump","Lateral lunge":"latLunge","Landmine press":"landminePress","Landmine row":"row","Single-arm dumbbell row":"rowDb","Medicine ball slam":"slam","Woodchop":"woodchop","Suitcase carry":"suitcase","Sandbag carry":"sandbag","Bear crawl":"bear","Sled pull":"sledPull",
+  "Australian row":"ausRow","Muscle-up":"muscleUp","Dead hang":"deadHang","Front lever hold":"frontLever","Dips":"dip","Archer push-up":"pushup","Pseudo planche push-up":"planche","Handstand push-up":"hspu","Handstand hold":"handstand","Planche lean":"planche","L-sit":"lsit","Hollow body hold":"hollow","Toes-to-bar":"t2b","Dragon flag":"dragonFlag","Pistol squat":"pistol","Shrimp squat":"shrimp"};
+// exercises people add themselves: guess the pattern from the name
+const EX_GUESS=[["bench press","bench"],["chest press","chestMachine"],["incline","inclineDb"],["fly","fly"],["push-up","pushup"],["push up","pushup"],["pushup","pushup"],["dip","dip"],["pull-up","pullup"],["pullup","pullup"],["chin","pullup"],["pulldown","pulldown"],["row","row"],["deadlift","deadlift"],["rdl","rdl"],["squat","squat"],["lunge","lunge"],["leg press","legPress"],["step","stepUp"],["hip thrust","hipThrust"],["bridge","bridge"],["curl","curl"],["extension","ohExt"],["pushdown","pushdown"],["press","ohp"],["raise","lateral"],["shrug","shrug"],["plank","plank"],["crunch","cableCrunch"],["sit-up","declineSitup"],["carry","carry"],["swing","kbSwing"],["jump","boxJump"],["calf","calfRaise"]];
+function exPattern(name){const n=String(name||"").trim();if(EX_PAT[n])return EX_PAT[n];const k=Object.keys(EX_PAT).find(x=>x.toLowerCase()===n.toLowerCase());if(k)return EX_PAT[k];const l=n.toLowerCase(),g=EX_GUESS.find(([w])=>l.includes(w));return g?g[1]:null}
+Object.entries(EXP).forEach(([k,v])=>{if(v)DEMOS["ex:"+k]=v});
+const exDemoKey=name=>{const p=exPattern(name);return p?"ex:"+p:null};
 
 const ROUTINES=[
   {id:"mob",name:"Full-body mobility",steps:[["Cat-cow",45,"Slowly arch and round your back, moving with your breath."],["Thread the needle, left",30,"On all fours, slide your left arm under your body and rotate."],["Thread the needle, right",30,"Same on the right side."],["World's greatest stretch, left",45,"Lunge forward, elbow to instep, then rotate and reach up."],["World's greatest stretch, right",45,"Switch sides."],["Hip circles",30,"Hands on hips, big slow circles both ways."],["Deep squat hold",45,"Sit low, chest up, push knees out with your elbows."],["Arm circles",30,"Small to big, forwards then backwards."],["Child's pose",45,"Sit back on your heels, arms long, breathe into your back."]]},
@@ -888,7 +1097,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-7";
+const APP_VERSION="2026-10-24-8";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -987,6 +1196,10 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     ${ex.name&&S.wpRename!==cur.ei?`<button class="wp-exbtn" data-act="wpRename" aria-label="Change exercise: ${esc(ex.name)}"><h1 class="wp-ex">${esc(ex.name)}</h1><span class="wp-change"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Change</span></button>`
       :wpPicker(dw,ex)}
     <span class="small muted">${last?"Last time: "+fmtSets(last.sets):ex.name?"First time: today sets your baseline":""}</span>
+    ${ex.name&&S.wpRename!==cur.ei&&anyDemoKey(ex.name)?(()=>{const open=S.demoOpen!=null?S.demoOpen===ex.name:!last;return open
+      ?`<section class="exdemo"><div class="demo-wrap">${demoSVG(ex.name,150)}</div><div class="exdemo-txt"><span class="label">Works</span><b>${esc(demoMuscles(ex.name))}</b><span class="small muted">${esc(demoTip(ex.name))}</span>
+        <span class="row" style="gap:10px"><a class="vidlink" href="${videoLink(ex.name)}" target="_blank" rel="noopener">▶ Video</a><button class="btn ghost" data-act="demoToggle" data-v="${esc(ex.name)}">Hide</button></span></div></section>`
+      :`<button class="howto" data-act="demoToggle" data-v="${esc(ex.name)}">${demoSVG(ex.name,40,1)}<span>How to do it · <b>${esc(demoMuscles(ex.name))}</b></span></button>`})():""}
     <div class="wp-sets">${ex.sets.map((x,i)=>`<button class="wp-chip${x.done?" done":""}${i===si?" cur":""}" data-act="wpSet" data-i="${i}">${x.done?fmtSet(x):"Set "+(i+1)}</button>`).join("")}<button class="wp-chip add" data-act="wpAddSet" aria-label="Add a set">+</button></div>
     ${st?`<div class="wp-step"><button data-act="wpAdj" data-f="kg" data-d="-${kgStep}" aria-label="Less weight">−</button><div><input class="wp-num" type="number" inputmode="decimal" step="any" min="0" data-act="wpType" data-f="kg" value="${fmtN(+st.kg||0)}" aria-label="${bw?"Added kg":"Weight in kg"}, tap to type"><span>${bw?"+kg":"kg"} · tap to type</span></div><button data-act="wpAdj" data-f="kg" data-d="${kgStep}" aria-label="More weight">+</button></div>
       <div class="wp-step"><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?-5:-1}" aria-label="Less">−</button><div><input class="wp-num" type="number" inputmode="numeric" step="1" min="0" data-act="wpType" data-f="${mode==="time"?"secs":"reps"}" value="${mode==="time"?st.secs:st.reps}" aria-label="${mode==="time"?"Seconds":"Reps"}, tap to type"><span>${mode==="time"?"seconds":"reps"}</span></div><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?5:1}" aria-label="More">+</button></div>
@@ -1049,7 +1262,7 @@ function stylePool(kind){return KIND_LIB[kind]||KIND_LIB.gym}
 function recentFor(kind,skip){const out=[],seen=new Set([exKey(skip)]);
   ofType("workout").filter(w=>(w.kind||"gym")===kind).forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!seen.has(k)){seen.add(k);out.push(e.name.trim())}}));return out.slice(0,10)}
 function pickResults(dw,ex){const P=S.pick||{},q=exKey(P.q),pool=stylePool(dw.kind),cur=exKey(ex.name);
-  const row=(n,g,tag)=>`<button class="pick-row" data-act="wpSwap" data-v="${esc(n)}"><b>${esc(n)}</b><span>${esc(g||"")}${tag?` · ${tag}`:""}</span></button>`;
+  const row=(n,g,tag)=>`<button class="pick-row" data-act="wpSwap" data-v="${esc(n)}"><span class="pick-l">${demoSVG(n,40,1)||'<i class="pick-ph"></i>'}<b>${esc(n)}</b></span><span>${esc(g||"")}${tag?` · ${tag}`:""}</span></button>`;
   if(q){const mine=recentFor(dw.kind,"").filter(n=>!LIB_GROUP[exKey(n)]);
     const inStyle=pool.filter(([n])=>exKey(n).includes(q)),others=Object.entries(KIND_LIB).filter(([k])=>k!==dw.kind).flatMap(([k,l])=>l.map(([n,g])=>[n,g,kindName(k)])).filter(([n])=>exKey(n).includes(q)&&!pool.some(([m])=>exKey(m)===exKey(n)));
     const seen=new Set(),uniq=l=>l.filter(([n])=>{const k=exKey(n);if(seen.has(k))return false;seen.add(k);return true});
@@ -2327,6 +2540,7 @@ document.addEventListener("click",e=>{
     case "wuSetBack":{const st=S.wu.stages[S.wu.idx];stopRestQuiet();st.pos=Math.max(0,st.pos-1);render();break}
     case "wpRename":S.wpRename=wpSteps(S.draftWorkout)[S.wp.step].ei;S.pick=null;render();break;
     case "wpRenameNo":S.wpRename=null;S.pick=null;render();break;
+    case "demoToggle":{const nm=ds.v,dw=S.draftWorkout,cur=dw&&S.wp?wpSteps(dw)[S.wp.step]:null,ex=cur&&dw.exercises[cur.ei],had=ex&&exHistory(ex.name)[0];const openNow=S.demoOpen!=null?S.demoOpen===nm:!had;S.demoOpen=openNow?"":nm;render();break}
     case "pickTab":S.pick.g=ds.v;render();break;
     case "wpSwap":wpSetExercise(ds.v);break;
     case "wpOpen":S.wpOpen=S.wpOpen===+ds.i?null:+ds.i;render();break;
@@ -2372,7 +2586,7 @@ document.addEventListener("click",e=>{
     case "goCardio":S.tab="train";S.trainView="cardio";render();window.scrollTo(0,0);break;
     case "habitTap":{const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=!x.habits[ds.h];save("day_"+S.day,x);if(x.habits[ds.h]&&navigator.vibrate)navigator.vibrate(20);break}
     case "openSettings":S.tab="settings";S.setPage=null;render();window.scrollTo(0,0);break;
-    case "wpGo":S.wu=null;S.wpRename=null;S.pick=null;S.wpOpen=null;S.wp.step=Math.max(0,+ds.v);S.wp.si=null;S.wpEnd=false;stopRest();render();window.scrollTo(0,0);break;
+    case "wpGo":S.wu=null;S.wpRename=null;S.pick=null;S.wpOpen=null;S.demoOpen=null;S.wp.step=Math.max(0,+ds.v);S.wp.si=null;S.wpEnd=false;stopRest();render();window.scrollTo(0,0);break;
     case "wpList":S.woList=true;render();window.scrollTo(0,0);break;
     case "wpBack":S.woList=false;if(!S.wp)S.wp={step:0};render();break;
     case "wpEnd":S.wpEnd=true;S.wpDiscard=false;render();break;
