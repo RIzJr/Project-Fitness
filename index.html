@@ -102,6 +102,9 @@ textarea{resize:vertical;min-height:64px}
 .vimgs img{flex:1;min-height:0;width:100%;object-fit:contain}
 .vimgs figcaption{font-size:12px;text-align:center;opacity:.8}
 .onboard{max-width:480px;margin:4vh auto 0;padding-bottom:40px}
+.gate{max-width:440px;margin:8vh auto 0;padding-bottom:40px;gap:16px}
+.gate-brand{font-family:var(--display);font-size:40px;font-weight:900;font-stretch:118%;line-height:1;letter-spacing:-.01em}.gate-brand span{color:var(--accent)}
+.gate-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}.gate-or::before,.gate-or::after{content:"";flex:1;height:1px;background:var(--line)}
 .onboard h1{font-size:38px}
 .obdots{display:flex;gap:6px}.obdots i{flex:1;height:4px;border-radius:99px;background:var(--line)}.obdots i.on{background:var(--accent)}
 .obpick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -775,7 +778,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUT
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-24-2";
+const APP_VERSION="2026-10-24-3";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1060,6 +1063,7 @@ function render(){
   if(typeof persistDraft==="function")persistDraft();
   const tb=document.getElementById("tabs");
   if(S.lock){tb.hidden=true;document.getElementById("app").innerHTML=renderLock();return}
+  if(gateOn()){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id,sel=fe&&fe.selectionStart;document.getElementById("app").innerHTML=renderGate();if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}return}
   if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
   tb.hidden=false;
   if(S.tab==="body"||S.tab==="checkin"){S.youView=S.tab==="body"?"body":"checkin";S.tab="you"}
@@ -1543,6 +1547,8 @@ function clientCsv(id){const c=S.docs[id];if(!c)return;const cols=[...CLIENT_COL
 const HABIT_IDEAS=["Protein at every meal","2 litres of water","8,000+ steps","7+ hours sleep","Ate slowly, stopped at 80% full","10 minutes of mobility","No alcohol","Fruit or veg with every meal"];
 function needsOnboarding(){const p=S.docs.profile||{};return !p.onboarded&&!Object.values(S.docs).some(d=>d&&["day","workout","body","checkin"].includes(d.type))}
 function afterLoad(){setTimeout(()=>Cloud.init(),0);if(S.example){S.docs={settings:clone(DEFAULT_SETTINGS)};S.example=false}
+  afterLoadOnboard()}
+function afterLoadOnboard(){
   if(needsOnboarding()){const p=S.docs.profile||{},nm=p.name||activeProf().name;S.onboard={step:0,d:{name:nm==="Me"?"":nm,goal:p.goal||"",activity:p.activity||"",dob:p.dob||"",sex:p.sex||"",height:p.height||"",weight:p.weight||"",habits:[...(settings().habits||[])],targets:null}}}
   else S.onboard=null}
 function renderOnboard(){const O=S.onboard,d=O.d,N=6;
@@ -1674,7 +1680,7 @@ const ckey=k=>"pf-"+k+":"+PROF.active;
 function jget(k,d){try{return JSON.parse(lsGet(ckey(k))||"null")??d}catch(e){return d}}
 function jset(k,v){lsSet(ckey(k),JSON.stringify(v))}
 // only redraw when it can't interrupt typing elsewhere
-function cloudRender(changed){if(changed||(S.tab==="settings"&&S.setPage==="cloud")||(S.tab==="you"&&S.youView==="clients"))render()}
+function cloudRender(changed){if(changed||gateOn()||(S.tab==="settings"&&S.setPage==="cloud")||(S.tab==="you"&&S.youView==="clients"))render()}
 const Cloud={signedIn:()=>!!CL.user,
   async init(){const pid=PROF.active;Object.assign(CL,{user:null,links:null,code:undefined,syncedOnce:false,recover:false,err:"",repAt:0});
     if(!CLOUD_URL){CL.status="off";return}CL.status="loading";const c=await sbClient();if(!c||PROF.active!==pid){cloudRender();return}
@@ -1730,6 +1736,37 @@ async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)ret
     S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 async function unlinkClient(clientUid){const c=await sbClient();if(!c||!CL.user)return;await c.from("reports").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id);await c.from("coach_links").delete().eq("client_id",clientUid).eq("coach_id",CL.user.id)}
+/* ---------- welcome: sign in or create an account (skipped when already signed in on this phone) ---------- */
+// supabase keeps the sign-in on the phone, so we can tell straight away, before the account service has even loaded
+function hasStoredSession(){try{const j=JSON.parse(localStorage.getItem("pf-sb-"+PROF.active)||"null");return !!(j&&(j.refresh_token||j.access_token||j.user||(j.currentSession&&j.currentSession.refresh_token)))}catch(e){return false}}
+const gateKey=()=>"pf-gate:"+PROF.active;
+function gateOn(){if(!CLOUD_URL||S.lock)return false;
+  if(S.gateSync)return true; // just signed in: hold here while their data comes down
+  if(CL.user||CL.recover||hasStoredSession()||/access_token=|type=recovery/.test(location.hash))return false;
+  return lsGet(gateKey())!=="local"}
+function renderGate(){
+  if(S.gateSync)return `<div class="gate stack"><div class="gate-brand">Project <span>Fitness</span></div><div class="status busy" style="justify-content:center"><span class="spin" aria-hidden="true"></span>Signed in. Bringing in your data…</div></div>`;
+  const up=S.gateMode==="up",H=CL.authHint||{},busy=CL.busy;
+  return `<div class="gate stack">
+    <div class="gate-brand">Project <span>Fitness</span></div>
+    <p class="sub" style="font-size:15px;margin:0">${up?"Create your account to back up your training, food and progress, and use it on any phone.":"Sign in to your account, or create one to get started."}</p>
+    <div class="seg" role="tablist" aria-label="Sign in or create account" style="grid-template-columns:1fr 1fr"><button role="tab" data-act="gateMode" data-v="in" aria-pressed="${!up}">I have an account</button><button role="tab" data-act="gateMode" data-v="up" aria-pressed="${up}">Create account</button></div>
+    ${S.gateNote?`<div class="hint"><span class="small">${esc(S.gateNote)}</span></div>`:""}
+    <form id="authForm" class="stack" style="gap:12px" data-gate="1">
+      <label class="field"><span class="label">Email</span><input id="au_email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" value="${esc(H.email||"")}"></label>
+      <label class="field"><span class="label">Password</span><input id="au_pw" type="password" autocomplete="${up?"new-password":"current-password"}" placeholder="8+ characters" value="${esc(H.pw||"")}"></label>
+      ${H.type==="nomatch"?`<div class="hint"><b>We couldn't sign you in with those details.</b><span class="small">New here? Create an account with this email. Already have one? The password may be wrong, so reset it.</span>
+        <div class="row"><button class="btn primary" type="button" data-act="gateMode" data-v="up">Create account</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
+      ${H.type==="exists"?`<div class="hint"><b>You already have an account with this email.</b><span class="small">Sign in with your password instead, or reset it if you've forgotten.</span>
+        <div class="row"><button class="btn primary" type="button" data-act="gateMode" data-v="in">Sign in</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
+      ${up?`<label class="habit"><input type="checkbox" id="au_consent" ${CL.consent?"checked":""} data-act="auConsent"><span class="small">I've read the <a href="privacy.html" target="_blank" rel="noopener">privacy notice</a> and agree to my data being stored in my account.</span></label>`:""}
+      <button class="wp-big" type="submit" ${busy?"disabled":""}>${busy?'<span class="spin dark" aria-hidden="true"></span>':up?"Create account":"Sign in"}</button>
+      ${up?"":`<button class="btn ghost" type="button" style="align-self:center" data-act="forgotPw">Forgot password?</button>`}
+    </form>
+    <div class="gate-or"><span>or</span></div>
+    <button class="btn" style="height:48px" data-act="gateLocal">Continue without an account</button>
+    <span class="small muted" style="text-align:center">Without an account, everything stays on this phone only. You can sign in later in Settings → Cloud account.</span>
+  </div>`}
 /* auth */
 const authMsg=e=>{const m=(e&&e.message)||"";return /Invalid login/i.test(m)?"Email or password is wrong":/not confirmed/i.test(m)?"Confirm your email first (check your inbox), then sign in":/already registered/i.test(m)?"There's already an account with that email. Sign in instead":/Password should be/i.test(m)?"Password must be at least 8 characters":m||"Something went wrong. Try again"};
 async function doAuth(kind){const c=await sbClient();if(!c){toast("Can't reach the account service. Check your connection");return}
@@ -1747,8 +1784,10 @@ async function doAuth(kind){const c=await sbClient();if(!c){toast("Can't reach t
     if(kind==="up"&&/already registered/i.test(m)){CL.authHint={type:"exists",email};cloudRender();return}
     toast(authMsg(error));cloudRender();return}
   CL.authHint=null;if(kind==="up")save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),consent:{privacy:PRIVACY_VERSION,at:new Date().toISOString()}});
-  if(kind==="up"&&!data.session){toast("Check your email to confirm your account, then sign in here");cloudRender();return}
-  CL.user=data.user;CL.status="ok";toast("Signed in. Syncing your data");fullSync()}
+  if(kind==="up"&&!data.session){if(gateOn()){S.gateMode="in";S.gateNote="Account created. We've emailed you a link to confirm it. Tap the link, then sign in here.";CL.authHint={email}}toast("Check your email to confirm your account, then sign in here");cloudRender();return}
+  const fromGate=gateOn();CL.user=data.user;CL.status="ok";S.gateNote="";
+  if(fromGate){S.gateSync=true;render();try{await fullSync()}finally{S.gateSync=false;if(!needsOnboarding())S.onboard=null;else if(!S.onboard)afterLoadOnboard();render();toast(kind==="up"?"Account created. Your data will sync automatically":"Signed in. Your data syncs automatically")}return}
+  toast("Signed in. Syncing your data");fullSync()}
 async function deleteAccount(){const c=await sbClient();if(!c||!CL.user)return;const {error}=await c.rpc("delete_my_account");
   if(error){toast(/function|not find|schema/i.test(error.message)?"Account deletion isn't set up on the server yet. Ask your coach to run the update":"Couldn't delete: "+error.message);return}
   try{await c.auth.signOut()}catch(e){}["lastpull","synced","dirty","tomb"].forEach(k=>{try{localStorage.removeItem(ckey(k))}catch(e){}});try{localStorage.removeItem("pf-sb-"+PROF.active)}catch(e){}
@@ -2026,6 +2065,8 @@ document.addEventListener("click",e=>{
     case "delPhoto":if(!S.viewPhoto.confirm){S.viewPhoto.confirm=true;render();break}phTx("readwrite",st=>st.delete(ds.id)).then(()=>{S.viewPhoto=null;S.photosFor=null;render();toast("Photo deleted")});break;
     case "snoozeBackup":lsSet("pf-backupsnooze:"+PROF.active,String(Date.now()+3*864e5));render();break;
     case "signUp":doAuth("up");break;
+    case "gateMode":{const em=document.getElementById("au_email")?.value||"",pw=document.getElementById("au_pw")?.value||"";S.gateMode=ds.v;S.gateNote="";CL.authHint={email:em,pw};render();document.getElementById(em?"au_pw":"au_email")?.focus();break}
+    case "gateLocal":lsSet(gateKey(),"local");CL.authHint=null;render();window.scrollTo(0,0);break;
     case "deleteAccount":if(!CL.confirmDel){CL.confirmDel=true;render();setTimeout(()=>{CL.confirmDel=false;cloudRender()},6000);break}CL.confirmDel=false;deleteAccount();break;
     case "forgotPw":doAuth("forgot");break;
     case "signOut":signOut();break;
@@ -2227,7 +2268,7 @@ document.addEventListener("submit",e=>{e.preventDefault();
     if(f.base){const qe=document.getElementById("ef_qty"),ge=document.getElementById("ef_g");f.qty=f.unit==="g"?(+(ge&&ge.value)||0):(+(qe&&qe.value)||0)}
     const i=e.target.dataset.i;const x=i==="new"?editDay():clone(dayDoc(S.day));x.foods=x.foods||[];if(i==="new")x.foods.push(f);else x.foods[+i]=f;
     S.editFood=null;save("day_"+S.day,x);toast((i==="new"?"Added":"Saved")+ML());return}
-  if(e.target.id==="authForm"){doAuth("in");return}
+  if(e.target.id==="authForm"){doAuth(e.target.dataset.gate&&S.gateMode==="up"?"up":"in");return}
   if(e.target.id==="linkForm"){const v=document.getElementById("lk_code").value.trim().toUpperCase();if(v.length<4){toast("Enter your coach's code");return}linkCoach(v);return}
   if(e.target.id==="pwForm"){const pw=document.getElementById("au_newpw").value;if(pw.length<8){toast("Password must be at least 8 characters");return}
     sbClient().then(c=>c&&c.auth.updateUser({password:pw})).then(r=>{if(r&&r.error){toast(authMsg(r.error));return}CL.recover=false;toast("Password updated");render()});return}
