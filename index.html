@@ -392,6 +392,8 @@ details summary{cursor:pointer;color:var(--muted)}
 .lastline button{align-self:flex-start}
 .exhead{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
 .exhead:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wp-restrow{display:flex;align-items:center;justify-content:center;gap:10px}.wp-restrow button{width:40px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:18px;font-weight:700}.wp-restrow b{font-variant-numeric:tabular-nums;min-width:48px;text-align:center}
+.rtbrow{display:grid;grid-template-columns:1fr 72px auto 28px;gap:6px;align-items:center}
 .exdetail{margin-top:8px;display:flex;flex-direction:column;gap:2px}
 /* tabbar */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:5}
@@ -937,7 +939,18 @@ const ROUTINES=[
   {id:"upper",name:"Upper body & shoulders",steps:[["Doorway chest stretch",45,"Forearms on the frame, step through gently."],["Cross-body shoulder, left",30,"Pull your left arm across your chest."],["Cross-body shoulder, right",30,"Switch arms."],["Lat stretch",45,"Hold a post and sit your hips back, arms long."],["Neck side stretch, left",30,"Ear towards shoulder, other shoulder down."],["Neck side stretch, right",30,"Switch sides."],["Wrist stretches",45,"Palms down then palms up, fingers back, arm straight."],["Child's pose reach",45,"Walk your hands to each side to stretch your lats."]]},
   {id:"desk",name:"Desk reset",steps:[["Chin tucks",30,"Glide your head back to make a double chin, hold 2 seconds, repeat."],["Shoulder rolls",30,"Big slow circles backwards."],["Seated twist, left",30,"Sit tall and rotate gently."],["Seated twist, right",30,"Switch sides."],["Standing hip flexor, left",30,"Step back, squeeze your glute, tall posture."],["Standing hip flexor, right",30,"Switch sides."],["Forward fold",30,"Soft knees, let your head hang."],["Slow breathing",60,"In for 4, out for 6."]]},
   {id:"calm",name:"Wind-down breathing",steps:[["Box breathing",120,"In for 4, hold for 4, out for 4, hold for 4."],["Legs up the wall",120,"Lie with your legs resting up a wall. Relax your shoulders."],["Long exhales",60,"In for 4, out for 8."]]}];
-const routineMins=r=>Math.round(r.steps.reduce((a,x)=>a+x[1],0)/60);
+const allRoutines=()=>ROUTINES.concat((settings().routines||[]).map(r=>({...r,own:true})));
+const findRoutine=id=>allRoutines().find(x=>x.id===id);
+function rtBuilder(){const d=S.rtDraft,moves=[...new Set(ROUTINES.flatMap(r=>r.steps.map(x=>cdBase(x[0]))).concat(COOL_IDEAS).filter(n=>demoKey(n)))];
+  return `<div class="stack" style="gap:10px;background:var(--sunk);border-radius:10px;padding:12px">
+    <label class="field"><span class="label">Routine name</span><input id="rtbName" data-act="rtbName" value="${esc(d.name)}" placeholder="e.g. My post-run stretch"></label>
+    ${d.steps.map((x,i)=>`<div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:8px"><div class="rtbrow"><input id="rtbn${i}" list="rtbMoves" data-act="rtbStep" data-k="0" data-i="${i}" value="${esc(x[0])}" placeholder="Move, e.g. Pigeon pose" aria-label="Move ${i+1}">
+      <input id="rtbs${i}" type="number" min="5" step="5" inputmode="numeric" data-act="rtbStep" data-k="1" data-i="${i}" value="${x[1]}" aria-label="Move ${i+1} seconds"><span class="small muted">sec</span><button class="x" data-act="rtbDel" data-i="${i}" aria-label="Remove move">×</button></div>
+      <input id="rtbt${i}" data-act="rtbStep" data-k="2" data-i="${i}" value="${esc(x[2])}" placeholder="How to do it (optional)" aria-label="Move ${i+1} how-to"></div>`).join("")}
+    <datalist id="rtbMoves">${moves.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+    <div class="row"><button class="btn" data-act="rtbAdd">+ Add move</button><button class="btn primary" data-act="rtbSave">Save routine</button><button class="btn ghost" data-act="rtbCancel">Cancel</button></div>
+    <span class="small muted">Pick moves from the list to get an animated demo while the timer runs. Add ", left" or ", right" for one side.</span></div>`}
+const routineMins=r=>Math.max(1,Math.round(r.steps.reduce((a,x)=>a+(+x[1]||0),0)/60));
 function readinessForm(r){return `<div class="grid2"><label class="field"><span class="label">Hours slept</span><input id="rd_sleepH" type="number" inputmode="decimal" step="any" value="${esc(r.sleepH??"")}" data-act="rdF" data-k="sleepH" placeholder="e.g. 7.5"></label><span></span></div>
   ${RQ.map(([k,l,lo,hi])=>`<div class="field"><span class="label">${l}</span><div class="scale" role="group" aria-label="${l}">${[1,2,3,4,5].map(n=>`<button data-act="rdS" data-k="${k}" data-n="${n}" aria-pressed="${r[k]===n}">${n}</button>`).join("")}</div><div class="anchors"><span>1 · ${lo}</span><span>${hi} · 5</span></div></div>`).join("")}
   <div class="hq"><span class="small"><b>Any pain?</b> Not normal training soreness, but pain that worries you.</span><div class="yn">${["no","yes"].map(v=>`<button data-act="rdPain" data-v="${v}" aria-pressed="${(r.pain?"yes":r.pain===false?"no":"")===v}">${v==="yes"?"Yes":"No"}</button>`).join("")}</div></div>
@@ -996,24 +1009,24 @@ function renderRecover(){const today=todayKey(),r=S.docs["ready_"+today],editing
   <section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">this week: ${wk.length} · ${wk.reduce((a,x)=>a+(+x.mins||0),0)} min</span></div>
     <div class="chiprow">${REC_ACTS.map(([a,m])=>`<button class="qchip" data-act="recLog" data-v="${a}" data-m="${m}">+ ${a}${m?` <span class="muted">${m}m</span>`:""}</button>`).join("")}</div>
     <div class="hist">${recs.slice(0,8).map(x=>`<div class="item spread"><span class="small"><b>${esc(x.activity)}</b>${+x.mins?` · ${x.mins} min`:""}<span class="muted"> · ${fmtDay(x.date)}</span></span><button class="x" data-act="recDel" data-id="${x.id}" aria-label="Delete">×</button></div>`).join("")||'<p class="small muted" style="margin:0">Tap an activity to log it. Recovery counts as training too.</p>'}</div></section>
-  <section class="panel"><h2>Guided routines</h2><div class="hist">${ROUTINES.map(rt=>`<div class="item"><div class="spread"><span><b>${rt.name}</b><span class="small muted" style="display:block">${routineMins(rt)} min · ${rt.steps.length} moves</span></span><span class="row" style="gap:4px;flex-wrap:nowrap;flex:none"><button class="btn ghost" data-act="rtPeek" data-id="${rt.id}" aria-expanded="${S.rtPeek===rt.id}">${S.rtPeek===rt.id?"Hide":"See moves"}</button><button class="btn primary" data-act="rtStart" data-id="${rt.id}">Start</button></span></div>
-      ${S.rtPeek===rt.id?`<div class="stack" style="gap:8px;margin-top:10px">${rt.steps.filter((x,i,a)=>a.findIndex(y=>y[0].replace(/, (left|right)$/,"")===x[0].replace(/, (left|right)$/,""))===i).map(x=>{const nm=x[0].replace(/, (left|right)$/,"");return `<div class="demo-mini">${demoSVG(nm,84)||`<div style="width:84px;height:84px" class="demo"></div>`}<div><b>${esc(nm)}</b><div class="small muted">${esc(x[2])}</div>${demoKey(nm)&&!/^breath/.test(demoKey(nm))?`<a class="vidlink" href="${videoLink(nm)}" target="_blank" rel="noopener">▶ Video</a>`:""}</div></div>`}).join("")}</div>`:""}</div>`).join("")}</div>
+  <section class="panel"><div class="spread"><h2>Guided routines</h2>${S.rtDraft?"":`<button class="btn ghost" data-act="rtbNew">+ Create your own</button>`}</div>${S.rtDraft?rtBuilder():""}<div class="hist">${allRoutines().map(rt=>`<div class="item"><div class="spread"><span><b>${esc(rt.name)}</b>${rt.own?` <span class="kbadge">Yours</span>`:""}<span class="small muted" style="display:block">${routineMins(rt)} min · ${rt.steps.length} moves</span></span><span class="row" style="gap:4px;flex-wrap:nowrap;flex:none"><button class="btn ghost" data-act="rtPeek" data-id="${rt.id}" aria-expanded="${S.rtPeek===rt.id}">${S.rtPeek===rt.id?"Hide":"See moves"}</button><button class="btn primary" data-act="rtStart" data-id="${rt.id}">Start</button></span></div>${rt.own?`<div class="row" style="gap:4px"><button class="btn ghost" data-act="rtbEdit" data-id="${rt.id}">Edit</button><button class="btn ghost" data-act="rtbRemove" data-id="${rt.id}">Delete</button></div>`:""}
+      ${S.rtPeek===rt.id?`<div class="stack" style="gap:8px;margin-top:10px">${rt.steps.filter((x,i,a)=>a.findIndex(y=>y[0].replace(/, (left|right)$/,"")===x[0].replace(/, (left|right)$/,""))===i).map(x=>{const nm=x[0].replace(/, (left|right)$/,"");return `<div class="demo-mini">${demoSVG(nm,84)||`<div style="width:84px;height:84px" class="demo"></div>`}<div><b>${esc(nm)}</b><div class="small muted">${esc(x[2]||(demoKey(nm)?demoTip(nm):""))}</div>${demoKey(nm)&&!/^breath/.test(demoKey(nm))?`<a class="vidlink" href="${videoLink(nm)}" target="_blank" rel="noopener">▶ Video</a>`:""}</div></div>`}).join("")}</div>`:""}</div>`).join("")}</div>
     <span class="small muted">Move gently and never into pain. Each routine logs itself when you finish.</span></section></div>`}
-function routineRunner(){const R=S.routine,rt=ROUTINES.find(x=>x.id===R.id);if(!rt)return"";
-  if(R.done)return `<div class="viewer runner"><div class="vbar"><b>${rt.name}</b><button class="btn" data-act="rtClose">Close</button></div><div class="rtbody"><div class="rtname">Done 🎉</div><p>${routineMins(rt)} minutes logged as recovery.</p></div></div>`;
+function routineRunner(){const R=S.routine,rt=findRoutine(R.id);if(!rt)return"";
+  if(R.done)return `<div class="viewer runner"><div class="vbar"><b>${esc(rt.name)}</b><button class="btn" data-act="rtClose">Close</button></div><div class="rtbody"><div class="rtname">Done 🎉</div><p>${routineMins(rt)} minutes logged as recovery.</p></div></div>`;
   const st=rt.steps[R.i],nx=rt.steps[R.i+1];
-  return `<div class="viewer runner" role="dialog" aria-label="${rt.name}"><div class="vbar"><b>${rt.name}</b><span class="small">${R.i+1} / ${rt.steps.length}</span><button class="btn" data-act="rtClose">Close</button></div>
-    <div class="rtbody">${demoSVG(st[0])?`<div class="demo-wrap">${demoSVG(st[0],210)}</div>`:""}<div class="rtname">${st[0]}</div><p style="margin:0">${st[2]}</p>${demoKey(st[0])&&!/^breath/.test(demoKey(st[0]))?`<a class="vidlink" href="${videoLink(st[0])}" target="_blank" rel="noopener">▶ Watch a video of this</a>`:""}<div class="rtime" id="rtTime">${mmss((R.paused?R.left:(R.end-Date.now()))/1000)}</div><div class="prog"><i id="rtBar" style="width:0%"></i></div>${nx?`<p class="small" style="opacity:.7">Next: ${nx[0]}</p>`:""}</div>
+  return `<div class="viewer runner" role="dialog" aria-label="${esc(rt.name)}"><div class="vbar"><b>${esc(rt.name)}</b><span class="small">${R.i+1} / ${rt.steps.length}</span><button class="btn" data-act="rtClose">Close</button></div>
+    <div class="rtbody">${demoSVG(st[0])?`<div class="demo-wrap">${demoSVG(st[0],210)}</div>`:""}<div class="rtname">${esc(st[0])}</div><p style="margin:0">${esc(st[2]||(demoKey(st[0])?demoTip(st[0]):"Move slowly and breathe. Never push into pain."))}</p>${demoKey(st[0])&&!/^breath/.test(demoKey(st[0]))?`<a class="vidlink" href="${videoLink(st[0])}" target="_blank" rel="noopener">▶ Watch a video of this</a>`:""}<div class="rtime" id="rtTime">${mmss((R.paused?R.left:(R.end-Date.now()))/1000)}</div><div class="prog"><i id="rtBar" style="width:0%"></i></div>${nx?`<p class="small" style="opacity:.7">Next: ${esc(nx[0])}</p>`:""}</div>
     <div class="vbar"><button class="btn" data-act="rtPrev" ${R.i?"":"disabled"}>‹ Back</button><button class="btn" data-act="rtPause">${R.paused?"Resume":"Pause"}</button><button class="btn" data-act="rtNext">Next ›</button></div></div>`}
-function rtGo(i){const R=S.routine,rt=ROUTINES.find(x=>x.id===R.id);if(i>=rt.steps.length){R.done=true;clearInterval(rtGo._i);save("rec_"+Date.now(),{type:"recovery",date:todayKey(),activity:rt.name,mins:routineMins(rt)});if(restCfg().sound)beep();render();return}
+function rtGo(i){const R=S.routine,rt=findRoutine(R.id);if(i>=rt.steps.length){R.done=true;clearInterval(rtGo._i);save("rec_"+Date.now(),{type:"recovery",date:todayKey(),activity:rt.name,mins:routineMins(rt)});if(restCfg().sound)beep();render();return}
   R.i=Math.max(0,i);R.paused=false;R.end=Date.now()+rt.steps[R.i][1]*1000;if(i>0&&restCfg().sound)beep();if(navigator.vibrate)navigator.vibrate(150);render();clearInterval(rtGo._i);rtGo._i=setInterval(rtTick,250)}
-function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=ROUTINES.find(x=>x.id===R.id),left=(R.end-Date.now())/1000;if(left<=0){rtGo(R.i+1);return}
+function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=findRoutine(R.id),left=(R.end-Date.now())/1000;if(left<=0){rtGo(R.i+1);return}
   const t=document.getElementById("rtTime"),b=document.getElementById("rtBar");if(t)t.textContent=mmss(left);if(b)b.style.width=((1-left/rt.steps[R.i][1])*100).toFixed(1)+"%"}
 
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-25-1";
+const APP_VERSION="2026-10-25-2";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1065,7 +1078,7 @@ function quickSheet(){const items=[["food","Log food","Search, scan or quick-add
 /* ---------- Workout mode: full-screen, one exercise at a time ---------- */
 const playerOn=()=>!!(S.draftWorkout&&S.tab==="train"&&!S.woList&&!S.lock&&!S.onboard);
 function wpSteps(dw){const st=[];if((dw.warmup||[]).length)st.push({t:"warmup"});dw.exercises.forEach((e,ei)=>st.push({t:"ex",ei}));if((dw.cooldown||[]).length)st.push({t:"cooldown"});st.push({t:"finish"});return st}
-function wpStart(){const dw=S.draftWorkout;if(!dw)return;S.wpOpen=null;S.wuDemo=null;S.wuAdd=false;S.rampOpen=true;S.wu=null;if(!dw.started)dw.started=Date.now();S.wp={step:0};S.woList=false;S.tab="train";wakeOn()}
+function wpStart(){const dw=S.draftWorkout;if(!dw)return;S.hold=null;S.cdRun=null;S.cdAdd=false;S.wpOpen=null;S.wuDemo=null;S.wuAdd=false;S.rampOpen=true;S.wu=null;if(!dw.started)dw.started=Date.now();S.wp={step:0};S.woList=false;S.tab="train";wakeOn()}
 let wakeLock=null;async function wakeOn(){try{if("wakeLock" in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>{wakeLock=null})}}catch(e){}}
 function wakeOff(){try{wakeLock&&wakeLock.release()}catch(e){}wakeLock=null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&playerOn())wakeOn()});
@@ -1075,6 +1088,11 @@ function wpCurSet(ex){const i=ex.sets.findIndex(x=>!x.done);return S.wp&&S.wp.si
 function wpPrefill(ex,si,mode){const st=ex.sets[si];if(!st)return;const prev=ex.sets[si-1],last=(exHistory(ex.name)[0]||{}).sets||[],ls=last[si]||last[last.length-1]||{};
   if(st.kg===""||st.kg==null)st.kg=prev&&prev.kg!==""?prev.kg:(ls.kg??"");
   if(mode==="time"){if(st.secs===""||st.secs==null)st.secs=prev&&prev.secs?prev.secs:(ls.secs||30)}else if(st.reps===""||st.reps==null)st.reps=prev&&prev.reps!==""?prev.reps:(ls.reps||10)}
+function wpDoneSet(){const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei],si=wpCurSet(ex),st=ex.sets[si];if(!st)return;
+  st.done=true;if(st.kg==="")st.kg=0;S.wp.si=null;if(navigator.vibrate)navigator.vibrate(30);
+  // more sets: rest; last set: move on (rest before the next exercise, straight to cool-down/finish otherwise)
+  const more=ex.sets.some(x=>!x.done),nxt=wpSteps(dw)[S.wp.step+1];
+  if(more)startRest(restFor(dw,ex));else if(nxt&&nxt.t==="ex"){S.wp.step++;startRest(restFor(dw,ex))}render()}
 function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp={step:0};if(S.wp.step>=steps.length)S.wp.step=steps.length-1;const cur=steps[S.wp.step];
   const seg=steps.filter(x=>x.t!=="finish").map((x,i)=>`<i class="${i<S.wp.step?"on":i===S.wp.step?"cur":""}"></i>`).join("");
   const head=`<header class="wp-head"><button class="iconbtn" data-act="wpEnd" aria-label="End workout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -1089,6 +1107,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     <button class="wp-big" data-act="wpGo" data-v="${steps.length-1}">Finish and save</button>
     <button class="btn" style="height:52px" data-act="wpEndNo">Keep going</button>
     <button class="btn ghost" style="color:var(--protein)" data-act="wpDiscard">${S.wpDiscard?"Tap again to discard":"Discard workout"}</button></div></div>`;
+  if(S.hold&&cur.t==="ex"){const ex=dw.exercises[cur.ei],si=wpCurSet(ex);if(si>=0)return holdScreen(dw,head,ex,si);S.hold=null}
   const R=S.rest;
   if(R&&cur.t==="ex"){const left=Math.max(0,(R.end-Date.now())/1000),ex=dw.exercises[cur.ei],si=wpCurSet(ex),nextEx=si<0?dw.exercises[cur.ei+1]:null;
     return `<div class="player">${head}<div class="wp-body wp-rest"><span class="label">${R.fired?"Rest over":"Rest"}</span>
@@ -1097,20 +1116,21 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
       <section class="panel" style="width:100%"><span class="label">Up next</span>${si>=0?`<h2>${esc(ex.name||"Exercise")} · set ${si+1} of ${ex.sets.length}</h2>`:nextEx?`<h2>${esc(nextEx.name||"Next exercise")}</h2>`:`<h2>Cool-down</h2>`}</section></div>
       <button class="wp-big" data-act="restSkip">${si>=0?"Start set "+(si+1)+" now":"Next exercise"}</button></div>`}
   if(cur.t==="warmup"&&S.wu)return warmRun(dw,head);
+  if(cur.t==="cooldown"&&S.cdRun)return coolRun(dw,head);
   if(cur.t==="warmup"||cur.t==="cooldown"){const L=dw[cur.t],title=cur.t==="warmup"?"Warm-up":"Cool-down";
     return `<div class="player">${head}<div class="wp-body"><span class="label">${title}</span><h1>${cur.t==="warmup"?"Get warm":"Wind down"}</h1>
       ${cur.t==="warmup"&&dw.coachNote?`<div class="coachrx"><span class="label">From ${esc(dw.coachName||"your coach")}</span><span>${esc(dw.coachNote)}</span></div>`:""}
       <div class="wp-list">${L.map((it,i)=>{const t=cur.t==="warmup"?warmType(it):null,open=t&&S.wpOpen===i,subs=t&&t!=="cardio"?warmSubs(dw,it):[],nd=subs.filter(x=>(it.sub||[]).includes(x.k)).length;
         const det=t==="cardio"&&it.pick?`${it.pick} · ${it.mins||5} min`:t==="mob"&&(it.sel||[]).length?`${it.sel.length} drill${it.sel.length===1?"":"s"} chosen${nd?" · "+nd+" done":""}`:subs.length?`${it.detail?it.detail+" · ":""}${nd} of ${subs.length} done`:it.detail;
         return `<div class="wp-card"><div class="wp-row"><button class="wp-item" data-act="partDone" data-part="${cur.t}" data-i="${i}" aria-pressed="${!!it.done}"><span class="wp-tick">${it.done?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span><span><b>${esc(it.name)}</b>${det?`<span class="small muted" style="display:block">${esc(det)}</span>`:""}</span></button>
-        ${!t&&demoKey(it.name)?`<button class="wp-more" data-act="wpOpen" data-i="${i}" aria-expanded="${S.wpOpen===i}">${S.wpOpen===i?"Hide ▴":"How to ▾"}</button>`:t?`<button class="wp-more" data-act="wpOpen" data-i="${i}" aria-expanded="${!!open}">${open?"Hide ▴":"Options ▾"}</button>`:it.custom&&cur.t==="warmup"?`<button class="wp-more" data-act="wuDel" data-i="${i}" aria-label="Remove ${esc(it.name)}">×</button>`:""}</div>${open?warmOpts(dw,it,i):!t&&demoKey(it.name)&&S.wpOpen===i?`<div class="wp-opts"><div class="demo-wrap">${demoSVG(it.name,170)}</div><span class="small muted">${esc(demoTip(it.name))}</span><a class="vidlink" href="${videoLink(it.name)}" target="_blank" rel="noopener">▶ Watch a video</a></div>`:""}</div>`}).join("")}
+        ${cur.t==="cooldown"?`<button class="wp-more" data-act="cdOne" data-i="${i}" aria-label="Start ${esc(it.name)} with a timer">▶ Start</button>${it.custom?`<button class="wp-more" data-act="cdDel" data-i="${i}" aria-label="Remove ${esc(it.name)}">×</button>`:""}`:!t&&demoKey(it.name)?`<button class="wp-more" data-act="wpOpen" data-i="${i}" aria-expanded="${S.wpOpen===i}">${S.wpOpen===i?"Hide ▴":"How to ▾"}</button>`:t?`<button class="wp-more" data-act="wpOpen" data-i="${i}" aria-expanded="${!!open}">${open?"Hide ▴":"Options ▾"}</button>`:it.custom&&cur.t==="warmup"?`<button class="wp-more" data-act="wuDel" data-i="${i}" aria-label="Remove ${esc(it.name)}">×</button>`:""}</div>${open?warmOpts(dw,it,i):!t&&demoKey(it.name)&&S.wpOpen===i?`<div class="wp-opts"><div class="demo-wrap">${demoSVG(it.name,170)}</div><span class="small muted">${esc(demoTip(it.name))}</span><a class="vidlink" href="${videoLink(it.name)}" target="_blank" rel="noopener">▶ Watch a video</a></div>`:""}</div>`}).join("")}
         ${cur.t==="warmup"?(S.wuAdd?`<div class="wp-card"><div class="wp-opts" style="padding-top:14px"><span class="label">Add your own warm-up</span>
           <form class="row" id="wuForm" style="flex-wrap:nowrap"><input id="wuNew" placeholder="e.g. Hip airplanes, 5 each side" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>
           <span class="label">Recommended for ${esc(kindName(dw.kind).toLowerCase())}</span><div class="chips">${(WARM_IDEAS_K[dw.kind]||WARM_IDEAS_K.gym).filter(x=>!L.some(it=>it.name===x)).map(x=>`<button class="qchip" data-act="wuIdea" data-v="${esc(x)}">+ ${esc(x)}</button>`).join("")}</div>
-          <button class="btn ghost" style="align-self:flex-start" data-act="wuAddToggle">Done</button></div></div>`:`<button class="btn" style="align-self:flex-start" data-act="wuAddToggle">+ Add your own warm-up</button>`):""}</div></div>
+          <button class="btn ghost" style="align-self:flex-start" data-act="wuAddToggle">Done</button></div></div>`:`<button class="btn" style="align-self:flex-start" data-act="wuAddToggle">+ Add your own warm-up</button>`):coolAdd(dw,L)}</div></div>
       ${cur.t==="warmup"?(()=>{const n=wuStagesFor(dw).length;return n?`<button class="wp-big" data-act="wuStart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg> Start warm-up</button><button class="btn ghost" data-act="wpGo" data-v="${S.wp.step+1}">Skip warm-up, start training ›</button>`
         :`<span class="small muted" style="text-align:center">Tick the warm-ups you want to do and they'll run step by step: a timer for cardio, drills and ramp-up sets one at a time.</span><button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Start training</button>`})()
-      :`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Finish workout</button>`}</div>`}
+      :coolBottom(dw,L)}</div>`}
   if(cur.t==="finish"){const done=dw.exercises.map(e=>({...e,sets:e.sets.filter(x=>x.done)})).filter(e=>e.sets.length),sets=done.reduce((a,e)=>a+e.sets.length,0),vol=done.reduce((a,e)=>a+e.sets.reduce((b,x)=>b+(+x.kg||0)*(+x.reps||0),0),0),prs=findPRs({exercises:done}),typed=sets?0:dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>exMode(e.name,e.mode)==="time"?+x.secs>0:x.reps!==""&&x.reps!=null&&+x.reps>0).length,0);
     return `<div class="player">${head}<div class="wp-body"><span class="label">Workout complete</span><h1>Nice work</h1>
       ${sumTiles({kind:dw.kind,mins:dw.started?Math.max(1,Math.round((Date.now()-dw.started)/60000)):0,exercises:done,warmup:dw.warmup,cooldown:dw.cooldown},prs)}${kcalNote()}
@@ -1132,12 +1152,14 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     <div class="wp-sets">${ex.sets.map((x,i)=>`<button class="wp-chip${x.done?" done":""}${i===si?" cur":""}" data-act="wpSet" data-i="${i}">${x.done?fmtSet(x):"Set "+(i+1)}</button>`).join("")}<button class="wp-chip add" data-act="wpAddSet" aria-label="Add a set">+</button></div>
     ${st?`<div class="wp-step"><button data-act="wpAdj" data-f="kg" data-d="-${kgStep}" aria-label="Less weight">−</button><div><input class="wp-num" type="number" inputmode="decimal" step="any" min="0" data-act="wpType" data-f="kg" value="${fmtN(+st.kg||0)}" aria-label="${bw?"Added kg":"Weight in kg"}, tap to type"><span>${bw?"+kg":"kg"} · tap to type</span></div><button data-act="wpAdj" data-f="kg" data-d="${kgStep}" aria-label="More weight">+</button></div>
       <div class="wp-step"><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?-5:-1}" aria-label="Less">−</button><div><input class="wp-num" type="number" inputmode="numeric" step="1" min="0" data-act="wpType" data-f="${mode==="time"?"secs":"reps"}" value="${mode==="time"?st.secs:st.reps}" aria-label="${mode==="time"?"Seconds":"Reps"}, tap to type"><span>${mode==="time"?"seconds":"reps"}</span></div><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?5:1}" aria-label="More">+</button></div>
-      <div class="wp-rir"><span class="small muted">Reps left<br>in tank</span>${[0,1,2,3,4].map(n=>`<button data-act="wpRir" data-n="${n}" aria-pressed="${String(st.rir)===String(n)}">${n===4?"4+":n}</button>`).join("")}</div>`
+      <div class="wp-rir"><span class="small muted">Reps left<br>in tank</span>${[0,1,2,3,4].map(n=>`<button data-act="wpRir" data-n="${n}" aria-pressed="${String(st.rir)===String(n)}">${n===4?"4+":n}</button>`).join("")}</div>
+      <div class="wp-restrow"><span class="small muted">Rest after each set</span><button data-act="wpRest" data-d="-15" aria-label="15 seconds less rest">−</button><b>${mmss(restFor(dw,ex))}</b><button data-act="wpRest" data-d="15" aria-label="15 seconds more rest">+</button></div>`
       :`<section class="panel"><b>${esc(ex.name||"Exercise")} done: ${ex.sets.filter(x=>x.done).length} set${ex.sets.filter(x=>x.done).length===1?"":"s"}.</b><span class="small muted">${isLastEx?"Keep going with another exercise, add a set, or move on to your wind-down when you're ready.":"Add another set, or move on to the next exercise."}</span>
         <div class="row"><button class="btn" data-act="wpAddSet">+ Add a set</button></div></section>`}
     ${st&&ex.name&&si===0&&!ex.rampDone&&!ex.sets.some(x=>x.done)&&exMode(ex.name,ex.mode)!=="time"?rampPanel(dw,ex):""}
     <div class="spread small muted"><button class="btn ghost" data-act="wpGo" data-v="${Math.max(0,S.wp.step-1)}" ${S.wp.step?"":"disabled"}>‹ Back</button><span>${dw.exercises[cur.ei+1]?"Next: "+esc(dw.exercises[cur.ei+1].name||"exercise"):"Next: "+((dw.cooldown||[]).length?"cool-down":"finish")}</span><button class="btn ghost" data-act="wpGo" data-v="${S.wp.step+1}">Skip ›</button></div></div>
-    ${st?`<button class="wp-big" data-act="wpDone" ${ex.name?"":"disabled"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> Done set ${si+1}</button>`:isLastEx?`<button class="wp-big" data-act="wpAddEx">+ Add another exercise</button><button class="btn" style="height:52px" data-act="wpGo" data-v="${S.wp.step+1}">${(dw.cooldown||[]).length?"Finish exercises: wind down ›":"Finish workout ›"}</button>`:`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Next exercise ›</button>`}</div>`}
+    ${st&&mode==="time"?`<button class="wp-big" data-act="wpHold" ${ex.name&&+st.secs>0?"":"disabled"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg> Start ${+st.secs||0}s hold</button><button class="btn ghost" data-act="wpDone" ${ex.name?"":"disabled"}>Log set ${si+1} without the timer</button>`
+    :st?`<button class="wp-big" data-act="wpDone" ${ex.name?"":"disabled"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> Done set ${si+1}</button>`:isLastEx?`<button class="wp-big" data-act="wpAddEx">+ Add another exercise</button><button class="btn" style="height:52px" data-act="wpGo" data-v="${S.wp.step+1}">${(dw.cooldown||[]).length?"Finish exercises: wind down ›":"Finish workout ›"}</button>`:`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Next exercise ›</button>`}</div>`}
 /* guided warm-up: runs the ticked items in order (cardio timer, mobility drills, ramp-up sets) then starts training */
 const wuSel=it=>!!(it.done||it.pick||(it.sel&&it.sel.length));
 function wuStagesFor(dw){const out=[];(dw.warmup||[]).forEach((it,i)=>{if(!wuSel(it))return;const t=warmType(it);
@@ -1780,6 +1802,69 @@ function setReminders(){const R=remCfg(),perm="Notification" in window?Notificat
     <span class="small muted">You only get a reminder when it's needed: nothing logged yet, check not done, or the session not started. One per day each. If you leave a workout running, the app also asks when you come back whether to save it at the time you stopped.</span></section>`}
 const REST_DEF={secs:90,sound:true,vibrate:true,notify:false};
 const restCfg=()=>({...REST_DEF,...(settings().rest||{})});
+// rest between sets: the exercise's own setting, else a default for the training style (gym uses the Settings value)
+const REST_KIND={bodyweight:60,functional:60,calisthenics:90};
+const restFor=(dw,ex)=>+(ex&&ex.rest)||(dw&&REST_KIND[dw.kind])||restCfg().secs;
+
+/* ---------- timed holds: count the hold down, then log the set and rest ---------- */
+function holdTick(){const H=S.hold;if(!H||!playerOn())return;const left=(H.end-Date.now())/1000;
+  if(left<=0){S.hold=null;clearInterval(holdTick._i);const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate([300,150,300]);wpDoneSet();return}
+  const t=document.getElementById("wpHoldT"),r=document.getElementById("wpHoldRing");if(t)t.textContent=mmss(left);if(r)r.style.setProperty("--p",Math.min(100,(1-left/H.total)*100).toFixed(1))}
+function holdScreen(dw,head,ex,si){const H=S.hold,left=Math.max(0,(H.end-Date.now())/1000);
+  return `<div class="player">${head}<div class="wp-body wp-rest"><span class="label">Hold · set ${si+1} of ${ex.sets.length}</span><h2>${esc(ex.name)}</h2>
+    ${anyDemoKey(ex.name)?`<div class="demo-wrap">${demoSVG(ex.name,120)}</div>`:""}
+    <div class="wp-ring" id="wpHoldRing" style="--p:${Math.min(100,(1-left/H.total)*100).toFixed(1)}"><div><b id="wpHoldT">${mmss(left)}</b><span>of ${mmss(H.total)}</span></div></div>
+    <span class="small muted">Keep breathing. The set logs itself when the timer ends.</span>
+    <div class="row" style="justify-content:center"><button class="btn" data-act="holdCancel">Cancel</button></div></div>
+    <button class="wp-big" data-act="holdStop">Stop now and log it</button></div>`}
+
+/* ---------- cool-down runner: each stretch with a timer and demo ---------- */
+const COOL_FOR={Chest:"Chest stretch",Back:"Lat stretch",Shoulders:"Cross-body shoulder",Triceps:"Cross-body shoulder",Biceps:"Chest stretch",Quads:"Quad stretch","Hamstrings & glutes":"Hamstring stretch",Glutes:"Pigeon stretch",Calves:"Calf stretch",Core:"Cat-cow"};
+const COOL_IDEAS_K={gym:["Chest stretch","Lat stretch","Quad stretch","Hamstring stretch","Hip flexor stretch","Pigeon stretch","Cross-body shoulder","Child's pose","Box breathing"],
+  bodyweight:["Hamstring stretch","Quad stretch","Hip flexor stretch","Chest stretch","Calf stretch","Cat-cow","Child's pose","Slow breathing"],
+  functional:["Hip flexor stretch","Pigeon stretch","Hamstring stretch","Lat stretch","Thread the needle","Child's pose","Box breathing"],
+  calisthenics:["Wrist stretches","Lat stretch","Chest stretch","Cross-body shoulder","Thread the needle","Cat-cow","Child's pose","Box breathing"]};
+const coolDef=n=>/breath/i.test(n)?"1 min":"30 s";
+// "3–5 min" → 180, "30 s each" → 30; no time given → 1 minute
+function cdSecs(t){const m=String(t||"").match(/(\d+(?:\.\d+)?)\s*(?:[–-]\s*\d+\s*)?(minutes?|mins?|m\b|seconds?|secs?|s\b)/i);return m?Math.max(5,Math.round(+m[1]*(/^m/i.test(m[2])?60:1))):60}
+const cdBase=n=>String(n).replace(/, (left|right)$/i,"");
+const cdDemo=n=>{const k=demoKey(cdBase(n));return k&&!/^ex:/.test(k)?k:null};
+function coolStages(dw,only){const out=[];(dw.cooldown||[]).forEach((it,i)=>{if(only!=null?i!==only:it.done)return;
+  const secs=cdSecs(it.detail),sides=/each side|per side/i.test(it.detail||"");let names=[it.name];
+  if(/muscles you trained/i.test(it.name)){const g=[...new Set(dw.exercises.map(e=>LIB_GROUP[exKey(e.name)]).filter(Boolean))];names=[...new Set(g.map(x=>COOL_FOR[x]).filter(Boolean))];if(!names.length)names=["Hamstring stretch","Quad stretch","Chest stretch"]}
+  else{const parts=it.name.split(/,\s*|\s+and\s+/).map(x=>x.trim()).filter(Boolean);if(parts.length>1){const fixed=parts.map(x=>!/stretch/i.test(x)&&demoKey(x+" stretch")?x+" stretch":demoKey(x)?x:null);if(fixed.every(Boolean))names=fixed.map(x=>x[0].toUpperCase()+x.slice(1))}}
+  names.forEach(n=>(sides?[n+", left",n+", right"]:[n]).forEach(name=>out.push({i,name,secs})))});return out}
+function cdBegin(only){const dw=S.draftWorkout,st=coolStages(dw,only);if(!st.length){toast("All done. Tap Finish workout");return}
+  unlockAudio();stopRestQuiet();S.cdRun={stages:st,idx:0,end:Date.now()+st[0].secs*1000,total:st[0].secs,left:null};wakeOn();render();window.scrollTo(0,0)}
+function cdAdvance(){const C=S.cdRun,dw=S.draftWorkout,cur=C.stages[C.idx],nx=C.stages[C.idx+1];
+  if(!nx||nx.i!==cur.i){const it=dw.cooldown[cur.i];if(it)it.done=true}
+  C.idx++;if(C.idx>=C.stages.length){S.cdRun=null;toast("Cool-down done. Nice work");render();window.scrollTo(0,0);return}
+  C.left=null;C.total=C.stages[C.idx].secs;C.end=Date.now()+C.total*1000;render();window.scrollTo(0,0)}
+setInterval(()=>{const C=S.cdRun;if(!C||!playerOn()||C.left!=null)return;const left=(C.end-Date.now())/1000;
+  if(left<=0){const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate(200);cdAdvance();return}
+  const t=document.getElementById("cdClock"),r=document.getElementById("cdRing");if(t)t.textContent=mmss(left);if(r)r.style.setProperty("--p",Math.min(100,(1-left/C.total)*100).toFixed(1))},250);
+function coolRun(dw,head){const C=S.cdRun,st=C.stages[C.idx],it=dw.cooldown[st.i]||{},base=cdBase(st.name),dk=cdDemo(st.name),left=C.left!=null?C.left:(C.end-Date.now())/1000,nx=C.stages[C.idx+1];
+  return `<div class="player">${head}<div class="wp-body"><span class="label">Cool-down ${C.idx+1} of ${C.stages.length}</span>
+    ${C.stages.length>1?`<div class="wp-seg">${C.stages.map((_,k)=>`<i class="${k<C.idx?"on":k===C.idx?"cur":""}"></i>`).join("")}</div>`:""}
+    ${dk?`<div class="demo-wrap">${demoSVG(base,160)}</div>`:""}
+    <h1 class="wp-ex">${esc(st.name)}</h1>
+    <span class="small">${esc(dk?demoTip(base):(it.detail&&!/^\d/.test(it.detail)?it.detail:/walk|cycle|bike|row|jog|march/i.test(base)?"Keep it easy: you should be able to chat. Let your breathing and heart rate settle.":"Ease in slowly, breathe out as you go deeper, and never push into pain."))}</span>
+    ${/^breath/.test(dk||"")?"":`<a class="vidlink" href="${videoLink(base)}" target="_blank" rel="noopener">▶ ${dk?"Watch a video of this":"Find a video of this"}</a>`}
+    <div class="wp-ring" id="cdRing" style="--p:${Math.min(100,Math.max(0,(1-left/C.total)*100)).toFixed(1)}"><div><b id="cdClock">${mmss(left)}</b><span>${C.left!=null?"paused":"of "+mmss(C.total)}</span></div></div>
+    <div class="row" style="justify-content:center"><button class="btn" data-act="cdPause">${C.left!=null?"Resume":"Pause"}</button><button class="btn" data-act="cdPlus" data-d="-15">−15s</button><button class="btn" data-act="cdPlus" data-d="15">+15s</button></div>
+    ${nx?`<span class="small muted" style="text-align:center">Next: ${esc(nx.name)} · ${mmss(nx.secs)}</span>`:""}</div>
+    <button class="wp-big" data-act="cdNext">${nx?"Next ›":"Done"}</button><button class="btn ghost" data-act="cdExit">Cool-down list</button></div>`}
+function coolAdd(dw,L){const mine=(settings().myCool||[]).filter(x=>!L.some(it=>it.name===x[0])),ideas=(COOL_IDEAS_K[dw.kind]||COOL_IDEAS_K.gym).filter(x=>!L.some(it=>it.name===x)&&!mine.some(m=>m[0]===x));
+  return S.cdAdd?`<div class="wp-card"><div class="wp-opts" style="padding-top:14px"><span class="label">Add your own cool-down</span>
+    <form class="row" id="cdForm" style="flex-wrap:nowrap"><input id="cdNew" placeholder="e.g. Pigeon stretch, 1 min" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>
+    <span class="small muted">Put a time after a comma to set the timer, e.g. "2 min" or "45 s". Without one it runs for a minute. Add "each side" to time both sides.</span>
+    ${mine.length?`<span class="label">Your cool-downs</span><div class="chips">${mine.map(([n,d])=>`<button class="qchip" data-act="cdIdea" data-v="${esc(n)}" data-d="${esc(d)}">+ ${esc(n)}</button>`).join("")}</div>`:""}
+    <span class="label">Ideas for ${esc(kindName(dw.kind).toLowerCase())}</span><div class="chips">${ideas.map(x=>`<button class="qchip" data-act="cdIdea" data-v="${esc(x)}" data-d="${coolDef(x)}">+ ${esc(x)}</button>`).join("")}</div>
+    <button class="btn ghost" style="align-self:flex-start" data-act="cdAddToggle">Done</button></div></div>`
+  :`<button class="btn" style="align-self:flex-start" data-act="cdAddToggle">+ Add your own cool-down</button>`}
+function coolBottom(dw,L){return L.some(x=>!x.done)?`<button class="wp-big" data-act="cdRun"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg> Start cool-down</button>
+  <span class="small muted" style="text-align:center">Each one runs with a timer and a demo. Tap ▶ on a single one to do just that.</span><button class="btn ghost" data-act="wpGo" data-v="${S.wp.step+1}">Skip, finish workout ›</button>`
+  :`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Finish workout</button>`}
 let actx=null;
 function unlockAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume()}catch(e){}}
 function beep(){if(!actx)return;try{[0,0.32,0.64].forEach(t=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=t>0.6?1175:880;o.connect(g);g.connect(actx.destination);
@@ -2828,6 +2913,16 @@ document.addEventListener("click",e=>{
     case "recLog":{const id="rec_"+Date.now();save(id,{type:"recovery",date:todayKey(),activity:ds.v,mins:+ds.m});toast(ds.v+" logged",{undo:()=>restoreDoc(id,null)});break}
     case "recDel":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "rtPeek":S.rtPeek=S.rtPeek===ds.id?null:ds.id;render();break;
+    case "rtbNew":S.rtDraft={name:"",steps:[["",30,""]]};render();setTimeout(()=>document.getElementById("rtbName")?.focus(),50);break;
+    case "rtbEdit":{const r=findRoutine(ds.id);if(!r)break;S.rtDraft={id:r.id,name:r.name,steps:r.steps.map(x=>[...x])};render();break}
+    case "rtbRemove":{const st=clone(settings());st.routines=(st.routines||[]).filter(r=>r.id!==ds.id);save("settings",st);toast("Routine deleted");break}
+    case "rtbAdd":S.rtDraft.steps.push(["",30,""]);render();document.getElementById("rtbn"+(S.rtDraft.steps.length-1))?.focus();break;
+    case "rtbDel":S.rtDraft.steps.splice(+ds.i,1);render();break;
+    case "rtbCancel":S.rtDraft=null;render();break;
+    case "rtbSave":{const d=S.rtDraft,name=d.name.trim(),steps=d.steps.map(x=>[String(x[0]).trim(),Math.round(+x[1]||0),String(x[2]||"").trim()]).filter(x=>x[0]&&x[1]>0);
+      if(!name){toast("Give your routine a name");document.getElementById("rtbName")?.focus();break}if(!steps.length){toast("Add at least one move with a time");break}
+      const st=clone(settings()),L=st.routines||[],r={id:d.id||"my"+Date.now(),name,steps},at=L.findIndex(x=>x.id===d.id);if(at>=0)L[at]=r;else L.push(r);st.routines=L;
+      S.rtDraft=null;save("settings",st);toast("Routine saved");break}
     case "rtStart":unlockAudio();S.routine={id:ds.id,i:0};rtGo(0);break;
     case "rtNext":rtGo(S.routine.i+1);break;
     case "rtPrev":rtGo(S.routine.i-1);break;
@@ -2847,7 +2942,7 @@ document.addEventListener("click",e=>{
     case "goCardio":S.tab="train";S.trainView="cardio";render();window.scrollTo(0,0);break;
     case "habitTap":{const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=!x.habits[ds.h];save("day_"+S.day,x);if(x.habits[ds.h]&&navigator.vibrate)navigator.vibrate(20);break}
     case "openSettings":S.tab="settings";S.setPage=null;render();window.scrollTo(0,0);break;
-    case "wpGo":S.wu=null;S.wpRename=null;S.pick=null;S.wpOpen=null;S.demoOpen=null;S.wp.step=Math.max(0,+ds.v);S.wp.si=null;S.wpEnd=false;stopRest();render();window.scrollTo(0,0);break;
+    case "wpGo":S.wu=null;S.cdRun=null;S.cdAdd=false;S.hold=null;clearInterval(holdTick._i);S.wpRename=null;S.pick=null;S.wpOpen=null;S.demoOpen=null;S.wp.step=Math.max(0,+ds.v);S.wp.si=null;S.wpEnd=false;stopRest();render();window.scrollTo(0,0);break;
     case "wpList":S.woList=true;render();window.scrollTo(0,0);break;
     case "wpBack":S.woList=false;if(!S.wp)S.wp={step:0};render();break;
     case "wpEnd":S.wpEnd=true;S.wpDiscard=false;render();break;
@@ -2859,11 +2954,21 @@ document.addEventListener("click",e=>{
       // later sets that matched this one follow the change, so you don't adjust every set
       ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});if(navigator.vibrate)navigator.vibrate(8);render();break}
     case "wpRir":{const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=S.draftWorkout.exercises[cur.ei],st=ex.sets[wpCurSet(ex)];if(st){st.rir=String(st.rir)===ds.n?"":+ds.n;render()}break}
-    case "wpDone":{const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei],si=wpCurSet(ex),st=ex.sets[si];if(!st)break;
-      st.done=true;if(st.kg==="")st.kg=0;S.wp.si=null;if(navigator.vibrate)navigator.vibrate(30);
-      // more sets: rest; last set: move on (rest before the next exercise, straight to cool-down/finish otherwise)
-      const more=ex.sets.some(x=>!x.done),nxt=wpSteps(dw)[S.wp.step+1];
-      if(more)startRest();else if(nxt&&nxt.t==="ex"){S.wp.step++;startRest()}render();break}
+    case "wpDone":wpDoneSet();break;
+    case "wpRest":{const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=cur&&dw.exercises[cur.ei];if(!ex)break;ex.rest=Math.min(600,Math.max(15,restFor(dw,ex)+(+ds.d)));render();break}
+    case "wpHold":{const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei],st=ex.sets[wpCurSet(ex)];if(!st||!(+st.secs>0))break;unlockAudio();stopRestQuiet();
+      S.hold={end:Date.now()+st.secs*1000,total:+st.secs,start:Date.now()};clearInterval(holdTick._i);holdTick._i=setInterval(holdTick,250);render();break}
+    case "holdStop":{const H=S.hold;if(!H)break;const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei],st=ex.sets[wpCurSet(ex)];if(st)st.secs=Math.max(1,Math.round((Date.now()-H.start)/1000));S.hold=null;clearInterval(holdTick._i);wpDoneSet();break}
+    case "holdCancel":S.hold=null;clearInterval(holdTick._i);render();break;
+    case "cdRun":cdBegin();break;
+    case "cdOne":cdBegin(+ds.i);break;
+    case "cdNext":cdAdvance();break;
+    case "cdExit":S.cdRun=null;render();window.scrollTo(0,0);break;
+    case "cdPause":{const C=S.cdRun;if(!C)break;if(C.left==null)C.left=Math.max(0,(C.end-Date.now())/1000);else{C.end=Date.now()+C.left*1000;C.left=null}render();break}
+    case "cdPlus":{const C=S.cdRun;if(!C)break;const d=+ds.d;if(C.left!=null)C.left=Math.max(1,C.left+d);else C.end=Math.max(Date.now()+1000,C.end+d*1000);C.total=Math.max(5,C.total+d);render();break}
+    case "cdAddToggle":S.cdAdd=!S.cdAdd;render();if(S.cdAdd)setTimeout(()=>document.getElementById("cdNew")?.focus(),50);break;
+    case "cdIdea":S.draftWorkout.cooldown.push({name:ds.v,detail:ds.d||"",done:false,custom:true});S.draftWorkout._auto=false;render();break;
+    case "cdDel":S.draftWorkout.cooldown.splice(+ds.i,1);render();break;
     case "trainView":S.trainView=ds.v;render();break;
     case "woAll":S.woAll=!S.woAll;render();break;
     case "cAct":S.cDraft.activity=ds.v;render();break;
@@ -2878,14 +2983,14 @@ document.addEventListener("click",e=>{
     case "addEx":S.draftWorkout.exercises.push({name:"",sets:[{kg:"",reps:""}]});render();break;
     case "delEx":S.draftWorkout.exercises.splice(+ds.ei,1);render();break;
     case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??"",secs:last.secs??""});render();break}
-    case "setDone":{const st=S.draftWorkout.exercises[+ds.ei].sets[+ds.si];st.done=!st.done;render();if(st.done)startRest();break}
+    case "setDone":{const ex=S.draftWorkout.exercises[+ds.ei],st=ex.sets[+ds.si];st.done=!st.done;render();if(st.done)startRest(restFor(S.draftWorkout,ex));break}
     case "restAdj":if(S.rest&&!S.rest.fired){S.rest.end+=(+ds.d)*1000;S.rest.total=Math.max(5,S.rest.total+(+ds.d));if(S.rest.end<Date.now())S.rest.end=Date.now();tickRest()}break;
     case "restSkip":stopRest();break;
     case "restDef":case "restSet":{const st=clone(settings());const c={...REST_DEF,...(st.rest||{})};c.secs=a==="restSet"?+ds.v:Math.min(600,Math.max(15,c.secs+(+ds.d)));st.rest=c;save("settings",st);break}
     case "restTest":unlockAudio();startRest(3);break;
     case "delSet":S.draftWorkout.exercises[+ds.ei].sets.splice(+ds.si,1);render();break;
     case "saveWo":{const w=S.draftWorkout;if(w&&w.started&&w.exercises.some(e=>e.sets.some(x=>x.done)))w.exercises.forEach(e=>{e.sets=e.sets.filter(x=>x.done)});
-      w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";return o}).filter(e=>e.sets.length);
+      w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";if(+e.rest)o.rest=+e.rest;return o}).filter(e=>e.sets.length);
       ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:x.sel&&x.sel.length?x.sel.map(n=>n.split(",")[0]+" × "+drillTarget(x,n)).join(", "):(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
       if(!w.exercises.length&&!w.warmup.some(x=>x.done)&&!w.cooldown.some(x=>x.done)){toast("Nothing to save yet. Log a set, or tick off your warm-up");break}
       if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
@@ -2962,6 +3067,8 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
   if(ds.act==="obT"){S.onboard.d.targets[ds.k]=t.value;if(ds.k==="kcal"){const w=document.getElementById("obWarn");if(w)w.innerHTML=lowKcalWarn(t.value,S.onboard.d.sex)}}
   if(ds.act==="exFilter"){S.exFilter=t.value;render()}
+  if(ds.act==="rtbName"&&S.rtDraft)S.rtDraft.name=t.value;
+  if(ds.act==="rtbStep"&&S.rtDraft)S.rtDraft.steps[+ds.i][+ds.k]=t.value;
   if(ds.act==="amtQty"||ds.act==="amtG"){const f=dayDoc(S.day).foods[S.editFood];if(!f||!f.base)return;
     const qty=ds.act==="amtG"?(f.unit==="g"?+t.value:+t.value/f.unitG):+t.value;if(!(qty>=0))return;
     if(ds.act==="amtQty"&&f.unitG){const g=document.getElementById("ef_g");if(g)g.value=Math.round(qty*f.unitG)}
@@ -3010,6 +3117,10 @@ document.addEventListener("submit",e=>{e.preventDefault();
     if(S.editHabits.some(h=>h.name.trim().toLowerCase()===v.toLowerCase())){toast("That habit's already on the list");return}
     S.editHabits.push({name:v,old:null});render();document.getElementById("habNew")?.focus();return}
   if(e.target.id==="wpPickForm"){const v=(document.getElementById("wpPickQ").value||"").trim();if(v){const first=document.querySelector("#pickList .pick-row");wpSetExercise(first&&exKey(first.dataset.v)===exKey(v)?first.dataset.v:(first&&!first.classList.contains("add")?first.dataset.v:v))}return}
+  if(e.target.id==="cdForm"){const v=document.getElementById("cdNew").value.trim();if(v&&S.draftWorkout){const m=v.match(/^(.*?)[,·-]\s*(.+)$/),name=(m?m[1]:v).trim(),detail=m?m[2].trim():"";
+    S.draftWorkout.cooldown.push({name,detail,done:false,custom:true});S.draftWorkout._auto=false;
+    const st=clone(settings());st.myCool=[[name,detail],...(st.myCool||[]).filter(x=>x[0].toLowerCase()!==name.toLowerCase())].slice(0,12);save("settings",st);
+    setTimeout(()=>document.getElementById("cdNew")?.focus(),50)}}
   if(e.target.id==="wuForm"){const v=document.getElementById("wuNew").value.trim();if(v&&S.draftWorkout){const m=v.match(/^(.*?)[,·-]\s*(.+)$/);S.draftWorkout.warmup.push({name:(m?m[1]:v).trim(),detail:m?m[2].trim():"",done:false,custom:true});S.draftWorkout._auto=false;render();setTimeout(()=>document.getElementById("wuNew")?.focus(),50)}}
   if(e.target.id==="searchForm"){const q=document.getElementById("q").value.trim();if(q){S.meal=/^\d{8,14}$/.test(q.replace(/\s/g,""))?null:estimateMeal(q);runSearch(q)}}
   if(e.target.id==="bodyForm"){const date=document.getElementById("bDate").value||todayKey();const x={type:"body",date};let any=false;
