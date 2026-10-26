@@ -41,7 +41,7 @@ section.panel{background:var(--surface);border:1px solid transparent;border-radi
 .stack{display:flex;flex-direction:column;gap:14px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .spread{display:flex;justify-content:space-between;align-items:center;gap:8px}
-button{font:inherit;color:inherit;cursor:pointer}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 14px;font-weight:700;font-size:14px}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .btn.ghost{background:transparent;border-color:transparent;color:var(--accent);padding:6px 8px}
@@ -1026,7 +1026,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-25-2";
+const APP_VERSION="2026-10-26-1";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1872,7 +1872,7 @@ function beep(){if(!actx)return;try{[0,0.32,0.64].forEach(t=>{const o=actx.creat
 async function notifyRestOver(){const c=restCfg();if(!c.notify||!("Notification" in window)||Notification.permission!=="granted")return;
   const opt={body:"Time for your next set.",tag:"rest",renotify:true,icon:"icon-192.png",badge:"icon-192.png",vibrate:[300,150,300]};
   try{if(navigator.serviceWorker&&navigator.serviceWorker.controller){const r=await navigator.serviceWorker.ready;return r.showNotification("Rest over 💪",opt)}new Notification("Rest over 💪",opt)}catch(e){}}
-function startRest(secs){const c=restCfg();secs=secs||c.secs;unlockAudio();S.rest={end:Date.now()+secs*1000,total:secs,fired:false};tickRest();
+function startRest(secs){const c=restCfg();secs=secs||c.secs;unlockAudio();S.rest={end:Date.now()+secs*1000,total:secs,fired:false,t0:Date.now()};tickRest();
   clearInterval(startRest._i);startRest._i=setInterval(tickRest,250)}
 function stopRest(){clearInterval(startRest._i);S.rest=null;const el=document.getElementById("restbar");el.hidden=true;el.innerHTML="";if(playerOn())render()}
 const mmss=t=>{t=Math.max(0,Math.ceil(t));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")};
@@ -2985,7 +2985,7 @@ document.addEventListener("click",e=>{
     case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??"",secs:last.secs??""});render();break}
     case "setDone":{const ex=S.draftWorkout.exercises[+ds.ei],st=ex.sets[+ds.si];st.done=!st.done;render();if(st.done)startRest(restFor(S.draftWorkout,ex));break}
     case "restAdj":if(S.rest&&!S.rest.fired){S.rest.end+=(+ds.d)*1000;S.rest.total=Math.max(5,S.rest.total+(+ds.d));if(S.rest.end<Date.now())S.rest.end=Date.now();tickRest()}break;
-    case "restSkip":stopRest();break;
+    case "restSkip":if(S.rest&&Date.now()-(S.rest.t0||0)<900)break;stopRest();break;
     case "restDef":case "restSet":{const st=clone(settings());const c={...REST_DEF,...(st.rest||{})};c.secs=a==="restSet"?+ds.v:Math.min(600,Math.max(15,c.secs+(+ds.d)));st.rest=c;save("settings",st);break}
     case "restTest":unlockAudio();startRest(3);break;
     case "delSet":S.draftWorkout.exercises[+ds.ei].sets.splice(+ds.si,1);render();break;
