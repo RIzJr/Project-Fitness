@@ -1028,7 +1028,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-26-2";
+const APP_VERSION="2026-10-26-3";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1982,10 +1982,10 @@ function progRx(P,rx,w,del){const [lo,hi]=parseReps(rx.reps),inc=+rx.inc||0,base
   else if(P.prog==="double"){const span=hi-lo+1;reps=lo+(steps%span);if(base!=null)kg=base+inc*Math.floor(steps/span)}
   let sets=Math.max(1,+rx.sets||3),rir=rx.rir;
   if(del){sets=Math.max(1,Math.round(sets/2));if(kg!=null)kg=kg*0.9;rir=rir===""||rir==null?3:Math.min(4,+rir+2)}
-  return {sets,reps:rx.secs?"":reps,range:!rx.secs&&lo!==hi?`${lo}-${hi}`:"",kg:kg==null?"":Math.round(kg*4)/4,rir:rir??"",secs:rx.secs||""}}
+  return {sets,reps:rx.secs?"":reps,range:!rx.secs&&lo!==hi?`${lo}-${hi}`:"",kg:kg==null?"":Math.round(kg/1.25)*1.25,rir:rir??"",secs:rx.secs||""}}
 function progSessions(P,A){const out=[];for(let w=1;w<=P.weeks;w++){const del=!!P.deload&&P.weeks>2&&w===P.weeks;
   P.days.forEach((d,di)=>{const wd=A.days[di];if(wd==null||wd==="")return;const date=addDays(A.start,(w-1)*7+(+wd));
-    const exercises=d.exercises.filter(e=>String(e.name||"").trim()).map(e=>{const mode=exMode(e.name),rx=progRx(P,e.rx,w,del);return {name:e.name.trim(),...(mode==="time"?{mode}:{}),note:e.note||"",rx,sets:rxToSets(rx,mode)}});
+    const exercises=d.exercises.filter(e=>String(e.name||"").trim()).map(e=>{const mode=(e.rx.secs&&!String(e.rx.reps||"").trim())?"time":exMode(e.name),rx=progRx(P,e.rx,w,del);return {name:e.name.trim(),...(mode==="time"?{mode}:{}),note:e.note||"",rx,sets:rxToSets(rx,mode)}});
     if(exercises.length)out.push({date,name:`${d.name||"Day "+(di+1)} · Wk ${w}`,kind:d.kind||"gym",note:(del?"Deload week: lighter weights and fewer sets. Recover now, come back stronger. ":"")+(P.note||""),exercises,progId:P.id,progName:P.name,week:w,weeks:P.weeks})})}
   return out}
 async function pushPlans(docs){const c=await sbClient();if(!c||!CL.user||!docs.length)return false;
@@ -2882,8 +2882,8 @@ document.addEventListener("click",e=>{
     case "pgExAdd":{const d=S.progDraft.days[S.progDay];d.exercises.push(blankProgEx());render();setTimeout(()=>document.getElementById("pgx"+(d.exercises.length-1))?.focus(),30);break}
     case "pgExDel":S.progDraft.days[S.progDay].exercises.splice(+ds.i,1);render();break;
     case "pgMove":{const L=S.progDraft.days[S.progDay].exercises,i=+ds.i;if(i>0){[L[i-1],L[i]]=[L[i],L[i-1]];render()}break}
-    case "assignNew":{const P=S.docs[ds.id];S.assign={progId:ds.id,clientUid:(S.assign&&S.assign.clientUid)||"",start:nextMonday(),days:P.days.map((_,i)=>[0,1,3,5,2,4,6][i]??"")};render();window.scrollTo(0,0);break}
-    case "assignFor":{S.clientOpen=null;S.progView="list";const first=ofType("cprog")[0];S.assign=first?{progId:first.id,clientUid:ds.id,start:nextMonday(),days:first.days.map((_,i)=>[0,1,3,5,2,4,6][i]??"")}:null;render();window.scrollTo(0,0);if(!first)toast("Build a programme first, then assign it");else if(ofType("cprog").length>1)toast("Tap Assign on the programme you want");break}
+    case "assignNew":{const P=S.docs[ds.id];S.assign={progId:ds.id,clientUid:(S.assign&&S.assign.clientUid)||"",start:nextMonday(),days:P.days.map((_,i)=>(P.days.length>4?[0,1,2,3,4,5,6]:[0,1,3,5,2,4,6])[i]??"")};render();window.scrollTo(0,0);break}
+    case "assignFor":{S.clientOpen=null;S.progView="list";const first=ofType("cprog")[0];S.assign=first?{progId:first.id,clientUid:ds.id,start:nextMonday(),days:first.days.map((_,i)=>(first.days.length>4?[0,1,2,3,4,5,6]:[0,1,3,5,2,4,6])[i]??"")}:null;render();window.scrollTo(0,0);if(!first)toast("Build a programme first, then assign it");else if(ofType("cprog").length>1)toast("Tap Assign on the programme you want");break}
     case "assignCancel":S.assign=null;render();break;
     case "asDay":S.assign.days[+ds.i]=ds.v===""?"":+ds.v;render();break;
     case "assignGo":assignProg();break;
