@@ -226,6 +226,45 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .panel.missed{border:1px solid color-mix(in srgb,var(--protein) 45%,transparent)}
 .panel.done-prog{border:1px solid color-mix(in srgb,var(--accent) 50%,transparent)}
 .sheet.rdpop{max-height:88vh;overflow:auto;gap:12px}
+.wp-view{display:flex;background:var(--surface);border-radius:12px;padding:3px;flex:none}
+.wp-view button{border:0;background:transparent;border-radius:9px;padding:8px 10px;font-size:12.5px;font-weight:800;color:var(--muted)}
+.wp-view button[aria-pressed="true"]{background:var(--sunk);color:var(--fg)}
+.wp-title b{max-width:150px}
+.wp-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.wp-cell{background:var(--surface);border-radius:22px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.wp-cell .wp-num{width:100%;font-size:50px;border-bottom:0}
+.wp-adj{display:flex;gap:8px;width:100%}
+.wp-adj button{flex:1;height:52px;border:0;border-radius:14px;background:var(--sunk);color:var(--fg);font-size:16px;font-weight:800}
+.wp-trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
+.wp-trio .btn{height:52px;justify-content:center}
+.wp-next{width:100%;gap:8px}
+.wp-nx{font-family:var(--display);font-size:22px;font-weight:900;font-stretch:112%}
+.wp-quad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.wp-quad button{height:48px;border:0;border-radius:12px;background:var(--sunk);color:var(--fg);font-weight:800;font-size:14px}
+.wp-rest .wp-ring>div .label{font-size:12px}
+.wl-row{border:0;background:var(--surface);color:var(--fg);border-radius:16px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;width:100%}
+.wl-open{background:var(--surface);border:2px solid var(--accent);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.wl-grid{display:grid;grid-template-columns:30px 54px minmax(0,1fr) minmax(0,1fr) 48px;gap:6px;align-items:center}
+.wl-grid input{height:44px;text-align:center;font-weight:800;padding:0 4px;min-width:0}
+.wl-grid.done input{background:color-mix(in srgb,var(--veg) 22%,var(--surface))}
+.wl-hd{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.wl-tick{height:44px;border:0;border-radius:12px;background:var(--sunk);color:var(--muted);font-weight:900;font-size:16px}
+.wl-tick[aria-pressed="true"]{background:var(--veg);color:#0D0E10}
+.wl-rest{display:flex;align-items:center;justify-content:space-between;background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:10px 10px 10px 16px}
+.wl-rest .label{color:inherit;display:block}.wl-rest b{font-family:var(--display);font-size:26px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+.wl-rest button{border:0;background:color-mix(in srgb,var(--accent-ink) 14%,transparent);color:inherit;border-radius:12px;height:44px;padding:0 12px;font-weight:800}
+.wl-rest button.dark{background:var(--accent-ink);color:var(--accent)}
+.today-panel{gap:11px}
+.tp-row{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.tp-row .spread{font-size:14px}.tp-row .fg,.fg{color:var(--fg)}
+.linkbtn{all:unset;cursor:pointer;color:var(--accent);font-weight:700}
+.hchips{display:flex;gap:6px;flex-wrap:wrap}
+.hchip{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:99px;padding:7px 11px;font-size:13px;font-weight:700;min-height:36px}
+.hchip[aria-pressed="true"]{background:color-mix(in srgb,var(--veg) 22%,var(--surface));border-color:transparent;color:var(--fg)}
+.hchip.edit{border-style:dashed}
+.upnext{all:unset;cursor:pointer;box-sizing:border-box;background:var(--surface);border-radius:16px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.upnext .label{display:block}.upnext b{font-size:14.5px}.upnext .acc{color:var(--accent);font-weight:800;font-size:14px;flex:none}
+.quote{padding:14px 52px 14px 16px}.quote p{font-size:16px;line-height:1.35}
 .wp-big{border:0;background:var(--accent);color:var(--accent-ink);border-radius:18px;min-height:64px;font-weight:850;font-stretch:112%;font-size:18px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
 .wp-big svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.6}
 .wp-big:disabled{opacity:.45}
@@ -298,7 +337,11 @@ nav.tabs .addbtn svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke
 .sicon{width:42px;height:42px;border-radius:12px;background:var(--sunk);display:flex;align-items:center;justify-content:center;flex:none}
 .sicon svg{width:22px;height:22px;stroke:var(--fg);fill:none;stroke-width:1.8}
 /* today */
-.hdright{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.hdright{display:flex;flex-direction:row;align-items:center;gap:6px;flex-wrap:nowrap;justify-content:flex-end;flex:none}
+.today-top{align-items:center}.today-top h1{font-size:27px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.today-top>div:first-child{min-width:0}
+.daynav2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.daynav2 button{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:16px;line-height:1;padding:0}
+.hdright .iconbtn{width:38px;height:38px}
+.nextup .btn.ghost{color:var(--accent-ink);opacity:.85}
 .ready-mini{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:flex-end;line-height:1}
 .ready-mini b{font-family:var(--display);font-size:30px;font-weight:850;font-stretch:112%;color:var(--accent)}
 .ready-mini span{font-size:12px;color:var(--muted);margin-top:2px}
@@ -596,26 +639,28 @@ function renderToday(){
   const isToday=S.day===todayKey(),dl=typeof deloadInfo==="function"?deloadInfo():null,rd=S.docs["ready_"+todayKey()],rsc=rd?readinessScore(rd):null;
   const nextMeal=MEALS.find(([k])=>!(d.foods||[]).some(f=>f.meal===k))||MEALS[3];
   const kL=Math.round((+tg.kcal||0)-tot.kcal);
-  const nutrition=`<section class="panel nutri"><div class="spread" style="align-items:flex-end"><div><span class="small muted">Calories</span><div class="bignum">${Math.round(tot.kcal).toLocaleString("en-GB")}<small> / ${(+tg.kcal||0).toLocaleString("en-GB")}</small></div></div>
-      <span class="small" style="color:var(--accent);font-weight:700">${kL>=0?kL.toLocaleString("en-GB")+" left":Math.abs(kL).toLocaleString("en-GB")+" over"}</span></div>
-    <div class="bar"><i style="width:${Math.min(100,tg.kcal?tot.kcal/tg.kcal*100:0)}%;background:var(--accent)"></i></div>
-    <div class="mini3">${["protein","carbs","fat"].map(k=>`<div><span class="small muted">${MAC[k].label}</span><b>${Math.round(tot[k])}<small> /${+tg[k]||0}g</small></b><div class="bar thin"><i style="width:${Math.min(100,tg[k]?tot[k]/tg[k]*100:0)}%;background:${MAC[k].c}"></i></div></div>`).join("")}</div>
+  const pL=Math.round((+tg.protein||0)-tot.protein),bar=(v,t,c)=>`<div class="bar"><i style="width:${Math.min(100,t?v/t*100:0)}%;background:${c}"></i></div>`;
+  const hchips=st.habits.length?`<div class="hchips">${st.habits.map(h=>{const on=!!(d.habits&&d.habits[h]);return `<button class="hchip" data-act="habitTap" data-h="${esc(h)}" aria-pressed="${on}">${on?"✓ ":""}${esc(h)}</button>`}).join("")}<button class="hchip edit" data-act="editHabits" aria-label="Edit habits">Edit</button></div>`:`<button class="btn ghost" style="align-self:flex-start" data-act="editHabits">+ Add habits</button>`;
+  const nutrition=`<section class="panel today-panel">
+    <button class="tp-row" data-act="addTo" data-m="${nextMeal[0]}" data-focus="1"><span class="spread"><b>Calories</b><span class="muted"><b class="fg">${Math.abs(kL).toLocaleString("en-GB")}</b> ${kL>=0?"left of":"over"} ${(+tg.kcal||0).toLocaleString("en-GB")}</span></span>${bar(tot.kcal,+tg.kcal,"var(--accent)")}</button>
+    <button class="tp-row" data-act="addTo" data-m="${nextMeal[0]}" data-focus="1"><span class="spread"><b>Protein</b><span class="muted">${pL>0?`<b class="fg">${pL} g</b> to go of ${+tg.protein||0} g`:`<b class="fg">Hit</b> · ${Math.round(tot.protein)} g`}</span></span>${bar(tot.protein,+tg.protein,"var(--protein)")}</button>
+    <span class="small muted">Carbs ${Math.round(tot.carbs)}/${+tg.carbs||0} g · Fat ${Math.round(tot.fat)}/${+tg.fat||0} g · <button class="linkbtn" data-act="targets">${S.showTargets?"Done":"Targets"}</button></span>
     ${S.showTargets?renderTargets():""}
-    <div class="row" style="flex-wrap:nowrap"><button class="btn logmeal" data-act="addTo" data-m="${nextMeal[0]}" data-focus="1"><span>Log ${nextMeal[1].toLowerCase()}</span><span class="small muted">${MEALS.filter(([k])=>(d.foods||[]).some(f=>f.meal===k)).map(([k,l])=>l+" "+Math.round((d.foods||[]).filter(f=>f.meal===k).reduce((a,f)=>a+(+f.kcal||0),0))).join(" · ")||"Nothing logged yet"}</span></button>
-      <button class="btn ghost" data-act="targets" aria-label="Edit targets">${S.showTargets?"Done":"Targets"}</button></div></section>`;
-  const habitTiles=`<section class="habits2"><div class="spread"><h2>Habits</h2>${S.editHabits?`<span class="label">Editing</span>`:`<span class="row" style="gap:4px"><span class="small muted">${done} of ${st.habits.length}</span><button class="btn ghost" data-act="editHabits">Edit</button></span>`}</div>
-    ${S.editHabits?`<section class="panel">${renderHabitEditor()}</section>`:st.habits.length?`<div class="htiles">${st.habits.map(h=>{const on=!!(d.habits&&d.habits[h]);return `<button class="htile" data-act="habitTap" data-h="${esc(h)}" aria-pressed="${on}">${on?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}<span>${esc(h)}</span></button>`}).join("")}</div>`:`<p class="muted small" style="margin:0">No habits yet. Tap Edit to add some.</p>`}</section>`;
+    ${S.editHabits?renderHabitEditor():hchips}</section>`;
+  const upNext=isToday&&!S.editHabits?(()=>{const left=MEALS.filter(([k])=>!(d.foods||[]).some(f=>f.meal===k)&&k!=="snacks").length||1,per=pL>0?Math.round(pL/left):0;
+    return `<button class="upnext" data-act="addTo" data-m="${nextMeal[0]}" data-focus="1"><span><span class="label">Up next</span><b>Log ${nextMeal[1].toLowerCase()}${NUM()&&per?` · aim for ${per} g protein`:""}</b></span><span class="acc">+ Log</span></button>`})():"";
+  const habitTiles=NUM()?"":`<section class="panel">${S.editHabits?renderHabitEditor():hchips}</section>`;
   return `${exampleBanner()}${isToday?backupBanner():""}
-  <header class="top"><div><div class="sub" style="margin:0 0 4px">${PROF.list.length>1?esc(activeProf().name)+" · ":""}${isToday?fmtDay(S.day):"Viewing a past day"}${isToday&&dl?" · Week "+dl.pos+" of "+dl.every:""}</div><h1>${isToday?"Today":fmtDay(S.day).replace(/^\w+, /,"")}</h1></div>
-    <div class="hdright"><button class="iconbtn" data-act="themeToggle" aria-label="Switch to ${curTheme()==="dark"?"light":"dark"} mode">${curTheme()==="dark"?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>'}</button>${isToday?(rsc!=null?`<button class="ready-mini" data-tab="recover" aria-label="Readiness ${rsc}, open Recover"><b>${rsc}</b><span>Readiness</span></button>`:`<button class="btn" data-tab="recover">Readiness</button>`):""}
-    <div class="daynav"><button data-act="prevDay" aria-label="Previous day">‹</button><button data-act="nextDay" aria-label="Next day" ${isToday?"disabled":""}>›</button></div></div></header>
+  <header class="top today-top"><div><div class="sub daynav2" style="margin:0 0 4px"><button data-act="prevDay" aria-label="Previous day">‹</button>${isToday?"":`<button data-act="nextDay" aria-label="Next day">›</button>`}${PROF.list.length>1?esc(activeProf().name)+" · ":""}${isToday?fmtDay(S.day):"Viewing a past day"}${isToday&&dl?" · Week "+dl.pos+" of "+dl.every:""}${isToday&&planStreak().n?" · 🔥 "+planStreak().n+" in a row":""}</div><h1>${isToday?greeting():fmtDay(S.day).replace(/^\w+, /,"")}</h1></div>
+    <div class="hdright"><button class="iconbtn" data-act="themeToggle" aria-label="Switch to ${curTheme()==="dark"?"light":"dark"} mode">${curTheme()==="dark"?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>'}</button>${isToday?(rsc!=null?`<button class="ready-mini" data-tab="recover" aria-label="Readiness ${rsc}, open Recover"><b>${rsc}</b><span>Readiness</span></button>`:`<button class="btn" data-act="rdPopOpen">Check in</button>`):""}
+    </div></header>
   <div class="stack">
   ${isToday&&unreadFeedback()?`<button class="fbbanner" data-act="readFb"><span>💬</span><span><b>New feedback from ${esc(unreadFeedback().by||"your coach")}</b><span class="small" style="display:block">${esc(String(unreadFeedback().text||unreadFeedback().focus).slice(0,90))}${String(unreadFeedback().text||"").length>90?"…":""}</span></span><span class="chev">›</span></button>`:""}
   ${quoteCard()}
-  ${isToday?nextUpCard()+missedCard()+finishedCard()+streakCard():""}
+  ${isToday?nextUpCard()+missedCard()+finishedCard():""}
   ${NUM()?nutrition:`<section class="panel"><h2>Today</h2><div class="tiles">${glanceTile("Meals logged",MEALS.filter(([k])=>(d.foods||[]).some(f=>f.meal===k)).length+"/4","")}${glanceTile("Habits",(st.habits||[]).filter(h=>d.habits&&d.habits[h]).length+"/"+(st.habits||[]).length,"")}</div>
     <span class="small muted">Numbers are hidden (habits-only mode). Focus on regular meals, protein with each meal, and how you feel.</span></section>`}
-  ${habitTiles}
+  ${habitTiles}${upNext}
   <section class="panel" id="logPanel"><h2>Log food</h2>
     <div class="mealpick" role="group" aria-label="Add to meal">${MEALS.map(([k,l])=>`<button data-act="addTo" data-m="${k}" aria-pressed="${(S.addTo||(S.addTo=defaultMeal()))===k}">${l}</button>`).join("")}</div>
     <div class="chiprow srctabs" role="tablist" aria-label="Search in">${SEARCH_SRC.map(([k,l])=>`<button class="qchip" role="tab" data-act="srcTab" data-v="${k}" aria-pressed="${(S.searchSrc||"all")===k}">${l}</button>`).join("")}</div>
@@ -1037,7 +1082,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-30-1";
+const APP_VERSION="2026-10-30-2";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1218,7 +1263,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
   const seg=steps.filter(x=>x.t!=="finish").map((x,i)=>`<i class="${i<S.wp.step?"on":i===S.wp.step?"cur":""}"></i>`).join("");
   const head=`<header class="wp-head"><button class="iconbtn" data-act="wpEnd" aria-label="End workout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="wp-title"><b>${esc(dw.name||kindName(dw.kind)+" session")}</b><span id="wpClock">${elapsed()}</span></div>
-    <button class="iconbtn" data-act="wpList" aria-label="Show full list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button></header>
+    <div class="wp-view" role="group" aria-label="View"><button data-act="wpView" data-v="focus" aria-pressed="${S.wpView!=="list"}">Focus</button><button data-act="wpView" data-v="list" aria-pressed="${S.wpView==="list"}">List</button></div></header>
     <div class="wp-seg" aria-label="Step ${S.wp.step+1} of ${steps.length}">${seg}</div>`;
   if(S.idlePrompt&&dw.lastAct){const t=new Date(dw.lastAct),hm=t.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),gone=Math.round(idleMins()),gh=gone>=60?Math.floor(gone/60)+" h "+(gone%60)+" min":gone+" min";
     return `<div class="player">${head}<div class="wp-body" style="justify-content:center"><span class="label">Welcome back</span><h1>Still training?</h1><p class="small" style="margin:0">This session has had no activity for <b>${gh}</b>. Your last change was at ${hm}.</p>
@@ -1232,12 +1277,20 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     <button class="btn ghost" style="color:var(--protein)" data-act="wpDiscard">${S.wpDiscard?"Tap again to discard":"Discard workout"}</button></div></div>`;
   if(S.hold&&cur.t==="ex"){const ex=dw.exercises[cur.ei],si=wpCurSet(ex);if(si>=0)return holdScreen(dw,head,ex,si);S.hold=null}
   const R=S.rest;
-  if(R&&cur.t==="ex"){const left=Math.max(0,(R.end-Date.now())/1000),ex=dw.exercises[cur.ei],si=wpCurSet(ex),nextEx=si<0?dw.exercises[cur.ei+1]:null;
-    return `<div class="player">${head}<div class="wp-body wp-rest"><span class="label">${R.fired?"Rest over":"Rest"}</span>
-      <div class="wp-ring" id="wpRing" style="--p:${R.fired?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}"><div><b id="wpRest">${R.fired?"Go!":mmss(left)}</b><span>of ${mmss(R.total)}</span></div></div>
-      <div class="row" style="justify-content:center"><button class="btn" data-act="restAdj" data-d="-15">−15s</button><button class="btn" data-act="restAdj" data-d="15">+15s</button><button class="btn" data-act="restSkip">Skip</button></div>
-      <section class="panel" style="width:100%"><span class="label">Up next</span>${si>=0?`<h2>${esc(ex.name||"Exercise")} · set ${si+1} of ${ex.sets.length}</h2>`:nextEx?`<h2>${esc(nextEx.name||"Next exercise")}</h2>`:`<h2>Cool-down</h2>`}</section></div>
-      <button class="wp-big" data-act="restSkip">${si>=0?"Start set "+(si+1)+" now":"Next exercise"}</button></div>`}
+  if(S.wpView==="list"&&cur.t!=="finish"&&!(cur.t==="warmup"&&S.wu)&&!(cur.t==="cooldown"&&S.cdRun))return wpListView(dw,head,steps,cur);
+  if(R&&cur.t==="ex"){const left=Math.max(0,(R.end-Date.now())/1000),ex=dw.exercises[cur.ei],si=wpCurSet(ex),nextEx=si<0?dw.exercises[cur.ei+1]:null,st=si>=0?ex.sets[si]:null,md=exMode(ex.name,ex.mode),last=[...ex.sets].reverse().find(x=>x.done);
+    const val=x=>md==="time"?(+x.secs||0)+" s"+(+x.kg?" +"+fmtN(+x.kg)+" kg":""):(+x.kg?fmtN(+x.kg)+" × ":"")+(x.reps||0),kgStep=dw.kind==="gym"||dw.kind==="functional"?2.5:1,canAsk="Notification" in window&&Notification.permission==="default";
+    return `<div class="player">${head}<div class="wp-body wp-rest">
+      <div class="wp-ring" id="wpRing" style="--p:${R.fired?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}"><div><span class="label">${R.fired?"Rest over":"Rest"}</span><b id="wpRest">${R.fired?"Go!":mmss(left)}</b><span>of ${mmss(R.total)}</span></div></div>
+      ${last?`<span class="small muted" style="text-align:center">Set ${ex.sets.indexOf(last)+1} logged · ${esc(val(last))}${last.rir!==""&&last.rir!=null?" · "+last.rir+" in reserve":""}</span>`:""}
+      <div class="wp-trio"><button class="btn" data-act="restAdj" data-d="-15">−15 s</button><button class="btn" data-act="restAdj" data-d="15">+15 s</button><button class="btn" data-act="restSkip">Skip</button></div>
+      <section class="panel wp-next"><span class="label">Up next${st?" · set "+(si+1)+" of "+ex.sets.length:""}</span>
+        ${st?`<div class="spread" style="align-items:baseline"><b class="wp-nx">${esc(ex.name||"Exercise")}</b><b class="wp-nx" id="wpNextVal">${esc(val(st))}</b></div>
+          <div class="wp-quad">${md==="time"?`<button data-act="wpAdj" data-f="secs" data-d="-5">−5 s</button><button data-act="wpAdj" data-f="secs" data-d="5">+5 s</button>`:`<button data-act="wpAdj" data-f="kg" data-d="-${kgStep}">−${fmtN(kgStep)}</button><button data-act="wpAdj" data-f="kg" data-d="${kgStep}">+${fmtN(kgStep)}</button><button data-act="wpAdj" data-f="reps" data-d="-1">−1 rep</button><button data-act="wpAdj" data-f="reps" data-d="1">+1 rep</button>`}</div>
+          <span class="small muted">Adjust now, while you rest.</span>`
+        :`<b class="wp-nx">${nextEx?esc(nextEx.name||"Next exercise"):(dw.cooldown||[]).length?"Cool-down":"Finish"}</b>${nextEx&&nextEx.sets&&nextEx.sets[0]?`<span class="small muted">${nextEx.sets.length} sets${+nextEx.sets[0].kg?" · "+fmtN(+nextEx.sets[0].kg)+" kg":""}</span>`:""}`}</section>
+      ${canAsk&&!R.fired?`<button class="btn ghost" data-act="restNotifyOn">🔔 Alert me when rest ends, even with the screen locked</button>`:""}</div>
+      <button class="wp-big" data-act="restSkip">${si>=0?`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg> Start set ${si+1} now`:"Next exercise ›"}</button></div>`}
   if(cur.t==="warmup"&&S.wu)return warmRun(dw,head);
   if(cur.t==="cooldown"&&S.cdRun)return coolRun(dw,head);
   if(cur.t==="warmup"||cur.t==="cooldown"){const L=dw[cur.t],title=cur.t==="warmup"?"Warm-up":"Cool-down";
@@ -1273,8 +1326,9 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
         <span class="row" style="gap:10px"><a class="vidlink" href="${videoLink(ex.name)}" target="_blank" rel="noopener">▶ Video</a><button class="btn ghost" data-act="demoToggle" data-v="${esc(ex.name)}">Hide</button></span></div></section>`
       :`<button class="howto" data-act="demoToggle" data-v="${esc(ex.name)}">${demoSVG(ex.name,40,1)}<span>How to do it · <b>${esc(demoMuscles(ex.name))}</b></span></button>`})():""}
     <div class="wp-sets">${ex.sets.map((x,i)=>`<button class="wp-chip${x.done?" done":""}${i===si?" cur":""}" data-act="wpSet" data-i="${i}">${x.done?fmtSet(x):"Set "+(i+1)}</button>`).join("")}<button class="wp-chip add" data-act="wpAddSet" aria-label="Add a set">+</button></div>
-    ${st?`<div class="wp-step"><button data-act="wpAdj" data-f="kg" data-d="-${kgStep}" aria-label="Less weight">−</button><div><input class="wp-num" type="number" inputmode="decimal" step="any" min="0" data-act="wpType" data-f="kg" value="${fmtN(+st.kg||0)}" aria-label="${bw?"Added kg":"Weight in kg"}, tap to type"><span>${bw?"+kg":"kg"} · tap to type</span></div><button data-act="wpAdj" data-f="kg" data-d="${kgStep}" aria-label="More weight">+</button></div>
-      <div class="wp-step"><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?-5:-1}" aria-label="Less">−</button><div><input class="wp-num" type="number" inputmode="numeric" step="1" min="0" data-act="wpType" data-f="${mode==="time"?"secs":"reps"}" value="${mode==="time"?st.secs:st.reps}" aria-label="${mode==="time"?"Seconds":"Reps"}, tap to type"><span>${mode==="time"?"seconds":"reps"}</span></div><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?5:1}" aria-label="More">+</button></div>
+    ${st?`<div class="wp-pair">
+      <div class="wp-cell"><label class="label" for="wpKg">${bw?"Added kg":"kg"}</label><input id="wpKg" class="wp-num" type="number" inputmode="decimal" step="any" min="0" data-act="wpType" data-f="kg" value="${fmtN(+st.kg||0)}" aria-label="${bw?"Added kg":"Weight in kg"}"><div class="wp-adj"><button data-act="wpAdj" data-f="kg" data-d="-${kgStep}" aria-label="${fmtN(kgStep)} kg less">−${fmtN(kgStep)}</button><button data-act="wpAdj" data-f="kg" data-d="${kgStep}" aria-label="${fmtN(kgStep)} kg more">+${fmtN(kgStep)}</button></div></div>
+      <div class="wp-cell"><label class="label" for="wpRp">${mode==="time"?"seconds":"reps"}</label><input id="wpRp" class="wp-num" type="number" inputmode="numeric" step="1" min="0" data-act="wpType" data-f="${mode==="time"?"secs":"reps"}" value="${mode==="time"?st.secs:st.reps}" aria-label="${mode==="time"?"Seconds":"Reps"}"><div class="wp-adj"><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?-5:-1}" aria-label="${mode==="time"?"5 seconds less":"One rep fewer"}">${mode==="time"?"−5":"−1"}</button><button data-act="wpAdj" data-f="${mode==="time"?"secs":"reps"}" data-d="${mode==="time"?5:1}" aria-label="${mode==="time"?"5 seconds more":"One rep more"}">${mode==="time"?"+5":"+1"}</button></div></div></div>
       <div class="wp-rir"><span class="small muted">Reps left<br>in tank</span>${[0,1,2,3,4].map(n=>`<button data-act="wpRir" data-n="${n}" aria-pressed="${String(st.rir)===String(n)}">${n===4?"4+":n}</button>`).join("")}</div>
       <div class="wp-restrow"><span class="small muted">Rest after each set</span><button data-act="wpRest" data-d="-15" aria-label="15 seconds less rest">−</button><b>${mmss(restFor(dw,ex))}</b><button data-act="wpRest" data-d="15" aria-label="15 seconds more rest">+</button></div>`
       :`<section class="panel"><b>${esc(ex.name||"Exercise")} done: ${ex.sets.filter(x=>x.done).length} set${ex.sets.filter(x=>x.done).length===1?"":"s"}.</b><span class="small muted">${isLastEx?"Keep going with another exercise, add a set, or move on to your wind-down when you're ready.":"Add another set, or move on to the next exercise."}</span>
@@ -1282,7 +1336,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     ${st&&ex.name&&si===0&&!ex.rampDone&&!ex.sets.some(x=>x.done)&&exMode(ex.name,ex.mode)!=="time"?rampPanel(dw,ex):""}
     </div><div class="wp-foot"><div class="spread small muted"><button class="btn ghost" data-act="wpGo" data-v="${Math.max(0,S.wp.step-1)}" ${S.wp.step?"":"disabled"}>‹ Back</button><span>${dw.exercises[cur.ei+1]?"Next: "+esc(dw.exercises[cur.ei+1].name||"exercise"):"Next: "+((dw.cooldown||[]).length?"cool-down":"finish")}</span><button class="btn ghost" data-act="wpGo" data-v="${S.wp.step+1}">Skip ›</button></div>
     ${st&&mode==="time"?`<button class="wp-big" data-act="wpHold" ${+st.secs>0?"":"disabled"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg> Start ${+st.secs||0}s hold</button><button class="btn ghost" data-act="wpDone">Log set ${si+1} without the timer</button>`
-    :st?`<button class="wp-big" data-act="wpDone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> Done set ${si+1}</button>`:isLastEx?`<button class="wp-big" data-act="wpAddEx">+ Add another exercise</button><button class="btn" style="height:52px" data-act="wpGo" data-v="${S.wp.step+1}">${(dw.cooldown||[]).length?"Finish exercises: wind down ›":"Finish workout ›"}</button>`:`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Next exercise ›</button>`}</div></div>`}
+    :st?`<button class="wp-big" data-act="wpDone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg> Done · ${+st.kg?fmtN(+st.kg)+" kg × ":""}${st.reps||0}${+st.kg?"":" reps"}</button>`:isLastEx?`<button class="wp-big" data-act="wpAddEx">+ Add another exercise</button><button class="btn" style="height:52px" data-act="wpGo" data-v="${S.wp.step+1}">${(dw.cooldown||[]).length?"Finish exercises: wind down ›":"Finish workout ›"}</button>`:`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Next exercise ›</button>`}</div></div>`}
 /* guided warm-up: runs the ticked items in order (cardio timer, mobility drills, ramp-up sets) then starts training */
 const wuSel=it=>!!(it.done||it.pick||(it.sel&&it.sel.length));
 function wuStagesFor(dw){const out=[];(dw.warmup||[]).forEach((it,i)=>{if(!wuSel(it))return;const t=warmType(it);
@@ -1295,7 +1349,7 @@ function wuNextLabel(){const W=S.wu,n=W.stages[W.idx+1];return n?"Next: "+wuName
 function wuTimerStart(){const W=S.wu,st=W.stages[W.idx],it=S.draftWorkout.warmup[st.i],secs=(it.mins||parseInt(it.detail)||5)*60;W.timer={end:Date.now()+secs*1000,total:secs,paused:null,fired:false}}
 function wuGoStage(){const W=S.wu;stopRestQuiet();if(W.idx>=W.stages.length){const dw=S.draftWorkout;S.wu=null;S.wp.step++;S.wp.si=null;render();window.scrollTo(0,0);toast("Warmed up. Let's train 💪");return}
   if(W.stages[W.idx].t==="cardio")wuTimerStart();render();window.scrollTo(0,0)}
-function stopRestQuiet(){clearInterval(startRest._i);S.rest=null;const el=document.getElementById("restbar");if(el){el.hidden=true;el.innerHTML=""}}
+function stopRestQuiet(){clearInterval(startRest._i);if(S.rest&&!S.rest.fired)restServer(null);S.rest=null;const el=document.getElementById("restbar");if(el){el.hidden=true;el.innerHTML=""}}
 setInterval(()=>{const W=S.wu;if(!W||!playerOn())return;const st=W.stages[W.idx];if(!st||st.t!=="cardio"||!W.timer||W.timer.paused!=null)return;
   const T=W.timer,left=(T.end-Date.now())/1000,c=document.getElementById("wuClock"),r=document.getElementById("wuRing");
   if(left<=0&&!T.fired){T.fired=true;const cfg=restCfg();if(cfg.sound)beep();if(cfg.vibrate&&navigator.vibrate)navigator.vibrate([300,150,300]);render();return}
@@ -1542,8 +1596,9 @@ function renderCheckin(){
 }
 
 /* workout mode: keep your place on screen when anything changes, and keep the bottom controls pinned (also when pinch-zoomed) */
+const greeting=()=>{const h=new Date().getHours(),n=String((S.docs.profile&&S.docs.profile.name)||activeProf().name||"").trim().split(/\s+/)[0];return (h<12?"Morning":h<18?"Afternoon":"Evening")+(n?", "+n:"")};
 const curTheme=()=>LOOK.theme==="auto"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):LOOK.theme;
-const wpScreenKey=()=>[S.wp?S.wp.step:0,S.rest?"r":"",S.hold?"h":"",S.wpEnd?"e":"",S.idlePrompt?"i":"",S.wu?"w"+S.wu.idx+"."+((S.wu.stages[S.wu.idx]||{}).pos||0):"",S.cdRun?"c":""].join("|");
+const wpScreenKey=()=>[S.wpView||"",S.wp?S.wp.step:0,S.rest?"r":"",S.hold?"h":"",S.wpEnd?"e":"",S.idlePrompt?"i":"",S.wu?"w"+S.wu.idx+"."+((S.wu.stages[S.wu.idx]||{}).pos||0):"",S.cdRun?"c":""].join("|");
 function wpFocusKey(el){const d=el.dataset||{},a=["act","f","i","k","part","n"].filter(k=>d[k]!=null).map(k=>`[data-${k}="${CSS.escape(d[k])}"]`).join("");return el.id?"#"+CSS.escape(el.id):a?el.tagName.toLowerCase()+a:null}
 function wpWrapFoot(pl){if(pl.querySelector(".wp-foot"))return;const kids=[...pl.children],bi=kids.map(k=>k.classList.contains("wp-body")).lastIndexOf(true);if(bi<0)return;const rest=kids.slice(bi+1);if(!rest.length)return;
   const f=document.createElement("div");f.className="wp-foot";rest.forEach(k=>f.appendChild(k));pl.appendChild(f)}
@@ -1941,7 +1996,7 @@ function setReminders(){const R=remCfg(),perm="Notification" in window?Notificat
     ${row("plan","Coach's planned session","On days with a session, if not started by",`<input type="time" data-act="remTime" data-k="plan" value="${R.plan.time}">`)}
     ${row("idle","Workout left running","If a session has no activity for",`<select data-act="remMins">${[20,30,45,60,90].map(n=>`<option value="${n}" ${R.idle.mins===n?"selected":""}>${n} min</option>`).join("")}</select>`)}
     <span class="small muted">You only get a reminder when it's needed: nothing logged yet, check not done, or the session not started. One per day each. If you leave a workout running, the app also asks when you come back whether to save it at the time you stopped.</span></section>`}
-const REST_DEF={secs:90,sound:true,vibrate:true,notify:false};
+const REST_DEF={secs:90,sound:true,vibrate:true,notify:true};
 const restCfg=()=>({...REST_DEF,...(settings().rest||{})});
 // rest between sets: the exercise's own setting, else a default for the training style (gym uses the Settings value)
 const REST_KIND={bodyweight:60,functional:60,calisthenics:90};
@@ -2010,20 +2065,38 @@ let actx=null;
 function unlockAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume()}catch(e){}}
 function beep(){if(!actx)return;try{[0,0.32,0.64].forEach(t=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=t>0.6?1175:880;o.connect(g);g.connect(actx.destination);
   const st=actx.currentTime+t;g.gain.setValueAtTime(0.0001,st);g.gain.exponentialRampToValueAtTime(0.35,st+0.02);g.gain.exponentialRampToValueAtTime(0.0001,st+0.25);o.start(st);o.stop(st+0.27)})}catch(e){}}
-async function notifyRestOver(){const c=restCfg();if(!c.notify||!("Notification" in window)||Notification.permission!=="granted")return;
+/* workout list view: the whole session on one screen, set table for the open exercise */
+function wpListView(dw,head,steps,cur){const R=S.rest,openEi=S.wlOpen!=null?S.wlOpen:(cur.t==="ex"?cur.ei:Math.max(0,dw.exercises.findIndex(e=>e.sets.some(x=>!x.done))));
+  const tot=dw.exercises.reduce((a,e)=>a+e.sets.length,0),dn=dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0);
+  const rows=dw.exercises.map((e,ei)=>{const md=exMode(e.name,e.mode),h=exHistory(e.name)[0],ls=h?h.sets:[],all=e.sets.length&&e.sets.every(x=>x.done),fmt=x=>md==="time"?(+x.secs||0)+"s":(+x.kg?fmtN(+x.kg)+"×":"")+(x.reps||0);
+    if(ei!==openEi)return `<button class="wl-row" data-act="wlOpen" data-ei="${ei}"><span style="min-width:0"><b>${esc(e.name||"Exercise "+(ei+1))}</b><span class="small muted" style="display:block">${e.sets.some(x=>x.done)?e.sets.filter(x=>x.done).map(fmt).join(", "):e.rx?esc(rxText(e)):e.sets.length+" sets"}</span></span><span class="${all?"good":"muted"}" style="font-weight:800">${all?"✓":"›"}</span></button>`;
+    return `<section class="wl-open"><div><b style="font-size:17px">${esc(e.name||"Exercise "+(ei+1))}</b>${e.rx?`<span class="small muted" style="display:block">${esc(rxText(e))}</span>`:""}</div>
+      <div class="wl-grid wl-hd"><span>Set</span><span>Last</span><span>${md==="time"?"+kg":"kg"}</span><span>${md==="time"?"secs":"reps"}</span><span></span></div>
+      ${e.sets.map((x,si)=>{const l=ls[si]||ls[ls.length-1];return `<div class="wl-grid${x.done?" done":""}"><b>${si+1}</b><span class="small muted">${l?fmt(l):"–"}</span><input type="number" inputmode="decimal" step="any" min="0" data-act="wlSet" data-ei="${ei}" data-si="${si}" data-f="kg" value="${x.kg===""||x.kg==null?"":fmtN(+x.kg)}" aria-label="Set ${si+1} kg"><input type="number" inputmode="numeric" step="1" min="0" data-act="wlSet" data-ei="${ei}" data-si="${si}" data-f="${md==="time"?"secs":"reps"}" value="${md==="time"?(x.secs??""):(x.reps??"")}" aria-label="Set ${si+1} ${md==="time"?"seconds":"reps"}"><button class="wl-tick" data-act="wlDone" data-ei="${ei}" data-si="${si}" aria-pressed="${!!x.done}" aria-label="${x.done?"Undo set "+(si+1):"Mark set "+(si+1)+" done"}">✓</button></div>`}).join("")}
+      <div class="row" style="gap:4px"><button class="btn ghost" data-act="wlAddSet" data-ei="${ei}">+ Add set</button><button class="btn ghost" data-act="wlFocus" data-ei="${ei}">Open in Focus</button></div></section>`}).join("");
+  return `<div class="player">${head}<div class="wp-body"><div class="spread"><span class="small muted">${dn} of ${tot} sets done</span><button class="btn ghost" data-act="wpList">Edit whole workout</button></div>
+    <div class="stack" style="gap:8px">${rows}</div><button class="btn" data-act="wlAddEx">+ Add exercise</button></div>
+    ${R?`<div class="wl-rest"><span><span class="label">${R.fired?"Rest over":"Rest"}</span><b id="wpRest">${R.fired?"Go!":mmss((R.end-Date.now())/1000)}</b></span><span class="row" style="gap:6px;flex-wrap:nowrap"><button data-act="restAdj" data-d="-15">−15</button><button data-act="restAdj" data-d="15">+15</button><button class="dark" data-act="restSkip">Skip</button></span></div>`:""}
+    <button class="wp-big" data-act="wpGo" data-v="${steps.length-1}">Finish workout</button></div>`}
+// buzz when rest ends: vibration where supported (Android); on iPhone Safari a hidden switch gives a light haptic tap where the phone allows it
+function haptic(){try{if(navigator.vibrate&&navigator.vibrate([300,150,300]))return;let l=document.getElementById("hapt");if(!l){l=document.createElement("label");l.id="hapt";l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click();setTimeout(()=>l.click(),200)}catch(e){}}
+// tell the server when rest ends, so a push notification arrives even if the phone is locked (needs supabase-update-4.sql)
+async function restServer(endMs){if(!CL.user||lsGet("pf-push:"+PROF.active)!=="on")return;try{const c=await sbClient();if(!c)return;
+  if(endMs)await c.from("rest_timers").upsert({user_id:CL.user.id,ends_at:new Date(endMs).toISOString()});else await c.from("rest_timers").delete().eq("user_id",CL.user.id)}catch(e){}}
+async function notifyRestOver(){const c=restCfg();if(!c.notify||document.visibilityState==="visible"||!("Notification" in window)||Notification.permission!=="granted")return;
   const opt={body:"Time for your next set.",tag:"rest",renotify:true,icon:"icon-192.png",badge:"icon-192.png",vibrate:[300,150,300]};
   try{if(navigator.serviceWorker&&navigator.serviceWorker.controller){const r=await navigator.serviceWorker.ready;return r.showNotification("Rest over 💪",opt)}new Notification("Rest over 💪",opt)}catch(e){}}
-function startRest(secs){const c=restCfg();secs=secs||c.secs;unlockAudio();S.rest={end:Date.now()+secs*1000,total:secs,fired:false,t0:Date.now()};tickRest();
+function startRest(secs){const c=restCfg();secs=secs||c.secs;unlockAudio();S.rest={end:Date.now()+secs*1000,total:secs,fired:false,t0:Date.now()};restServer(S.rest.end);tickRest();
   clearInterval(startRest._i);startRest._i=setInterval(tickRest,250)}
-function stopRest(){clearInterval(startRest._i);S.rest=null;const el=document.getElementById("restbar");el.hidden=true;el.innerHTML="";if(playerOn())render()}
+function stopRest(){clearInterval(startRest._i);if(S.rest&&!S.rest.fired)restServer(null);S.rest=null;const el=document.getElementById("restbar");el.hidden=true;el.innerHTML="";if(playerOn())render()}
 const mmss=t=>{t=Math.max(0,Math.ceil(t));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")};
 function tickRest(){const R=S.rest,el=document.getElementById("restbar");if(!R){el.hidden=true;return}
   if(S.lock){el.hidden=true;return}
   if(playerOn()){el.hidden=true;const left=(R.end-Date.now())/1000,t=document.getElementById("wpRest"),ring=document.getElementById("wpRing");
-    if(left<=0&&!R.fired){R.fired=true;const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate([300,150,300]);notifyRestOver();render();setTimeout(()=>{if(S.rest===R){stopRest();render()}},2500);return}
+    if(left<=0&&!R.fired){R.fired=true;const c=restCfg();if(c.sound)beep();if(c.vibrate)haptic();restServer(null);notifyRestOver();render();setTimeout(()=>{if(S.rest===R){stopRest();render()}},2500);return}
     if(t&&!R.fired){t.textContent=mmss(left);ring&&ring.style.setProperty("--p",Math.min(100,(1-left/R.total)*100).toFixed(1))}else if(!t&&!R.fired)render();return}
   const left=(R.end-Date.now())/1000,over=left<=0;
-  if(over&&!R.fired){R.fired=true;const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate([300,150,300]);notifyRestOver();setTimeout(()=>{if(S.rest===R)stopRest()},4000)}
+  if(over&&!R.fired){R.fired=true;const c=restCfg();if(c.sound)beep();if(c.vibrate)haptic();restServer(null);notifyRestOver();setTimeout(()=>{if(S.rest===R)stopRest()},4000)}
   const html=`<div style="flex:1;min-width:0"><div class="lbl">${over?"Rest over":"Rest"}</div><div class="t" id="restTime">${over?"Go!":mmss(left)}</div><div class="prog"><i style="width:${over?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}%"></i></div></div>
     ${over?`<button data-act="restSkip">Close</button>`:`<button data-act="restAdj" data-d="-15" aria-label="15 seconds less">−15</button><button data-act="restAdj" data-d="15" aria-label="15 seconds more">+15</button><button data-act="restSkip">Skip</button>`}`;
   const key=(over?"o":"r")+"|"+Math.ceil(left);if(el._k!==key){el._k=key;el.innerHTML=html}
@@ -3100,6 +3173,16 @@ document.addEventListener("click",e=>{
     case "cardSave":shareWeekCard(ds.ws,true);break;
     case "themeToggle":LOOK.theme=curTheme()==="dark"?"light":"dark";saveLook();render();break;
     case "rdPopOn":lsSet(rdPopOffKey(),"0");render();toast("Daily check-in pop-up is on");break;
+    case "wpView":S.wpView=ds.v==="list"?"list":"focus";S.wlOpen=null;if(S.wpView==="focus"&&S.wp){const st=wpSteps(S.draftWorkout),ei=S.draftWorkout.exercises.findIndex(e=>e.sets.some(x=>!x.done)),k=st.findIndex(x=>x.t==="ex"&&x.ei===ei);if(k>=0&&st[S.wp.step]&&st[S.wp.step].t==="ex")S.wp.step=k}render();break;
+    case "wlOpen":S.wlOpen=+ds.ei;render();break;
+    case "wlFocus":{const st=wpSteps(S.draftWorkout),k=st.findIndex(x=>x.t==="ex"&&x.ei===+ds.ei);if(k>=0)S.wp.step=k;S.wpView="focus";S.wlOpen=null;render();break}
+    case "wlAddSet":{const e=S.draftWorkout.exercises[+ds.ei],l=e.sets[e.sets.length-1]||{};e.sets.push({kg:l.kg??"",reps:l.reps??"",secs:l.secs??"",rir:""});render();break}
+    case "wlAddEx":{const dw=S.draftWorkout;dw.exercises.push({name:"",sets:[{kg:"",reps:"",secs:"",rir:""}]});const st=wpSteps(dw),k=st.findIndex(x=>x.t==="ex"&&x.ei===dw.exercises.length-1);if(k>=0)S.wp.step=k;S.wpView="focus";S.wlOpen=null;render();break}
+    case "wlDone":{const dw=S.draftWorkout,e=dw.exercises[+ds.ei],x=e&&e.sets[+ds.si];if(!x)break;x.done=!x.done;if(x.done){if(x.kg==="")x.kg=0;if(navigator.vibrate)navigator.vibrate(30);dw.lastAct=Date.now();
+        const st=wpSteps(dw),k=st.findIndex(y=>y.t==="ex"&&y.ei===+ds.ei);if(k>=0)S.wp.step=k;if(dw.exercises.some(y=>y.sets.some(z=>!z.done)))startRest(restFor(dw,e))}
+      if(!e.sets.some(z=>!z.done)){const nx=dw.exercises.findIndex(y=>y.sets.some(z=>!z.done));S.wlOpen=nx>=0?nx:null}render();break}
+    case "restNotifyOn":enablePush().then(r=>{const st=clone(settings());st.rest={...(st.rest||{}),notify:true};save("settings",st);toast(r==="on"?"Done. You'll get a notification when rest ends, even with the screen locked":r==="denied"?"Notifications are blocked for this app in your phone's settings":"Notifications on while the app is open");render()});break;
+    case "rdPopOpen":S.rdDraft={type:"readiness",date:todayKey()};S.rdPop="form";render();break;
     case "tgl":S[ds.k]=!S[ds.k];render();break;
     case "planViewClose":{const V=S.planView||{};S.progView=V.prev;S.clientOpen=V.back;S.planView=null;S.planCheck=null;render();window.scrollTo(0,0);break}
     case "planViewClose_":S.planView=null;S.planCheck=null;render();break;
@@ -3244,7 +3327,7 @@ document.addEventListener("click",e=>{
     case "delEx":S.draftWorkout.exercises.splice(+ds.ei,1);render();break;
     case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??"",secs:last.secs??""});render();break}
     case "setDone":{const ex=S.draftWorkout.exercises[+ds.ei],st=ex.sets[+ds.si];st.done=!st.done;render();if(st.done)startRest(restFor(S.draftWorkout,ex));break}
-    case "restAdj":if(S.rest&&!S.rest.fired){S.rest.end+=(+ds.d)*1000;S.rest.total=Math.max(5,S.rest.total+(+ds.d));if(S.rest.end<Date.now())S.rest.end=Date.now();tickRest()}break;
+    case "restAdj":if(S.rest&&!S.rest.fired){S.rest.end+=(+ds.d)*1000;S.rest.total=Math.max(5,S.rest.total+(+ds.d));if(S.rest.end<Date.now())S.rest.end=Date.now();restServer(S.rest.end);tickRest()}break;
     case "restSkip":if(S.rest&&Date.now()-(S.rest.t0||0)<900)break;stopRest();break;
     case "restDef":case "restSet":{const st=clone(settings());const c={...REST_DEF,...(st.rest||{})};c.secs=a==="restSet"?+ds.v:Math.min(600,Math.max(15,c.secs+(+ds.d)));st.rest=c;save("settings",st);break}
     case "restTest":unlockAudio();startRest(3);break;
@@ -3280,6 +3363,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="wuType"&&S.wu){const st=S.wu.stages[S.wu.idx],x=st&&st.sets&&st.sets[st.pos];if(x){const v=Math.max(0,+String(t.value).replace(",",".")||0);x[ds.f]=ds.f==="kg"?r1(v):Math.round(v);render()}}
   if(ds.act==="wpType"&&S.draftWorkout&&S.wp){const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=cur&&S.draftWorkout.exercises[cur.ei],si=ex?wpCurSet(ex):-1,st=ex&&ex.sets[si];
     if(st){const old=st[ds.f],raw=String(t.value).replace(",","."),v=Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0));st[ds.f]=v;ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});render()}}
+  if(ds.act==="wlSet"&&S.draftWorkout){const e=S.draftWorkout.exercises[+ds.ei],x=e&&e.sets[+ds.si];if(x){const raw=String(t.value).replace(",","."),v=t.value===""?"":Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0)),old=x[ds.f];x[ds.f]=v;e.sets.slice(+ds.si+1).forEach(y=>{if(!y.done&&String(y[ds.f])===String(old))y[ds.f]=v});S.draftWorkout.lastAct=Date.now();if(typeof persistDraft==="function")persistDraft()}return}
   if(ds.act==="habit"){const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
   if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
   if(ds.act==="obHabit"){const H=S.onboard.d.habits;if(t.checked){if(!H.includes(ds.h))H.push(ds.h)}else S.onboard.d.habits=H.filter(x=>x!==ds.h)}

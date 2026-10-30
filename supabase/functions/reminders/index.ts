@@ -73,6 +73,26 @@ export async function run(sb: any, push: any, now = new Date()) {
   return { users: byUser.size, sent: sentCount };
 }
 
+// "Rest over" pushes: called every 10 s by pf_rest_tick() when someone's rest period has ended
+export async function runRest(sb: any, push: any, now = new Date()) {
+  const cfg = await getConfig(sb);
+  push.setVapidDetails(CONTACT, cfg.public_key, cfg.private_key);
+  const { data: due } = await sb.from("rest_timers").select("user_id,ends_at").lte("ends_at", now.toISOString());
+  let sent = 0;
+  for (const t of due || []) {
+    // claim it first (only delete if it still has the same end time, so a just-extended rest isn't lost)
+    const { data: gone } = await sb.from("rest_timers").delete().eq("user_id", t.user_id).eq("ends_at", t.ends_at).select("user_id");
+    if (!gone || !gone.length) continue;
+    if (now.getTime() - new Date(t.ends_at).getTime() > 5 * 60000) continue; // too old to be useful
+    const { data: subs } = await sb.from("push_subs").select("*").eq("user_id", t.user_id);
+    for (const s of subs || []) {
+      try { await push.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title: "Rest over 💪", body: "Time for your next set.", tag: "rest", url: "./?go=train" }), { TTL: 60, urgency: "high" }); sent++; }
+      catch (e: any) { if (e && (e.statusCode === 404 || e.statusCode === 410)) await sb.from("push_subs").delete().eq("user_id", t.user_id).eq("endpoint", s.endpoint); }
+    }
+  }
+  return { due: (due || []).length, sent };
+}
+
 async function handler(req: Request) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -81,6 +101,8 @@ async function handler(req: Request) {
     if (req.method === "GET") { const c = await getConfig(sb); return json({ publicKey: c.public_key }); } // the app needs this to subscribe
     const c = await getConfig(sb);
     if (!c.cron_secret || req.headers.get("x-cron-secret") !== c.cron_secret) return json({ error: "not allowed" }, 401);
+    const body = await req.json().catch(() => ({}));
+    if (body && body.rest) return json(await runRest(sb, webpush));
     return json(await run(sb, webpush));
   } catch (e) { return json({ error: String((e as any)?.message || e) }, 500); }
 }
