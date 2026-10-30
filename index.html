@@ -225,6 +225,7 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .streak-n{display:block;font-size:20px;font-weight:850;font-stretch:110%}
 .panel.missed{border:1px solid color-mix(in srgb,var(--protein) 45%,transparent)}
 .panel.done-prog{border:1px solid color-mix(in srgb,var(--accent) 50%,transparent)}
+.sheet.rdpop{max-height:88vh;overflow:auto;gap:12px}
 .wp-big{border:0;background:var(--accent);color:var(--accent-ink);border-radius:18px;min-height:64px;font-weight:850;font-stretch:112%;font-size:18px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
 .wp-big svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.6}
 .wp-big:disabled{opacity:.45}
@@ -606,7 +607,7 @@ function renderToday(){
     ${S.editHabits?`<section class="panel">${renderHabitEditor()}</section>`:st.habits.length?`<div class="htiles">${st.habits.map(h=>{const on=!!(d.habits&&d.habits[h]);return `<button class="htile" data-act="habitTap" data-h="${esc(h)}" aria-pressed="${on}">${on?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}<span>${esc(h)}</span></button>`}).join("")}</div>`:`<p class="muted small" style="margin:0">No habits yet. Tap Edit to add some.</p>`}</section>`;
   return `${exampleBanner()}${isToday?backupBanner():""}
   <header class="top"><div><div class="sub" style="margin:0 0 4px">${PROF.list.length>1?esc(activeProf().name)+" · ":""}${isToday?fmtDay(S.day):"Viewing a past day"}${isToday&&dl?" · Week "+dl.pos+" of "+dl.every:""}</div><h1>${isToday?"Today":fmtDay(S.day).replace(/^\w+, /,"")}</h1></div>
-    <div class="hdright">${isToday?(rsc!=null?`<button class="ready-mini" data-tab="recover" aria-label="Readiness ${rsc}, open Recover"><b>${rsc}</b><span>Readiness</span></button>`:`<button class="btn" data-tab="recover">Readiness</button>`):""}
+    <div class="hdright"><button class="iconbtn" data-act="themeToggle" aria-label="Switch to ${curTheme()==="dark"?"light":"dark"} mode">${curTheme()==="dark"?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>'}</button>${isToday?(rsc!=null?`<button class="ready-mini" data-tab="recover" aria-label="Readiness ${rsc}, open Recover"><b>${rsc}</b><span>Readiness</span></button>`:`<button class="btn" data-tab="recover">Readiness</button>`):""}
     <div class="daynav"><button data-act="prevDay" aria-label="Previous day">‹</button><button data-act="nextDay" aria-label="Next day" ${isToday?"disabled":""}>›</button></div></div></header>
   <div class="stack">
   ${isToday&&unreadFeedback()?`<button class="fbbanner" data-act="readFb"><span>💬</span><span><b>New feedback from ${esc(unreadFeedback().by||"your coach")}</b><span class="small" style="display:block">${esc(String(unreadFeedback().text||unreadFeedback().focus).slice(0,90))}${String(unreadFeedback().text||"").length>90?"…":""}</span></span><span class="chev">›</span></button>`:""}
@@ -876,7 +877,7 @@ function weekBars(wo){const ws=weekStart(),weeks=[...Array(8)].map((_,i)=>addDay
     <text x="${(x+bw/2).toFixed(1)}" y="${H-B+25}" font-size="9.5" text-anchor="middle" fill="var(--muted)">${d.n?d.n+"×":"–"}</text>`}).join("");
   return `<div class="label">${useVol?"Weight lifted (kg)":"Reps"} per week · sessions underneath</div><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${useVol?"Weight lifted":"Reps"} per week for the last 8 weeks">${bars}</svg>`}
 function renderProgress(){const wo=ofType("workout");
-  if(!wo.length)return `<section class="panel"><h2>Your progress</h2><p class="small muted" style="margin:0">Finish your first workout and your lifts, personal bests, weight lifted and calories will build up here.</p><button class="btn primary" style="align-self:flex-start" data-tab="train">Go to Train</button></section>`;
+  if(!wo.length)return weekCardPanel()+ `<section class="panel"><h2>Your progress</h2><p class="small muted" style="margin:0">Finish your first workout and your lifts, personal bests, weight lifted and calories will build up here.</p><button class="btn primary" style="align-self:flex-start" data-tab="train">Go to Train</button></section>`;
   const since=addDays(todayKey(),-29),m=wo.filter(w=>w.date>=since),ms=m.map(woStats),all=wo.map(woStats),sum=(L,k)=>L.reduce((a,x)=>a+x[k],0);
   const prs=wo.flatMap(w=>(w.prs||[]).map(p=>({...p,date:w.date,id:w.id})));
   const map=new Map();wo.forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!map.has(k))map.set(k,e.name.trim())}));
@@ -888,7 +889,7 @@ function renderProgress(){const wo=ofType("workout");
       ${open?`<div class="exdetail"><div class="small muted">${M.label} (${M.unit}) per session</div>${exChart(h,M)}
         <div class="small">${vals.length>1?`Started at <b>${fmtN(first)} ${M.unit}</b>, now <b>${fmtN(now)} ${M.unit}</b>. Best ever: <b>${bestTxt(bestSet(h.flatMap(x=>x.sets)))}</b>.`:`Best: <b>${bestTxt(bestSet(h.flatMap(x=>x.sets)))}</b>.`}</div>
         ${h.slice(0,6).map(x=>`<div class="spread small" style="padding:4px 0;border-top:1px solid var(--line)"><span class="muted">${fmtDay(x.date)}</span><span style="font-variant-numeric:tabular-nums;text-align:right">${fmtSets(x.sets)}</span></div>`).join("")}</div>`:""}</div>`}).join("");
-  return `<div class="stack"><section class="panel"><h2>Last 30 days</h2><div class="tiles">${glanceTile("Workouts",m.length,"")}${glanceTile("Weight lifted",fmtBig(sum(ms,"vol")),"kg")}${glanceTile("Calories","≈"+fmtBig(sum(ms,"kcal")),"kcal burnt")}${glanceTile("Time",fmtDur(sum(ms,"mins")),"")}${glanceTile("Reps",fmtBig(sum(ms,"reps")),"")}${glanceTile("PBs",prs.filter(p=>p.date>=since).length,"🏆")}</div>
+  return `<div class="stack">${weekCardPanel()}<section class="panel"><h2>Last 30 days</h2><div class="tiles">${glanceTile("Workouts",m.length,"")}${glanceTile("Weight lifted",fmtBig(sum(ms,"vol")),"kg")}${glanceTile("Calories","≈"+fmtBig(sum(ms,"kcal")),"kcal burnt")}${glanceTile("Time",fmtDur(sum(ms,"mins")),"")}${glanceTile("Reps",fmtBig(sum(ms,"reps")),"")}${glanceTile("PBs",prs.filter(p=>p.date>=since).length,"🏆")}</div>
     <span class="small muted">All time: ${wo.length} workout${wo.length===1?"":"s"} · ${fmtBig(sum(all,"vol"))} kg lifted · ≈${fmtBig(sum(all,"kcal"))} kcal.</span>${weekBars(wo)}</section>
   <section class="panel"><h2>Personal bests</h2>${prs.length?`<div class="hist">${prs.slice(0,S.prAll?prs.length:8).map(p=>`<div class="item"><div class="spread"><b>🏆 ${esc(p.name)}</b><span class="small muted">${fmtDay(p.date)}</span></div><div class="small" style="font-variant-numeric:tabular-nums">${esc(p.txt)}</div></div>`).join("")}</div>${prs.length>8?`<button class="btn ghost" style="align-self:flex-start" data-act="prAll">${S.prAll?"Show fewer":"Show all "+prs.length}</button>`:""}`
     :`<p class="small muted" style="margin:0">Beat your best set on any exercise and it shows up here.</p>`}</section>
@@ -1036,7 +1037,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-29-2";
+const APP_VERSION="2026-10-30-1";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1046,7 +1047,8 @@ async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigato
     S.updateReady=m[1];showUpdateBar()}catch(e){}}
 function showUpdateBar(){let el=document.getElementById("updbar");if(!el){el=document.createElement("div");el.id="updbar";el.className="updbar";document.body.appendChild(el)}
   el.innerHTML=`<span>A new version of the app is ready.</span><button data-act="doUpdate">Refresh</button>`}
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkUpdate(true)});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){checkUpdate(true);setTimeout(rdPopCheck,1200)}});
+setTimeout(rdPopCheck,2500);
 setInterval(()=>{if(!document.hidden)checkUpdate(false)},30*60*1000);
 // keep an unfinished session safe if the app reloads or closes
 function persistDraft(){const dw=S.draftWorkout;
@@ -1114,6 +1116,65 @@ function finishedCard(){const F=finishedProgs()[0];if(!F)return"";const pct=Math
     <span class="small muted">${pct>=85?"Great consistency.":pct>=60?"Solid block.":"Every session counts."} Before the next block, keep active with something different for a week: it maintains fitness while your body recovers from the programme.</span>
     <div class="row" style="gap:4px"><button class="btn" data-act="newWo" data-v="bodyweight">Bodyweight session</button><button class="btn" data-act="goCardio">Run, walk or ride</button><button class="btn" data-tab="recover">Mobility routine</button></div>
     <div class="row" style="gap:4px">${F.own?`<button class="btn primary" data-act="progOpenTrainGo">Choose my next programme</button>`:`<span class="small muted">Your coach will set your next block.</span>`}<button class="btn ghost" data-act="progAck" data-k="${esc(F.name+"|"+F.last)}">Dismiss</button></div></section>`}
+/* ---------- daily readiness pop-up (first open of the day) ---------- */
+const rdPopKey=()=>"pf-rdpop:"+PROF.active,rdPopOffKey=()=>"pf-rdpopoff:"+PROF.active;
+function rdPopCheck(){const t=todayKey(),fe=document.activeElement;if(S.rdPop||S.lock||S.onboard||S.example||playerOn()||S.sheet||S.tab!=="today"||(fe&&/INPUT|TEXTAREA|SELECT/.test(fe.tagName))||(typeof gateOn==="function"&&gateOn()))return;
+  if(S.docs["ready_"+t]||lsGet(rdPopKey())===t||lsGet(rdPopOffKey())==="1"||localStorage.getItem("pf-rdpopoff")==="1")return;
+  lsSet(rdPopKey(),t);S.rdDraft={type:"readiness",date:t};S.rdPop="form";render()}
+function rdPopup(){const t=todayKey(),r=S.docs["ready_"+t];
+  if(S.rdPop==="done"&&r){const sc=readinessScore(r),adv=readinessAdvice(sc,r.pain);
+    return `<div class="sheetback" data-act="rdPopClose"></div><div class="sheet rdpop" role="dialog" aria-label="Today's readiness"><div class="grab"></div><span class="label">Today's readiness</span>${readinessCard(r,sc,adv)}
+      ${r.pain?`<button class="btn" data-act="rdPopPain">Tell us about the pain</button>`:""}<button class="btn primary" data-act="rdPopClose">Got it</button></div>`}
+  return `<div class="sheetback" data-act="rdPopLater"></div><div class="sheet rdpop" role="dialog" aria-label="Morning check-in"><div class="grab"></div>
+    <h2>Morning check-in ⚡</h2><span class="small muted">30 seconds. It tells you how hard to train today${myPlans().some(p=>p.date===t)?", and adjusts today's planned session if you need a lighter day":""}.</span>
+    ${readinessForm(S.rdDraft||(S.rdDraft={type:"readiness",date:t}))}
+    <button class="btn primary" data-act="rdSave">Save</button>
+    <div class="spread"><button class="btn ghost" data-act="rdPopLater">Not now</button><button class="btn ghost small muted" data-act="rdPopOff">Don't show this each day</button></div></div>`}
+
+/* ---------- lighter session on low-readiness days ---------- */
+function todayReady(){const r=S.docs["ready_"+todayKey()];return r?{r,sc:readinessScore(r)}:null}
+function makeLighter(dw,sc){const r125=v=>Math.round(v/1.25)*1.25;
+  dw.exercises.forEach(e=>{const left=e.sets.filter(x=>!x.done);if(left.length>1){const i=e.sets.lastIndexOf(left[left.length-1]);e.sets.splice(i,1)}
+    e.sets.forEach(x=>{if(!x.done&&+x.kg>0)x.kg=r125(+x.kg*0.9)});
+    if(e.rx){e.rx={...e.rx,sets:e.sets.length,...(e.rx.kg!==""&&e.rx.kg!=null&&+e.rx.kg>0?{kg:r125(+e.rx.kg*0.9)}:{}),...(e.rx.rir!==""&&e.rx.rir!=null?{rir:Math.min(5,+e.rx.rir+2)}:{})}}});
+  dw.lighter={score:sc};dw.coachNote=`Lighter version for today (readiness ${sc}): one set fewer, about 10% lighter, stop 2 reps earlier. ${dw.coachNote||""}`.trim()}
+function lightScreen(dw,head){const T=todayReady()||{},sc=T.sc,adv=readinessAdvice(sc,T.r&&T.r.pain)||[];
+  return `<div class="player">${head}<div class="wp-body" style="justify-content:center"><span class="label">Readiness today · ${sc}</span><h1>${esc(adv[0]||"Go lighter")}</h1>
+    <p class="small" style="margin:0">${esc(adv[1]||"")}</p>
+    <section class="panel"><b>Lighter version</b><span class="small muted">One set fewer on each exercise, weights about 10% lighter and 2 more reps in reserve. You still get the training signal with far less fatigue.</span></section>
+    ${T.r&&T.r.pain?`<p class="small" style="margin:0">You flagged pain: skip or swap anything that makes it worse.</p>`:""}</div>
+    <button class="wp-big" data-act="wpLight">Do the lighter version</button><button class="btn" style="height:52px" data-act="wpFull">Full session as planned</button>
+    ${sc<35?`<button class="btn ghost" data-act="wpRecoverDay">Make it a recovery day instead</button>`:""}</div>`}
+
+/* ---------- weekly progress card (shareable image) ---------- */
+function weekCardData(ws){const o=weekSummary(ws),end=addDays(ws,6),wo=ofType("workout").filter(w=>w.date>=ws&&w.date<=end);
+  const prs=wo.flatMap(w=>(w.prs||[]).map(p=>p.name+(p.txt?" · "+p.txt:""))).slice(0,3);
+  const ws0=ofType("body").filter(b=>b.weight&&b.date<=end).sort((a,b)=>a.date<b.date?1:-1),now=ws0.find(b=>b.date>=ws),before=ws0.find(b=>b.date<ws);
+  const wchg=now&&before?Math.round((+now.weight-+before.weight)*10)/10:null;
+  return {...o,prs,wchg,streak:planStreak().n,name:(S.docs.profile&&S.docs.profile.name)||activeProf().name||"",end}}
+function drawWeekCard(D,ws){const c=document.createElement("canvas");c.width=1080;c.height=1350;const x=c.getContext("2d"),A="#D4FF3A",F=getComputedStyle(document.documentElement).getPropertyValue("--display")||"Arial";
+  x.fillStyle="#0D0E10";x.fillRect(0,0,1080,1350);x.fillStyle=A;x.fillRect(0,0,1080,14);
+  const t=(s,px,y,col,w,al)=>{x.font=`${w||800} ${px}px ${F}`;x.fillStyle=col||"#F4F5F6";x.textAlign=al||"left";x.fillText(s,al==="right"?1000:80,y)};
+  t("PROJECT FITNESS",30,110,A,800);t(("Week of "+fmtDay(ws)).toUpperCase(),30,110,"#9AA1A9",700,"right");
+  t(D.name?D.name+"'s week":"My week",64,210,"#F4F5F6",850);
+  x.font=`900 260px ${F}`;x.fillStyle=A;x.textAlign="left";x.fillText(String(D.sessions||0),74,470);
+  x.font=`800 48px ${F}`;x.fillStyle="#F4F5F6";x.fillText((D.sessions===1?"session":"sessions")+" this week",80+x.measureText("").width,540);
+  const tiles=[["Sets",D.sets||0],["Lifted",D.volume?(D.volume>=1000?(D.volume/1000).toFixed(1)+" t":D.volume+" kg"):"–"],["Cardio",D.cardioMins?D.cardioMins+" min":"–"],
+    ["Streak",D.streak?"🔥 "+D.streak:"–"],["Protein",D.protein?D.protein+" g/day":"–"],["Weight",D.wchg==null?"–":(D.wchg>0?"+":"")+D.wchg+" kg"]];
+  tiles.forEach(([l,v],i)=>{const cx=80+(i%3)*313,cy=610+Math.floor(i/3)*210;x.fillStyle="#17191C";x.beginPath();x.roundRect?x.roundRect(cx,cy,290,180,28):x.rect(cx,cy,290,180);x.fill();
+    x.font=`700 26px ${F}`;x.fillStyle="#9AA1A9";x.textAlign="left";x.fillText(l.toUpperCase(),cx+28,cy+52);x.font=`850 54px ${F}`;x.fillStyle="#F4F5F6";x.fillText(String(v),cx+28,cy+130)});
+  let y=1100;x.font=`800 30px ${F}`;x.fillStyle=A;x.fillText(D.prs.length?"NEW PERSONAL BESTS":D.readiness?"AVERAGE READINESS":"",80,y);
+  x.font=`700 36px ${F}`;x.fillStyle="#F4F5F6";if(D.prs.length)D.prs.forEach((p,i)=>x.fillText("★ "+p.slice(0,42),80,y+56+i*50));else if(D.readiness)x.fillText(D.readiness+" / 100",80,y+56);
+  x.font=`700 26px ${F}`;x.fillStyle="#9AA1A9";x.textAlign="right";x.fillText("Tracked with Project Fitness",1000,1300);return c}
+function weekCardPanel(){const t=todayKey(),cur=weekStart(),last=addDays(cur,-7),ws=S.cardWeek==="last"?last:cur;
+  return `<section class="panel"><div class="spread"><h2>Weekly progress card</h2><div class="seg" style="grid-template-columns:1fr 1fr;min-width:170px">${[["this","This week"],["last","Last week"]].map(([k,l])=>`<button data-act="cardWeek" data-v="${k}" aria-pressed="${(S.cardWeek||"this")===k}">${l}</button>`).join("")}</div></div>
+    <span class="small muted">Your week as an image, ready for Instagram stories or to send your coach.</span>
+    <img id="weekCardImg" alt="Weekly progress card" style="width:100%;border-radius:16px;aspect-ratio:4/5;background:#0D0E10" data-ws="${ws}">
+    <div class="row" style="gap:6px"><button class="btn primary" data-act="cardShare" data-ws="${ws}">Share</button><button class="btn" data-act="cardSave" data-ws="${ws}">Save image</button></div></section>`}
+function paintWeekCard(){const im=document.getElementById("weekCardImg");if(!im)return;const ws=im.dataset.ws;try{im.src=drawWeekCard(weekCardData(ws),ws).toDataURL("image/png")}catch(e){}}
+async function shareWeekCard(ws,saveOnly){const c=drawWeekCard(weekCardData(ws),ws),blob=await new Promise(r=>c.toBlob(r,"image/png")),name=`project-fitness-week-${ws}.png`;
+  try{const f=new File([blob],name,{type:"image/png"});if(!saveOnly&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:"My week"});return}}catch(e){if(e&&e.name==="AbortError")return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast(saveOnly?"Image saved":"Sharing isn't available here, so the image was saved instead")}
 /* ---------- Today: next up + quick-log sheet ---------- */
 function nextTemplate(){const T=ofType("template");if(!T.length)return null;const lastUse=t=>{const w=ofType("workout").find(x=>exKey(x.name)===exKey(t.name));return w?w.date:""};
   return T.slice().sort((a,b)=>lastUse(a)<lastUse(b)?-1:lastUse(a)>lastUse(b)?1:String(a.name).localeCompare(String(b.name)))[0]}
@@ -1121,7 +1182,7 @@ function nextUpCard(){const today=todayKey(),doneToday=ofType("workout").filter(
   if(dw)return `<section class="nextup"><span class="label">In progress</span><span class="nu-name">${esc(dw.name||kindName(dw.kind)+" session")}</span><span class="small">${dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0)} of ${dw.exercises.reduce((a,e)=>a+e.sets.length,0)} sets done</span><button class="nu-btn" data-act="resumeWo">${PLAY} Continue workout</button></section>`;
   if(doneToday.length)return `<section class="panel"><div class="spread"><div><span class="label">Done today</span><h2 style="margin-top:4px">${esc(doneToday[0].name||kindName(doneToday[0].kind))} ✓</h2></div><button class="btn" data-act="goCardio">Log cardio</button></div></section>`;
   const cp=upcomingPlans().find(p=>p.date===today);
-  if(cp)return `<section class="nextup"><span class="label">Today · ${cp.own?"your programme":"from "+esc(cp.coachName||"your coach")}</span><span class="nu-name">${esc(cp.name||"Coach's session")}</span><span class="small">${(cp.exercises||[]).length} exercises · ${kindName(cp.kind)}${cp.note&&cp.note.length<90?" · 💬 "+esc(cp.note):""}</span><button class="nu-btn" data-act="planStart" data-id="${cp.id}">${PLAY} Start workout</button><button class="btn ghost" style="align-self:flex-start;margin-top:4px" data-tab="train">Do my own session instead ›</button></section>`;
+  if(cp)return `<section class="nextup"><span class="label">Today · ${cp.own?"your programme":"from "+esc(cp.coachName||"your coach")}</span><span class="nu-name">${esc(cp.name||"Coach's session")}</span><span class="small">${(cp.exercises||[]).length} exercises · ${kindName(cp.kind)}${cp.note&&cp.note.length<90?" · 💬 "+esc(cp.note):""}</span>${(()=>{const T=todayReady();return T&&T.sc<50?`<span class="small"><b>Readiness ${T.sc}:</b> you'll be offered a lighter version.</span>`:""})()}<button class="nu-btn" data-act="planStart" data-id="${cp.id}">${PLAY} Start workout</button><button class="btn ghost" style="align-self:flex-start;margin-top:4px" data-tab="train">Do my own session instead ›</button></section>`;
   if(!t)return `<section class="nextup"><span class="label">Next up</span><span class="nu-name">Pick a session</span><span class="small">Save a workout as a template and it'll appear here, ready to start.</span><button class="nu-btn" data-tab="train">${PLAY} Go to Train</button></section>`;
   return `<section class="nextup"><span class="label">Next up</span><span class="nu-name">${esc(t.name)}</span><span class="small">${t.exercises.length} exercise${t.exercises.length===1?"":"s"} · ${kindName(t.kind)}</span><button class="nu-btn" data-act="tplStart" data-id="${t.id}">${PLAY} Start workout</button></section>`}
 const PLAY='<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>';
@@ -1163,6 +1224,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     return `<div class="player">${head}<div class="wp-body" style="justify-content:center"><span class="label">Welcome back</span><h1>Still training?</h1><p class="small" style="margin:0">This session has had no activity for <b>${gh}</b>. Your last change was at ${hm}.</p>
     <button class="wp-big" data-act="idleSave">Finish and save (ended ${hm})</button><button class="btn" style="height:52px" data-act="idleKeep">Keep going</button>
     <button class="btn ghost" style="color:var(--protein)" data-act="wpDiscard">${S.wpDiscard?"Tap again to discard":"Discard workout"}</button></div></div>`}
+  if(S.lightAsk)return lightScreen(dw,head);
   if(S.wpEnd)return `<div class="player">${head}<div class="wp-body" style="justify-content:center"><h1>End workout?</h1>
     <button class="wp-big" data-act="wpGo" data-v="${steps.length-1}">Finish and save</button>
     <button class="btn" style="height:52px" data-act="wpEndNo">Keep going</button>
@@ -1480,6 +1542,7 @@ function renderCheckin(){
 }
 
 /* workout mode: keep your place on screen when anything changes, and keep the bottom controls pinned (also when pinch-zoomed) */
+const curTheme=()=>LOOK.theme==="auto"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):LOOK.theme;
 const wpScreenKey=()=>[S.wp?S.wp.step:0,S.rest?"r":"",S.hold?"h":"",S.wpEnd?"e":"",S.idlePrompt?"i":"",S.wu?"w"+S.wu.idx+"."+((S.wu.stages[S.wu.idx]||{}).pos||0):"",S.cdRun?"c":""].join("|");
 function wpFocusKey(el){const d=el.dataset||{},a=["act","f","i","k","part","n"].filter(k=>d[k]!=null).map(k=>`[data-${k}="${CSS.escape(d[k])}"]`).join("");return el.id?"#"+CSS.escape(el.id):a?el.tagName.toLowerCase()+a:null}
 function wpWrapFoot(pl){if(pl.querySelector(".wp-foot"))return;const kids=[...pl.children],bi=kids.map(k=>k.classList.contains("wp-body")).lastIndexOf(true);if(bi<0)return;const rest=kids.slice(bi+1);if(!rest.length)return;
@@ -1497,7 +1560,7 @@ function render(){bumpDocs();
   if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
   tb.hidden=false;
   if(S.tab==="body"||S.tab==="checkin"){S.youView=S.tab==="body"?"body":"checkin";S.tab="you"}
-  document.getElementById("sheetRoot").innerHTML=S.sheet?quickSheet():"";
+  document.getElementById("sheetRoot").innerHTML=S.rdPop?rdPopup():S.sheet?quickSheet():"";
   if(playerOn()){tb.hidden=true;const vr=document.getElementById("viewerRoot"),op=vr.querySelector(".player"),fe=document.activeElement,fk=op&&fe&&op.contains(fe)?wpFocusKey(fe):null,sel=fk?fe.selectionStart:null;
     S._wpScroll=S._wpScroll||{};if(op&&S._wpKey)S._wpScroll[S._wpKey]=op.scrollTop;
     vr.innerHTML=workoutPlayer();const np=vr.querySelector(".player"),key=wpScreenKey();S._wpKey=key;
@@ -1511,6 +1574,7 @@ function render(){bumpDocs();
   // keep anything typed into an open food form when the page redraws (e.g. a search finishing)
   const ff=document.querySelector('form[data-form="food"]'),keep=ff?{i:ff.dataset.i,v:[...ff.querySelectorAll("input")].map(x=>[x.id,x.value])}:null;
   app.innerHTML=S.tab==="today"?renderToday():S.tab==="train"?renderTrain():S.tab==="recover"?renderRecover():S.tab==="you"?renderYou():renderSettings();
+  if(document.getElementById("weekCardImg")){const im=document.getElementById("weekCardImg"),k=im.dataset.ws+JSON.stringify(weekCardData(im.dataset.ws));if(paintWeekCard._k===k&&paintWeekCard._src)im.src=paintWeekCard._src;else{paintWeekCard();paintWeekCard._k=k;paintWeekCard._src=im.src}}
   if(qv&&document.getElementById("q"))document.getElementById("q").value=qv;
   if(keep){const nf=document.querySelector(`form[data-form="food"][data-i="${keep.i}"]`);if(nf)keep.v.forEach(([id,v])=>{const el=id&&document.getElementById(id);if(el)el.value=v})}
   if(fid){const el=document.getElementById(fid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
@@ -1873,6 +1937,7 @@ function setReminders(){const R=remCfg(),perm="Notification" in window?Notificat
   <section class="panel"><h2>Remind me</h2>
     ${row("food","Log food","If nothing's logged by",`<input type="time" data-act="remTime" data-k="food" value="${R.food.time}">`)}
     ${row("ready","Morning readiness check","If not done by",`<input type="time" data-act="remTime" data-k="ready" value="${R.ready.time}">`)}
+    <div class="remrow"><label class="habit" style="flex:1"><input type="checkbox" data-act="rdPopTgl" ${lsGet(rdPopOffKey())==="1"?"":"checked"}><span><b>Check-in pop-up</b><span class="small muted" style="display:block">Ask for readiness the first time you open the app each day</span></span></label></div>
     ${row("plan","Coach's planned session","On days with a session, if not started by",`<input type="time" data-act="remTime" data-k="plan" value="${R.plan.time}">`)}
     ${row("idle","Workout left running","If a session has no activity for",`<select data-act="remMins">${[20,30,45,60,90].map(n=>`<option value="${n}" ${R.idle.mins===n?"selected":""}>${n} min</option>`).join("")}</select>`)}
     <span class="small muted">You only get a reminder when it's needed: nothing logged yet, check not done, or the session not started. One per day each. If you leave a workout running, the app also asks when you come back whether to save it at the time you stopped.</span></section>`}
@@ -2379,12 +2444,13 @@ const CLOUD_KEY="sb_publishable_EeQg53Agaz6608nVONXx3A_2SJ2MFU8";
 const CL={user:null,status:CLOUD_URL?"loading":"off",last:0,err:"",links:null,code:undefined,syncedOnce:false};
 let sbMod=null;const sbClients={};
 async function sbClient(){if(!CLOUD_URL)return null;const pid=PROF.active;
-  try{sbMod=sbMod||import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm");const m=await sbMod;
+  // a failed module load is remembered by the browser for this page, so a retry (e.g. opened offline, now back online) uses a fresh address
+  try{sbMod=sbMod||import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm"+(sbClient.tries?"?retry="+sbClient.tries:""));const m=await sbMod;
     if(!sbClients[pid]){const c=m.createClient(CLOUD_URL,CLOUD_KEY,{auth:{storageKey:"pf-sb-"+pid,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});sbClients[pid]=c;
       c.auth.onAuthStateChange((ev,sess)=>{if(PROF.active!==pid)return;CL.user=(sess&&sess.user)||null;
         if(ev==="PASSWORD_RECOVERY"){CL.recover=true;S.tab="settings";S.setPage="cloud";render()}
         if(ev==="SIGNED_OUT"){CL.status="signedout";cloudRender()}})}
-    return sbClients[pid]}catch(e){sbMod=null;CL.status="offline";return null}}
+    return sbClients[pid]}catch(e){sbMod=null;sbClient.tries=(sbClient.tries||0)+1;CL.status="offline";return null}}
 const ckey=k=>"pf-"+k+":"+PROF.active;
 function jget(k,d){try{return JSON.parse(lsGet(ckey(k))||"null")??d}catch(e){return d}}
 function jset(k,v){lsSet(ckey(k),JSON.stringify(v))}
@@ -2425,7 +2491,10 @@ async function fullSync(){if(!CL.user||CL.syncing)return;CL.syncing=true;CL.stat
   catch(e){CL.status=navigator.onLine===false?"offline":"error";CL.err=(e&&e.message)||"Sync failed"}
   CL.syncing=false;cloudRender()}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&CL.user)fullSync()});
-window.addEventListener("online",()=>{if(CL.user)fullSync()});
+// back online: sync; if the app was opened with no signal the cloud never started, so start it now
+function cloudResume(){if(!navigator.onLine)return;if(CL.user)fullSync();else if(CLOUD_URL&&CL.status!=="signedout"&&CL.status!=="loading")Cloud.init()}
+window.addEventListener("online",cloudResume);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!CL.user&&CL.status==="offline")cloudResume()});
 /* coach linking */
 async function loadLinks(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("coach_links").select("coach_id,coach_name,include_notes").eq("client_id",CL.user.id);if(!error)CL.links=data||[]}
 async function loadCode(){const c=await sbClient();if(!c||!CL.user)return;const {data}=await c.from("coach_codes").select("code").eq("coach_id",CL.user.id).maybeSingle();CL.code=data?data.code:null;cloudRender()}
@@ -2473,7 +2542,7 @@ function startPlan(id){const P=myPlans().find(x=>x.id===id);if(!P)return;const k
     warmup:P.warmup&&P.warmup.length?cp(P.warmup):presetList(WARM_PRESET,kind),cooldown:P.cooldown&&P.cooldown.length?cp(P.cooldown):presetList(COOL_PRESET,kind),
     exercises:(P.exercises||[]).map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];return {name:e.name,mode:e.mode,note:e.note||"",why:e.why||"",rx:e.rx||null,...(e.rx&&+e.rx.rest?{rest:+e.rx.rest}:{}),
       sets:(e.sets||[]).map((st,i)=>{const ls=last[i]||last[last.length-1]||{};return {kg:st.kg!==""&&st.kg!=null?st.kg:(ls.kg??""),reps:st.reps??"",secs:st.secs??"",rir:st.rir??""}})}})};
-  S.tab="train";wpStart();render();window.scrollTo(0,0);toast("Your coach's session is ready. Let's go 💪")}
+  const T=todayReady();S.tab="train";wpStart();if(T&&T.sc!=null&&T.sc<50&&S.draftWorkout.exercises.some(e=>e.sets.length))S.lightAsk=true;render();window.scrollTo(0,0);if(!S.lightAsk)toast(P.own?"Your session is ready. Let's go 💪":"Your coach's session is ready. Let's go 💪")}
 function coachPlansPanel(){const L=upcomingPlans().filter(p=>p.date>=todayKey()).slice(0,12),mc=missedCard();if(!L.length)return mc;const fromCoach=L.some(p=>!p.own),n=L[0],more=L.slice(1),t=todayKey();
   const sub=p=>`${(p.exercises||[]).length} exercises · ${kindName(p.kind)}${p.coachName?" · from "+esc(p.coachName):""}`;
   return `<section class="panel"><div class="spread"><h2>${fromCoach?"Planned for you":"Your programme"}</h2><span class="label">${(()=>{const k=planStreak().n;return k?"🔥 "+k+" in a row":L.length+" planned"})()}</span></div>
@@ -3019,6 +3088,18 @@ document.addEventListener("click",e=>{
     case "progOpenTrainGo":S.tab="train";S.progView="list";S.assign=null;render();window.scrollTo(0,0);break;
     case "myProgUpdate":myProgUpdate();break;
     case "myProgToday":myProgToday();break;
+    case "rdPopLater":S.rdPop=null;S.rdDraft=null;render();toast("You can check in any time from Recover");break;
+    case "rdPopOff":lsSet(rdPopOffKey(),"1");S.rdPop=null;S.rdDraft=null;render();toast("Daily check-in pop-up turned off. Turn it back on in Settings › Reminders");break;
+    case "rdPopClose":S.rdPop=null;render();break;
+    case "rdPopPain":S.rdPop=null;S.tab="recover";S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};render();window.scrollTo(0,0);break;
+    case "wpLight":{const T=todayReady();S.lightAsk=false;if(S.draftWorkout)makeLighter(S.draftWorkout,T?T.sc:"");render();toast("Lighter version ready. Quality over quantity today");break}
+    case "wpFull":S.lightAsk=false;render();break;
+    case "wpRecoverDay":S.lightAsk=false;S.draftWorkout=null;S.wp=null;stopRest();wakeOff();S.tab="recover";render();window.scrollTo(0,0);toast("Good call. Pick a guided routine below, and do the session another day");break;
+    case "cardWeek":S.cardWeek=ds.v;render();break;
+    case "cardShare":shareWeekCard(ds.ws,false);break;
+    case "cardSave":shareWeekCard(ds.ws,true);break;
+    case "themeToggle":LOOK.theme=curTheme()==="dark"?"light":"dark";saveLook();render();break;
+    case "rdPopOn":lsSet(rdPopOffKey(),"0");render();toast("Daily check-in pop-up is on");break;
     case "tgl":S[ds.k]=!S[ds.k];render();break;
     case "planViewClose":{const V=S.planView||{};S.progView=V.prev;S.clientOpen=V.back;S.planView=null;S.planCheck=null;render();window.scrollTo(0,0);break}
     case "planViewClose_":S.planView=null;S.planCheck=null;render();break;
@@ -3081,7 +3162,7 @@ document.addEventListener("click",e=>{
     case "rdPain":S.rdDraft.pain=ds.v==="yes";render();break;
     case "rdEdit":S.rdEdit=true;S.rdDraft=clone(S.docs["ready_"+todayKey()]);render();break;
     case "rdSave":{const d=S.rdDraft;if(!(+d.sleepH>0)||RQ.some(([k])=>!d[k])){toast("Fill in sleep hours and all five scores");break}if(d.pain==null){toast("Answer the pain question");break}
-      const k=todayKey();d.date=k;d.type="readiness";d.sleepH=+d.sleepH;S.rdEdit=false;S.rdDraft=null;if(d.pain&&!ofType("pain").some(x=>x.status!=="resolved"))S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};save("ready_"+k,d);toast(S.painDraft?"Saved. Tell us about the pain below":"Readiness saved");break}
+      const k=todayKey();d.date=k;d.type="readiness";d.sleepH=+d.sleepH;S.rdEdit=false;S.rdDraft=null;if(d.pain&&!ofType("pain").some(x=>x.status!=="resolved"))S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};if(S.rdPop){S.rdPop="done";S.painDraft=null}save("ready_"+k,d);if(S.rdPop)break;toast(S.painDraft?"Saved. Tell us about the pain below":"Readiness saved");break}
     case "painNew":S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};render();break;
     case "painCancel":S.painDraft=null;render();break;
     case "pdScore":S.painDraft.score=+ds.n;render();break;
@@ -3208,6 +3289,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="hqConsent"){const h=ds.p==="ob"?(S.onboard.d.health||(S.onboard.d.health={})):S.healthDraft;h.consent=t.checked}
   if(ds.act==="shareHealth"){save("profile",{...(S.docs.profile||{}),shareHealth:t.checked});window.Cloud&&CL.user&&pushReports(true)}
   if(ds.act==="habitsOnly"){const p=S.docs.profile||{type:"profile",name:activeProf().name};if(p.minor&&!t.checked){t.checked=true;toast("Numbers stay hidden for under-18s");return}save("profile",{...p,habitsOnly:t.checked});toast(t.checked?"Numbers hidden. Focus on habits and portions":"Calorie and macro numbers shown")}
+  if(ds.act==="rdPopTgl"){lsSet(rdPopOffKey(),t.checked?"0":"1");toast(t.checked?"Check-in pop-up on":"Check-in pop-up off");return}
   if(ds.act==="coachMode"){save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),coach:t.checked});if(t.checked){S.youView="clients"};toast(t.checked?"Clients view added to Check-in":"Coach tools off")}
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
