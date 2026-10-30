@@ -517,6 +517,8 @@ section.panel{border-radius:22px}
 .rsec{font-family:var(--display);font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .rsec.warn{color:var(--carb)}
 .rpct{font-family:var(--display);font-size:24px;line-height:1;flex:none}
+.cd-gap .wp-ring{width:150px;height:150px}.cd-gap .wp-ring>div{width:126px;height:126px}.cd-gap .wp-ring b{font-size:44px}
+.ahead{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin:2px 0}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1129,7 +1131,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-30-3";
+const APP_VERSION="2026-10-30-4";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1247,23 +1249,46 @@ function todayBody(){const I=heroInfo(),t=todayKey(),ws=weekStart(),G=myGoals()[
   return `${coachNote(I.cp)}${I.act}${gb}
     <div class="wkstats"><div><b>${done}${planned?"/"+planned:""}</b><span>Sessions this week</span></div>${NUM()?`<div><b>${pd}/${days}</b><span>Protein days</span></div>`:`<div><b>${(settings().habits||[]).filter(h=>(dayDoc(t).habits||{})[h]).length}/${(settings().habits||[]).length}</b><span>Habits today</span></div>`}<div><b>${planStreak().n?"🔥 "+planStreak().n:planStreak().best||0}</b><span>${planStreak().n?"In a row":"Best streak"}</span></div></div>
     ${!G?`<button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="goGoals">+ Set a goal</button>`:""}
+    ${aheadInfo()?`<button class="duerow" data-tab="train"><span><b>You're ahead of schedule</b><span class="small muted" style="display:block">Bring your programme forward so it carries on from when you train</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}
     ${ciDue?`<button class="duerow" data-act="goCheckin"><span><b>Weekly check-in due Sunday</b><span class="small muted" style="display:block">Weight, photos and how the week felt · 2 min</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}`}
 /* ---------- programme status: missed sessions, streaks, finished programmes ---------- */
 const planMeta=()=>S.docs.planMeta||{type:"planMeta",skips:[],ack:[]};
 const planSkipped=id=>(planMeta().skips||[]).includes(id);
 function missedRecent(){const done=planDoneIds(),t=todayKey(),from=addDays(t,-7);return myPlans().filter(p=>p.date>=from&&p.date<t&&!done.has(p.id)&&!planSkipped(p.id)).sort((a,b)=>a.date<b.date?1:-1)}
 // sessions in a row done as planned (today's not-yet-done session doesn't break it)
-function planStreak(){const done=planDoneIds(),t=todayKey(),L=myPlans().filter(p=>p.date<=t).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);let n=0,best=0,run=0;
+function planStreak(){const done=planDoneIds(),t=todayKey(),L=myPlans().filter(p=>p.date<=t&&!planSkipped(p.id)).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);let n=0,best=0,run=0;
   for(const p of L){if(p.date===t&&!done.has(p.id))continue;if(done.has(p.id)){n++}else break}
   L.slice().reverse().forEach(p=>{if(p.date===t&&!done.has(p.id))return;if(done.has(p.id)){run++;best=Math.max(best,run)}else run=0});return {n,best}}
 // a programme counts as finished once its last session's day has passed or every session is done
-function finishedProgs(){const done=planDoneIds(),t=todayKey(),by={};myPlans().forEach(p=>{const k=p.progName||(p.progId?"Programme":null);if(!k)return;(by[k]=by[k]||[]).push(p)});
+function finishedProgs(){const done=planDoneIds(),t=todayKey(),by={};myPlans().filter(p=>!planSkipped(p.id)).forEach(p=>{const k=p.progName||(p.progId?"Programme":null);if(!k)return;(by[k]=by[k]||[]).push(p)});
   return Object.entries(by).map(([name,L])=>{const last=L.reduce((a,p)=>p.date>a?p.date:a,""),d=L.filter(p=>done.has(p.id)).length;return {name,total:L.length,done:d,last,own:L.some(p=>p.own)}})
     .filter(x=>x.total>1&&(x.done===x.total||x.last<t)&&x.last>=addDays(t,-21)&&!(planMeta().ack||[]).includes(x.name+"|"+x.last))}
 // push every not-done session from a date onwards back by a week (your own plan, or a client's when you're their coach)
 async function shiftPlans(docs){let n=0;const sent=[];
   for(const d of docs){const cur=S.docs[d.id];if(!cur)continue;cur.date=addDays(cur.date,7);if(cur.type==="cplan")cur.pending=true;save(d.id,cur);n++;if(cur.type==="cplan")sent.push({id:d.id,...cur})}
   if(sent.length&&await pushPlans(sent))sent.forEach(d=>{const c=S.docs[d.id];if(c){delete c.pending;save(d.id,c)}});return n}
+// trained a session earlier than planned: offer to bring the rest of your own programme forward so it carries on from when you actually train
+const dDiff=(a,b)=>Math.round((new Date(a+"T12:00")-new Date(b+"T12:00"))/864e5);
+function doneDates(){const m={};ofType("workout").forEach(w=>{if(w.planId&&(!m[w.planId]||w.date<m[w.planId]))m[w.planId]=w.date});return m}
+function nextFreeDay(){const t=todayKey();return ofType("workout").some(w=>w.date===t)?addDays(t,1):t}
+function aheadInfo(){const t=todayKey(),m=doneDates(),own=ofType("mplan"),ack=planMeta().aheadAck||[];
+  const early=own.filter(d=>m[d.pid]&&m[d.pid]<d.date&&m[d.pid]>=addDays(t,-14)).sort((a,b)=>m[a.pid]!==m[b.pid]?(m[a.pid]<m[b.pid]?1:-1):(a.date<b.date?1:-1));
+  // the most recent session you trained early decides it; once you've answered for it, older ones don't come back
+  for(const a of early.slice(0,1)){const key=a.pid+"|"+a.date;if(ack.includes(key))continue;const grp=own.filter(d=>(!a.progId||d.progId===a.progId)&&!m[d.pid]&&!planSkipped(d.pid));
+    const target=grp.filter(d=>d.date>a.date).sort((x,y)=>x.date<y.date?-1:1)[0];if(!target)continue;
+    const delta=dDiff(a.date,m[a.pid]),min=nextFreeDay();let to=addDays(target.date,-delta);if(to<min)to=min;if(to>=target.date)continue;
+    const skipL=grp.filter(d=>d.date>=t&&d.date<target.date).sort((x,y)=>x.date<y.date?-1:1);
+    return {a,wd:m[a.pid],target,to,dd:dDiff(target.date,to),skipL,key}}return null}
+// move one of your own sessions (and everything after it) earlier so it lands on a given day; sessions it jumps over are marked skipped
+function pullForward(pid,to,ackKey){const done=planDoneIds(),t=todayKey(),own=ofType("mplan"),T=own.find(d=>d.pid===pid);if(!T)return null;const dd=dDiff(T.date,to);if(dd<=0)return null;
+  const grp=own.filter(d=>(!T.progId||d.progId===T.progId)&&!done.has(d.pid)),move=grp.filter(d=>d.date>=T.date),skip=grp.filter(d=>d.date<T.date&&d.date>=t&&!planSkipped(d.pid));
+  const m=clone(planMeta());m.skips=[...new Set([...(m.skips||[]),...skip.map(d=>d.pid)])].slice(-300);if(ackKey){const dm=doneDates(),all=own.filter(d=>dm[d.pid]&&dm[d.pid]<d.date).map(d=>d.pid+"|"+d.date);m.aheadAck=[...new Set([...(m.aheadAck||[]),ackKey,...all])].slice(-100)}S.docs.planMeta=m;
+  move.forEach(d=>{const cur=S.docs[d.id];if(cur){cur.date=addDays(cur.date,-dd);S.docs[d.id]=cur}});
+  move.slice(0,-1).forEach(d=>save(d.id,S.docs[d.id],true));if(move.length)save(move[move.length-1].id,S.docs[move[move.length-1].id]);save("planMeta",m);
+  return {n:move.length,dd,skipped:skip.length}}
+function aheadCard(){const A=aheadInfo();if(!A)return"";const nm=d=>esc(d.name||"Session");
+  return `<div class="ahead"><b>You're ahead of schedule 💪</b><span class="small">You did ${nm(A.a)} on ${fmtDay(A.wd)} (planned ${fmtDay(A.a.date)}). Bring the rest of your programme forward ${A.dd} day${A.dd>1?"s":""} so <b>${nm(A.target)}</b> is ${planDayLabel(A.to)==="Today"||planDayLabel(A.to)==="Tomorrow"?planDayLabel(A.to).toLowerCase():"on "+fmtDay(A.to)}. The gaps between sessions stay the same.${A.skipL.length?` Skips ${A.skipL.map(nm).join(", ")}.`:""}</span>
+    <div class="row" style="gap:6px"><button class="btn primary" data-act="aheadMove">Move it forward</button><button class="btn ghost" data-act="aheadKeep">Keep my dates</button></div></div>`}
 function missedAdvice(){const M=missedRecent();if(!M.length)return null;const t=todayKey(),done=planDoneIds(),todayP=myPlans().find(p=>p.date===t&&!done.has(p.id)),m=M[0],own=M.every(p=>p.own),day=fmtDay(m.date);
   if(M.length>=2)return {m,M,title:`Missed ${M.length} sessions this week`,text:own?"Don't try to cram them in: doubling up adds fatigue and raises injury risk. Push the rest of your programme back a week so the progression still lines up, or skip them and carry on.":"Don't try to cram them in. Carry on with your next session as planned. Your coach can see this and may move your programme back a week.",shift:own};
   if(!todayP)return {m,M,title:`Missed: ${m.name||"session"} (${day})`,text:"Nothing's planned today, so do it today and carry on with the week as planned. If it's a leg day and tomorrow is too, keep one of them lighter.",doToday:true};
@@ -2146,30 +2171,53 @@ function cdSecs(t){const m=String(t||"").match(/(\d+(?:\.\d+)?)\s*(?:[–-]\s*\d
 const cdBase=n=>String(n).replace(/, (left|right)$/i,"");
 const cdDemo=n=>{const k=demoKey(cdBase(n));return k&&!/^ex:/.test(k)?k:null};
 function coolStages(dw,only){const out=[];(dw.cooldown||[]).forEach((it,i)=>{if(only!=null?i!==only:it.done)return;
-  const secs=cdSecs(it.detail),sides=/each side|per side/i.test(it.detail||"");let names=[it.name];
+  const secs=cdSecs(it.detail),sides0=/each side|per side|each leg|each arm/i.test(it.detail||"")?true:/both sides|both arms|both legs/i.test(it.detail||"")?false:null;let names=[it.name];
   if(/muscles you trained/i.test(it.name)){const g=[...new Set(dw.exercises.map(e=>LIB_GROUP[exKey(e.name)]).filter(Boolean))];names=[...new Set(g.map(x=>COOL_FOR[x]).filter(Boolean))];if(!names.length)names=["Hamstring stretch","Quad stretch","Chest stretch"]}
   else{const parts=it.name.split(/,\s*|\s+and\s+/).map(x=>x.trim()).filter(Boolean);if(parts.length>1){const fixed=parts.map(x=>!/stretch/i.test(x)&&demoKey(x+" stretch")?x+" stretch":demoKey(x)?x:null);if(fixed.every(Boolean))names=fixed.map(x=>x[0].toUpperCase()+x.slice(1))}}
-  names.forEach(n=>(sides?[n+", left",n+", right"]:[n]).forEach(name=>out.push({i,name,secs})))});return out}
+  names.forEach(n=>{const sides=sides0!=null?sides0:cdOneSide(n);(sides?[n+", left",n+", right"]:[n]).forEach(name=>out.push({i,name,secs}))})});return out}
+// stretches done one leg or arm at a time get a left and a right timer
+function cdOneSide(n){n=String(n);if(/\b(left|right)\b|each|both/i.test(n))return false;
+  if(/child|cat.?cow|breath|walk|cycle|bike|row|jog|march|cobra|downward|dog|happy baby|butterfly|frog|forward fold|toe touch|wrist|neck|cool.?down|foam|chest stretch|doorway/i.test(n))return false;
+  return /calf|hamstring|quad|hip flexor|pigeon|glute|cross.?body|shoulder|tricep|lat stretch|figure.?4|it band|piriformis|adductor|groin|side bend|side stretch|lunge|world's greatest|thread the needle|couch|kneeling|ankle|bicep|lying twist|spinal twist|knee to chest|90.?90/i.test(n)}
 function cdBegin(only){const dw=S.draftWorkout,st=coolStages(dw,only);if(!st.length){toast("All done. Tap Finish workout");return}
-  unlockAudio();stopRestQuiet();S.cdRun={stages:st,idx:0,end:Date.now()+st[0].secs*1000,total:st[0].secs,left:null};wakeOn();render();window.scrollTo(0,0)}
+  unlockAudio();stopRestQuiet();S.cdRun={stages:st,idx:0,end:Date.now()+st[0].secs*1000,total:st[0].secs,left:null,gap:null,manual:cdManual()};wakeOn();render();window.scrollTo(0,0)}
 function cdAdvance(){const C=S.cdRun,dw=S.draftWorkout,cur=C.stages[C.idx],nx=C.stages[C.idx+1];
   if(!nx||nx.i!==cur.i){const it=dw.cooldown[cur.i];if(it)it.done=true}
   C.idx++;if(C.idx>=C.stages.length){S.cdRun=null;toast("Cool-down done. Nice work");render();window.scrollTo(0,0);return}
-  C.left=null;C.total=C.stages[C.idx].secs;C.end=Date.now()+C.total*1000;render();window.scrollTo(0,0)}
-setInterval(()=>{const C=S.cdRun;if(!C||!playerOn()||C.left!=null)return;const left=(C.end-Date.now())/1000;
+  C.left=null;const sw=C.stages[C.idx].i===cur.i&&cdBase(C.stages[C.idx].name)===cdBase(cur.name),g=sw?CD_SWITCH:CD_GAP;
+  C.gap={end:Date.now()+g*1000,total:g,wait:!!C.manual,sw};render();window.scrollTo(0,0)}
+// a short break between stretches: counts down, or waits for a tap when the person prefers to start each one
+const CD_GAP=10,CD_SWITCH=5;
+function cdManual(){try{return localStorage.getItem("pf-cdmanual")==="1"}catch(e){return false}}
+function cdSetManual(v){try{localStorage.setItem("pf-cdmanual",v?"1":"0")}catch(e){}}
+function cdGo(){const C=S.cdRun;if(!C)return;C.gap=null;C.left=null;C.total=C.stages[C.idx].secs;C.end=Date.now()+C.total*1000;render();window.scrollTo(0,0)}
+setInterval(()=>{const C=S.cdRun;if(!C||!playerOn())return;
+  if(C.gap){if(C.gap.wait)return;const gl=(C.gap.end-Date.now())/1000;if(gl<=0){const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate(120);cdGo();return}
+    const t=document.getElementById("cdClock"),r=document.getElementById("cdRing");if(t)t.textContent=Math.ceil(gl);if(r)r.style.setProperty("--p",Math.min(100,(1-gl/C.gap.total)*100).toFixed(1));return}
+  if(C.left!=null)return;const left=(C.end-Date.now())/1000;
   if(left<=0){const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate(200);cdAdvance();return}
   const t=document.getElementById("cdClock"),r=document.getElementById("cdRing");if(t)t.textContent=mmss(left);if(r)r.style.setProperty("--p",Math.min(100,(1-left/C.total)*100).toFixed(1))},250);
 function coolRun(dw,head){const C=S.cdRun,st=C.stages[C.idx],it=dw.cooldown[st.i]||{},base=cdBase(st.name),dk=cdDemo(st.name),left=C.left!=null?C.left:(C.end-Date.now())/1000,nx=C.stages[C.idx+1];
+  if(C.gap)return coolGap(dw,head);
   return `<div class="player">${head}<div class="wp-body"><span class="label">Cool-down ${C.idx+1} of ${C.stages.length}</span>
     ${C.stages.length>1?`<div class="wp-seg">${C.stages.map((_,k)=>`<i class="${k<C.idx?"on":k===C.idx?"cur":""}"></i>`).join("")}</div>`:""}
-    ${dk?`<div class="demo-wrap">${demoSVG(base,160)}</div>`:""}
+    ${dk?`<div class="demo-wrap">${demoSVG(dk,160)}</div>`:""}
     <h1 class="wp-ex">${esc(st.name)}</h1>
-    <span class="small">${esc(dk?demoTip(base):(it.detail&&!/^\d/.test(it.detail)?it.detail:/walk|cycle|bike|row|jog|march/i.test(base)?"Keep it easy: you should be able to chat. Let your breathing and heart rate settle.":"Ease in slowly, breathe out as you go deeper, and never push into pain."))}</span>
+    <span class="small">${esc(dk?demoTip(dk):(it.detail&&!/^\d/.test(it.detail)?it.detail:/walk|cycle|bike|row|jog|march/i.test(base)?"Keep it easy: you should be able to chat. Let your breathing and heart rate settle.":"Ease in slowly, breathe out as you go deeper, and never push into pain."))}</span>
     ${/^breath/.test(dk||"")?"":`<a class="vidlink" href="${videoLink(base)}" target="_blank" rel="noopener">▶ ${dk?"Watch a video of this":"Find a video of this"}</a>`}
     <div class="wp-ring" id="cdRing" style="--p:${Math.min(100,Math.max(0,(1-left/C.total)*100)).toFixed(1)}"><div><b id="cdClock">${mmss(left)}</b><span>${C.left!=null?"paused":"of "+mmss(C.total)}</span></div></div>
     <div class="row" style="justify-content:center"><button class="btn" data-act="cdPause">${C.left!=null?"Resume":"Pause"}</button><button class="btn" data-act="cdPlus" data-d="-15">−15s</button><button class="btn" data-act="cdPlus" data-d="15">+15s</button></div>
     ${nx?`<span class="small muted" style="text-align:center">Next: ${esc(nx.name)} · ${mmss(nx.secs)}</span>`:""}</div>
     <button class="wp-big" data-act="cdNext">${nx?"Next ›":"Done"}</button><button class="btn ghost" data-act="cdExit">Cool-down list</button></div>`}
+function coolGap(dw,head){const C=S.cdRun,G=C.gap,st=C.stages[C.idx],base=cdBase(st.name),dk=cdDemo(st.name),gl=G.wait?G.total:Math.max(0,(G.end-Date.now())/1000);
+  return `<div class="player">${head}<div class="wp-body cd-gap"><span class="label">${G.sw?"Switch sides":"Up next"} · ${C.idx+1} of ${C.stages.length}</span>
+    ${C.stages.length>1?`<div class="wp-seg">${C.stages.map((_,k)=>`<i class="${k<C.idx?"on":k===C.idx?"cur":""}"></i>`).join("")}</div>`:""}
+    ${dk?`<div class="demo-wrap">${demoSVG(dk,130)}</div>`:""}
+    <h1 class="wp-ex">${esc(st.name)}</h1><span class="small muted">${mmss(st.secs)}${dk&&!G.sw?" · "+esc(demoTip(dk)):""}</span>
+    ${G.wait?`<span class="small" style="text-align:center">Take a breath. Start when you're ready.</span>`
+      :`<div class="wp-ring" id="cdRing" style="--p:${Math.min(100,Math.max(0,(1-gl/G.total)*100)).toFixed(1)}"><div><b id="cdClock">${Math.ceil(gl)}</b><span>starts in</span></div></div>`}
+    <div class="row" style="justify-content:center">${G.wait?`<button class="btn" data-act="cdAuto">Use ${G.sw?CD_SWITCH:CD_GAP} s countdown</button>`:`<button class="btn" data-act="cdHold">Wait, I'll start it</button>`}<button class="btn ghost" data-act="cdNext">Skip this one</button></div></div>
+    <button class="wp-big" data-act="cdGo">${G.wait?"Start":"Start now"} ›</button><button class="btn ghost" data-act="cdExit">Cool-down list</button></div>`}
 function coolAdd(dw,L){const mine=(settings().myCool||[]).filter(x=>!L.some(it=>it.name===x[0])),ideas=(COOL_IDEAS_K[dw.kind]||COOL_IDEAS_K.gym).filter(x=>!L.some(it=>it.name===x)&&!mine.some(m=>m[0]===x));
   return S.cdAdd?`<div class="wp-card"><div class="wp-opts" style="padding-top:14px"><span class="label">Add your own cool-down</span>
     <form class="row" id="cdForm" style="flex-wrap:nowrap"><input id="cdNew" placeholder="e.g. Pigeon stretch, 1 min" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>
@@ -2734,7 +2782,7 @@ function coachFeedbackCards(limit){const L=coachMsgs("feedback").sort((a,b)=>Str
   return L.map(f=>`<section class="panel coachfb"><span class="label">From ${esc(f.by||"your coach")} · week of ${fmtDay(f.week)}</span>${f.text?`<p style="margin:0;white-space:pre-wrap">${esc(f.text)}</p>`:""}${f.focus?`<div class="small"><b>Focus for this week:</b> ${esc(f.focus)}</div>`:""}</section>`).join("")}
 function unreadFeedback(){const f=coachMsgs("feedback").sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0];return f&&lsGet("pf-fbseen:"+PROF.active)!==f.at?f:null}
 const planDoneIds=()=>new Set(ofType("workout").map(w=>w.planId).filter(Boolean));
-function upcomingPlans(){const done=planDoneIds(),from=addDays(todayKey(),-3);return myPlans().filter(p=>p.date>=from&&!done.has(p.id)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0)}
+function upcomingPlans(){const done=planDoneIds(),from=addDays(todayKey(),-3);return myPlans().filter(p=>p.date>=from&&!done.has(p.id)&&!planSkipped(p.id)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0)}
 const planDayLabel=d=>{const t=todayKey();return d===t?"Today":d===addDays(t,1)?"Tomorrow":d<t?"Missed · "+fmtDay(d):fmtDay(d)};
 const fmtSecs=t=>{t=+t||0;return t>=60?(t%60?Math.floor(t/60)+":"+String(t%60).padStart(2,"0"):t/60+" min"):t+"s"};
 const rxText=e=>{const r=e.rx||{},n=(e.sets||[]).length||r.sets||0;return `${n} × ${r.secs?fmtSecs(r.secs):(r.reps||"?")}${r.range?" (range "+r.range+")":""}${r.kg?" @ "+fmtN(+r.kg)+" kg":""}${r.rir!==""&&r.rir!=null?" · "+r.rir+" in reserve":""}${r.tempo?" · tempo "+r.tempo:""}${r.rest?" · rest "+fmtSecs(r.rest):""}`};
@@ -2747,6 +2795,7 @@ function startPlan(id){const P=myPlans().find(x=>x.id===id);if(!P)return;const k
 function coachPlansPanel(){const L=upcomingPlans().filter(p=>p.date>=todayKey()).slice(0,12),mc=missedCard();if(!L.length)return mc;const fromCoach=L.some(p=>!p.own),n=L[0],more=L.slice(1),t=todayKey();
   const sub=p=>`${(p.exercises||[]).length} exercises · ${kindName(p.kind)}${p.coachName?" · from "+esc(p.coachName):""}`;
   return `<section class="panel"><div class="spread"><h2>${fromCoach?"Planned for you":"Your programme"}</h2><span class="label">${(()=>{const k=planStreak().n;return k?"🔥 "+k+" in a row":L.length+" planned"})()}</span></div>
+    ${aheadCard()}
     <div class="spread"><span style="min-width:0"><span class="label">Next · ${planDayLabel(n.date)}</span><b style="display:block">${esc(n.name||"Session")}</b><span class="small muted">${sub(n)}</span></span><button class="btn ${n.date<=t?"primary":""}" data-act="planStart" data-id="${n.id}">${PLAY} Start</button></div>
     ${mc}
     ${(()=>{const I=fromCoach?null:myProgInfo();if(!I||!(I.stale||I.canToday))return"";return `<div class="row" style="gap:4px">${I.stale&&!I.started?`<button class="btn primary" data-act="myProgUpdate">Update to latest version</button>`:""}${I.canToday?`<button class="btn" data-act="myProgToday">Start today instead</button>`:""}</div><span class="small muted">${I.canToday?`Starts ${fmtDay(I.first)}. “Start today” moves every session earlier and keeps the same gaps between them.`:"A newer version of this programme is ready."}</span>`})()}
@@ -2755,7 +2804,7 @@ function coachPlansPanel(){const L=upcomingPlans().filter(p=>p.date>=todayKey())
       ${n.progWhy||L.find(p=>p.progWhy)?`<details><summary class="small">Why this programme</summary><div class="small" style="white-space:pre-wrap">${esc(n.progWhy||L.find(p=>p.progWhy).progWhy)}</div></details>`:""}
       <span class="small muted">Fancy something different today? Start your own session below.${fromCoach?" Your coach still sees it.":""}</span>
       ${ofType("mplan").length?`<button class="btn ghost" style="align-self:flex-start;padding:4px 0" data-act="planView" data-c="me">See or remove my whole programme ›</button>`:""}</div>`:""}
-    ${S.plansOpen&&more.length?`<div class="hist">${more.map(p=>`<div class="item"><div class="spread"><span style="min-width:0"><span class="label" style="${p.date<t?"color:var(--protein)":""}">${planDayLabel(p.date)}</span><b style="display:block">${esc(p.name||"Session")}</b></span><button class="btn ghost" data-act="planStart" data-id="${p.id}">${PLAY} Start</button></div>
+    ${S.plansOpen&&more.length?`<div class="hist">${more.map(p=>`<div class="item"><div class="spread"><span style="min-width:0"><span class="label" style="${p.date<t?"color:var(--protein)":""}">${planDayLabel(p.date)}</span><b style="display:block">${esc(p.name||"Session")}</b></span><span class="row" style="gap:2px;flex-wrap:nowrap">${p.own&&p.date>nextFreeDay()?`<button class="btn ghost" data-act="planNext" data-id="${p.id}">Do next</button>`:""}<button class="btn ghost" data-act="planStart" data-id="${p.id}">${PLAY} Start</button></span></div>
       <details><summary class="small muted">${sub(p)}</summary>${(p.exercises||[]).map(e=>`<div class="small" style="padding:2px 0"><b>${esc(e.name)}</b> <span class="muted">${esc(rxText(e))}</span></div>`).join("")}</details></div>`).join("")}</div>`:""}
     <div class="row" style="gap:4px">${more.length?`<button class="btn ghost" data-act="tgl" data-k="plansOpen" aria-expanded="${!!S.plansOpen}">${S.plansOpen?"Hide next workouts ▴":"Next workouts ("+more.length+") ▾"}</button>`:""}<button class="btn ghost" data-act="tgl" data-k="planMore" aria-expanded="${!!S.planMore}">${S.planMore?"Fewer details ▴":"More options ▾"}</button></div></section>`}
 // coach side
@@ -3281,6 +3330,9 @@ document.addEventListener("click",e=>{
     case "progUnassign":{const k=ds.id+"|"+ds.c;if(S.confirmUnassign!==k){S.confirmUnassign=k;render();break}S.confirmUnassign=null;dropProg(ds.id,ds.c).then(r=>{render();toast(`Removed ${r.n} sessions${ds.c==="me"?" from your plan":r.ok?". Gone from their app too":". They'll disappear from their app when you're back online"}`)});break}
     case "planView":S.planView={uid:ds.c,progId:ds.id||null,prev:S.progView||null,back:S.clientOpen||null};S.progView=S.progView||"list";S.clientOpen=null;S.assign=null;S.planCheck=null;render();window.scrollTo(0,0);break;
     case "progSwap":progSwap(ds.id,ds.c);break;
+    case "aheadMove":{const A=aheadInfo();if(!A)break;const r=pullForward(A.target.pid,A.to,A.key);if(r)toast(`Moved ${r.n} sessions ${r.dd} day${r.dd>1?"s":""} earlier${r.skipped?", skipped "+r.skipped:""}. Next: ${planDayLabel(A.to)}`);break}
+    case "aheadKeep":{const A=aheadInfo();if(!A)break;const m=clone(planMeta()),dm=doneDates(),all=ofType("mplan").filter(d=>dm[d.pid]&&dm[d.pid]<d.date).map(d=>d.pid+"|"+d.date);m.aheadAck=[...new Set([...(m.aheadAck||[]),A.key,...all])].slice(-100);save("planMeta",m);toast("Kept your dates");break}
+    case "planNext":{const to=nextFreeDay(),r=pullForward(ds.id,to);if(r)toast(`Moved ${r.n} sessions ${r.dd} day${r.dd>1?"s":""} earlier${r.skipped?", skipped "+r.skipped:""}. Next: ${planDayLabel(to)}`);break}
     case "planSkip":{const m=clone(planMeta());m.skips=[...new Set([...(m.skips||[]),...ds.ids.split(",")])].slice(-300);save("planMeta",m);toast("Skipped. Carry on with your next session");break}
     case "planShift":{const M=missedRecent(),from=M.length?M[M.length-1].date:todayKey(),done=planDoneIds(),L=ofType("mplan").filter(d=>d.date>=from&&!done.has(d.pid));shiftPlans(L).then(n=>toast(`Moved ${n} sessions back a week`));break}
     case "plShiftClient":{const t=todayKey(),c=ofType("client").find(x=>x.clientUid===ds.c),done=new Set(((c&&c.planDone)||[]).map(x=>x.id||x)),mine=ofType("cplan").filter(p=>p.clientUid===ds.c&&!done.has(p.pid)),mi=mine.filter(p=>p.date<t&&p.date>=addDays(t,-7)).sort((a,b)=>a.date<b.date?-1:1),from=mi.length?mi[0].date:t;
@@ -3443,6 +3495,9 @@ document.addEventListener("click",e=>{
     case "cdRun":cdBegin();break;
     case "cdOne":cdBegin(+ds.i);break;
     case "cdNext":cdAdvance();break;
+    case "cdGo":cdGo();break;
+    case "cdHold":{const C=S.cdRun;if(!C||!C.gap)break;C.gap.wait=true;C.manual=true;cdSetManual(true);render();break}
+    case "cdAuto":{const C=S.cdRun;if(!C||!C.gap)break;C.manual=false;cdSetManual(false);C.gap.wait=false;C.gap.end=Date.now()+C.gap.total*1000;render();break}
     case "cdExit":S.cdRun=null;render();window.scrollTo(0,0);break;
     case "cdPause":{const C=S.cdRun;if(!C)break;if(C.left==null)C.left=Math.max(0,(C.end-Date.now())/1000);else{C.end=Date.now()+C.left*1000;C.left=null}render();break}
     case "cdPlus":{const C=S.cdRun;if(!C)break;const d=+ds.d;if(C.left!=null)C.left=Math.max(1,C.left+d);else C.end=Math.max(Date.now()+1000,C.end+d*1000);C.total=Math.max(5,C.total+d);render();break}
