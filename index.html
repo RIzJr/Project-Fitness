@@ -9,7 +9,7 @@
 <title>Project Fitness</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Bold & Athletic: Archivo throughout, dark by default, one bright accent */
 :root{
@@ -469,6 +469,54 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
 .star{border:0;background:transparent;font-size:20px;line-height:1;padding:4px 6px;color:var(--muted)}
 .star[aria-pressed="true"]{color:var(--carb)}
 @media (prefers-reduced-motion:no-preference){.dot{transition:background .15s}}
+
+/* ---------- Bold editorial look ---------- */
+:root{--display:"Anton",Impact,"Arial Narrow",sans-serif;--body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;--bg:#FFFFFF;--surface:#F3F3F1;--sunk:#E8E8E5;--line:#E2E2DE;--fg:#0A0A0A;--muted:#5C5C5C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000000;--surface:#121214;--sunk:#1D1E21;--line:#2A2A2C;--fg:#FFFFFF;--muted:#9C9C9C}}
+:root[data-theme="dark"]{--bg:#000000;--surface:#121214;--sunk:#1D1E21;--line:#2A2A2C;--fg:#FFFFFF;--muted:#9C9C9C}
+html{font-synthesis:none}
+h1{font-size:46px;line-height:.92;text-transform:uppercase;letter-spacing:.005em;font-weight:400}
+h2{font-size:21px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;font-weight:400}
+.label{letter-spacing:.1em;font-weight:800}
+.btn,.nu-btn,.wp-big,.addbtn{border-radius:999px}
+.wp-big{font-family:var(--display);font-weight:400;letter-spacing:.06em;text-transform:uppercase;font-size:20px}
+section.panel{border-radius:22px}
+#tabs button{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.wp-ex,.nu-name,.wp-nx,.streak-n,.bignum{font-weight:400;text-transform:uppercase}
+.today-top h1{font-size:30px}
+/* Today hero */
+.hero{position:relative;margin:0 0 14px;padding:16px;border-radius:26px;overflow:hidden;min-height:300px;display:flex;flex-direction:column;justify-content:space-between;gap:14px;color:#fff;background:radial-gradient(120% 90% at 70% 15%,#3a3a3a 0%,#151515 55%,#000 100%);background-size:cover;background-position:center}
+.hero-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hero-top .dt{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.hero-top .dt button{width:30px;height:30px;border-radius:99px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:15px;padding:0}
+.hero-top .hbtns{display:flex;gap:6px;align-items:center;flex:none}
+.hero-top .iconbtn{width:36px;height:36px;border-color:rgba(255,255,255,.35);background:transparent;color:#fff}
+.hero-top .rd{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:99px;height:36px;padding:0 12px;font-weight:800;font-size:13px}
+.hero-top .rd b{font-family:var(--display);font-weight:400;font-size:18px;margin-right:4px;color:var(--hero-acc,#D4FF3A)}
+.hero-k{font-family:var(--display);font-size:14px;letter-spacing:.16em;color:var(--hero-acc,#D4FF3A);text-transform:uppercase}
+.hero-h{font-family:var(--display);font-weight:400;text-transform:uppercase;line-height:.88;font-size:60px;margin:6px 0 0;overflow-wrap:anywhere}
+.hero-h.long{font-size:46px}
+.hero-q{margin:0;font-size:14px;line-height:1.4;color:#d6d6d6;display:flex;gap:10px;align-items:flex-start}
+.hero-q button{flex:none;width:30px;height:30px;border-radius:99px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;padding:0}
+.startpill{border:0;background:var(--accent);color:var(--accent-ink);border-radius:999px;min-height:58px;font-family:var(--display);font-size:20px;letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
+.coachnote{display:flex;gap:12px;align-items:flex-start;border:0;background:transparent;color:var(--fg);text-align:left;padding:0;width:100%}
+.coachnote .avatar{flex:none}
+.coachnote .k{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.coachnote p{margin:2px 0 0;font-size:14.5px;line-height:1.4}
+.wkstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.wkstats>div{padding:10px 0 10px 12px;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line)}
+.wkstats>div:first-child{border-left:0;padding-left:0}
+.wkstats b{font-family:var(--display);font-weight:400;font-size:26px;line-height:1}
+.wkstats span{font-size:10.5px;color:var(--muted);font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.goalbar{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.goalbar .gt{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.goalbar .gt b{font-family:var(--display);font-weight:400;font-size:24px;line-height:1;text-transform:uppercase}
+.goal{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.duerow{all:unset;cursor:pointer;box-sizing:border-box;border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.duerow b{font-size:14.5px}
+.rsec{font-family:var(--display);font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.rsec.warn{color:var(--carb)}
+.rpct{font-family:var(--display);font-size:24px;line-height:1;flex:none}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -651,13 +699,12 @@ function renderToday(){
     return `<button class="upnext" data-act="addTo" data-m="${nextMeal[0]}" data-focus="1"><span><span class="label">Up next</span><b>Log ${nextMeal[1].toLowerCase()}${NUM()&&per?` · aim for ${per} g protein`:""}</b></span><span class="acc">+ Log</span></button>`})():"";
   const habitTiles=NUM()?"":`<section class="panel">${S.editHabits?renderHabitEditor():hchips}</section>`;
   return `${exampleBanner()}${isToday?backupBanner():""}
-  <header class="top today-top"><div><div class="sub daynav2" style="margin:0 0 4px"><button data-act="prevDay" aria-label="Previous day">‹</button>${isToday?"":`<button data-act="nextDay" aria-label="Next day">›</button>`}${PROF.list.length>1?esc(activeProf().name)+" · ":""}${isToday?fmtDay(S.day):"Viewing a past day"}${isToday&&dl?" · Week "+dl.pos+" of "+dl.every:""}${isToday&&planStreak().n?" · 🔥 "+planStreak().n+" in a row":""}</div><h1>${isToday?greeting():fmtDay(S.day).replace(/^\w+, /,"")}</h1></div>
+  ${isToday?todayHero(rsc):`<header class="top today-top"><div><div class="sub daynav2" style="margin:0 0 4px"><button data-act="prevDay" aria-label="Previous day">‹</button>${isToday?"":`<button data-act="nextDay" aria-label="Next day">›</button>`}${PROF.list.length>1?esc(activeProf().name)+" · ":""}${isToday?fmtDay(S.day):"Viewing a past day"}${isToday&&dl?" · Week "+dl.pos+" of "+dl.every:""}${isToday&&planStreak().n?" · 🔥 "+planStreak().n+" in a row":""}</div><h1>${isToday?greeting():fmtDay(S.day).replace(/^\w+, /,"")}</h1></div>
     <div class="hdright"><button class="iconbtn" data-act="themeToggle" aria-label="Switch to ${curTheme()==="dark"?"light":"dark"} mode">${curTheme()==="dark"?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>'}</button>${isToday?(rsc!=null?`<button class="ready-mini" data-tab="recover" aria-label="Readiness ${rsc}, open Recover"><b>${rsc}</b><span>Readiness</span></button>`:`<button class="btn" data-act="rdPopOpen">Check in</button>`):""}
-    </div></header>
+    </div></header>`}
   <div class="stack">
-  ${isToday&&unreadFeedback()?`<button class="fbbanner" data-act="readFb"><span>💬</span><span><b>New feedback from ${esc(unreadFeedback().by||"your coach")}</b><span class="small" style="display:block">${esc(String(unreadFeedback().text||unreadFeedback().focus).slice(0,90))}${String(unreadFeedback().text||"").length>90?"…":""}</span></span><span class="chev">›</span></button>`:""}
-  ${quoteCard()}
-  ${isToday?nextUpCard()+missedCard()+finishedCard():""}
+  ${!isToday&&unreadFeedback()?`<button class="fbbanner" data-act="readFb"><span>💬</span><span><b>New feedback from ${esc(unreadFeedback().by||"your coach")}</b><span class="small" style="display:block">${esc(String(unreadFeedback().text||unreadFeedback().focus).slice(0,90))}${String(unreadFeedback().text||"").length>90?"…":""}</span></span><span class="chev">›</span></button>`:""}
+  ${isToday?todayBody()+missedCard()+finishedCard():""}
   ${NUM()?nutrition:`<section class="panel"><h2>Today</h2><div class="tiles">${glanceTile("Meals logged",MEALS.filter(([k])=>(d.foods||[]).some(f=>f.meal===k)).length+"/4","")}${glanceTile("Habits",(st.habits||[]).filter(h=>d.habits&&d.habits[h]).length+"/"+(st.habits||[]).length,"")}</div>
     <span class="small muted">Numbers are hidden (habits-only mode). Focus on regular meals, protein with each meal, and how you feel.</span></section>`}
   ${habitTiles}${upNext}
@@ -1082,7 +1129,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-30-2";
+const APP_VERSION="2026-10-30-3";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1108,14 +1155,61 @@ function restoreDraft(){try{const d=JSON.parse(localStorage.getItem("pf-draft:"+
 /* ---------- You: check-in, body and (coach) clients ---------- */
 const isCoach=()=>!!(S.docs.profile&&S.docs.profile.coach);
 function renderYou(){const coach=isCoach();let v=S.youView||"checkin";if(v==="clients"&&!coach)v="checkin";
-  const views=[["checkin","Check-in"],["progress","Progress"],["body","Body"]].concat(coach?[["clients","Clients"]]:[]);
+  const views=[["goals","Goals"],["checkin","Check-in"],["progress","Progress"],["body","Body"]].concat(coach?[["clients","Clients"]]:[]);
   const n=ofType("client").length;
-  const sub=v==="checkin"?"Week of "+fmtDay(weekStart()):v==="progress"?"Lifts, personal bests and training totals":v==="body"?(coach?"Weigh-ins, measurements and photos":"Weigh-ins and progress photos"):`${n} client${n===1?"":"s"}${CL.user?" · linked clients update automatically":""}`;
+  const sub=v==="goals"?"What you're working towards":v==="checkin"?"Week of "+fmtDay(weekStart()):v==="progress"?"Lifts, personal bests and training totals":v==="body"?(coach?"Weigh-ins, measurements and photos":"Weigh-ins and progress photos"):`${n} client${n===1?"":"s"}${CL.user?" · linked clients update automatically":""}`;
   return `${exampleBanner()}<header class="top"><div><h1>You</h1><div class="sub">${sub}</div></div><span class="row" style="gap:6px;flex-wrap:nowrap">${v==="clients"?`<button class="btn primary" data-act="importReport">Import</button>`:""}<button class="iconbtn" data-act="openSettings" aria-label="Settings">${ICONS.settings}</button></span></header>
   <div class="seg" role="tablist" aria-label="You" style="margin-bottom:14px;grid-template-columns:repeat(${views.length},1fr)">${views.map(([k,l])=>`<button role="tab" data-act="youView" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join("")}</div>
-  ${v==="body"?renderBody():v==="progress"?renderProgress():v==="clients"?renderClients():renderCheckin()}`}
+  ${v==="body"?renderBody():v==="progress"?renderProgress():v==="clients"?renderClients():v==="goals"?renderGoals():renderCheckin()}`}
 
 
+/* ---------- goals: set by the client or their coach; progress worked out from what they log ---------- */
+const GOAL_KINDS=[["lift","Lift a weight"],["weight","Reach a bodyweight"],["sessions","Sessions a week"],["protein","Protein days a week"],["custom","Something else"]];
+function coachGoals(){const r=coachMsgs("goals").sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0];return r?(r.goals||[]).map(g=>({...g,coach:true,coachBy:r.by||"your coach"})):[]}
+function myGoals(){return [...coachGoals(),...ofType("goal").map(g=>({...g,own:true})).sort((a,b)=>String(a.id).localeCompare(String(b.id)))]}
+const goalName=g=>g.name||(g.kind==="lift"?`${g.ex||"Lift"} ${fmtN(+g.kg||0)} kg${+g.reps>1?" × "+g.reps:""}`:g.kind==="weight"?`Bodyweight ${fmtN(+g.kg||0)} kg`:g.kind==="sessions"?`${g.target||3} sessions a week`:g.kind==="protein"?`Protein target ${g.target||5} days a week`:"Goal");
+function liftBest(ex,reps,upto){let b=0;exHistory(ex).forEach(h=>{if(upto&&h.date>upto)return;(h.sets||[]).forEach(x=>{if((+x.reps||0)>=(+reps||1)&&+x.kg>b)b=+x.kg})});return b}
+function weightOn(date,after){const L=ofType("body").filter(b=>+b.weight).sort((a,b)=>a.date<b.date?-1:1);if(!L.length)return null;if(after)return +L[L.length-1].weight;const before=L.filter(b=>b.date<=date);return +(before.length?before[before.length-1]:L[0]).weight}
+function goalProgress(g){const t=todayKey(),clamp=v=>Math.max(0,Math.min(1,v)),ws=weekStart(),day=Math.round((new Date(t+"T12:00")-new Date(ws+"T12:00"))/864e5)+1;let cur=null,pct=0,label="",weekly=false,note="";
+  if(g.kind==="lift"){const st=liftBest(g.ex,g.reps,g.made||t)||0;cur=liftBest(g.ex,g.reps);const tg=+g.kg||0;pct=tg>st?clamp((cur-st)/(tg-st)):cur>=tg?1:0;label=cur?`now ${fmtN(cur)} kg${+g.reps>1?" × "+g.reps:""}`:"no sets logged yet";note="Add a little weight or a rep each week."}
+  else if(g.kind==="weight"){const st=weightOn(g.made||t),c=weightOn(t,true),tg=+g.kg||0;cur=c;pct=st!=null&&c!=null&&tg!==st?clamp((c-st)/(tg-st)):0;label=c!=null?`now ${fmtN(c)} kg`:"no weigh-ins yet";note="Weigh in 3+ mornings a week to see the trend."}
+  else if(g.kind==="sessions"){weekly=true;const tg=+g.target||3;cur=ofType("workout").filter(w=>w.date>=ws&&w.date<=t).length;pct=clamp(cur/tg);label=`${cur} of ${tg} this week`;note="Fit one more session in this week."}
+  else if(g.kind==="protein"){weekly=true;const tg=+g.target||5,pt=+settings().targets.protein||0;cur=[...Array(day)].filter((_,i)=>{const d=S.docs["day_"+addDays(ws,i)];return d&&pt&&totals(d).protein>=pt*.9}).length;pct=clamp(cur/tg);label=`${cur} of ${tg} days this week`;note="Add a protein snack after training."}
+  else{const st=+g.start||0,tg=+g.target||0,c=g.coach?+((S.docs.gcur||{})[g.id]??st):+(g.cur??st);cur=c;pct=tg!==st?clamp((c-st)/(tg-st)):0;label=`now ${fmtN(c)}${g.unit?" "+g.unit:""}`;note="Update it when it changes."}
+  let status;if(pct>=1)status="done";else if(weekly){const need=Math.floor((+g.target||3)*Math.min(7,day)/7);status=cur>=need?"on":"behind"}
+  else if(g.by&&g.made){const tot=(new Date(g.by)-new Date(g.made))/864e5,el=(new Date(t)-new Date(g.made))/864e5;status=tot>0&&pct+0.1<Math.min(1,el/tot)?"behind":"on"}else status="on";
+  return {cur,pct,label,status,weekly,note:status==="behind"?note:""}}
+const goalStatusTxt=p=>p.status==="done"?"Done 🎉":p.status==="behind"?"A little behind":"On track";
+function goalRow(g,opts){const P=goalProgress(g),col=P.status==="behind"?"var(--carb)":"var(--accent)";
+  return `<div class="goal"><div class="spread" style="align-items:baseline;gap:8px"><b>${esc(goalName(g))}</b><span class="small muted" style="flex:none">${esc(P.label)}</span></div>
+    <div class="bar"><i style="width:${Math.round(P.pct*100)}%;background:${col}"></i></div>
+    <div class="spread small"><span style="color:${P.status==="behind"?"var(--carb)":"var(--muted)"}">${goalStatusTxt(P)}${P.note?" · "+esc(P.note):""}</span><span class="muted">${g.by?"by "+fmtDay(g.by):P.weekly?"weekly":""}${g.coach?" · from "+esc(g.coachBy||"your coach"):""}</span></div>
+    ${opts&&opts.edit&&g.own?`<div class="row" style="gap:4px">${g.kind==="custom"?`<label class="small" style="display:flex;align-items:center;gap:6px">Now <input type="number" inputmode="decimal" step="any" style="width:90px" data-act="goalCur" data-id="${g.id}" value="${esc(g.cur??g.start??"")}"></label>`:""}<button class="btn ghost" style="color:var(--protein)" data-act="goalDel" data-id="${g.id}">${S.confirmGoalDel===g.id?"Tap to remove":"Remove"}</button></div>`:""}
+    ${opts&&opts.edit&&g.coach&&g.kind==="custom"?`<label class="small" style="display:flex;align-items:center;gap:6px">Now <input type="number" inputmode="decimal" step="any" style="width:90px" data-act="goalCurC" data-id="${g.id}" value="${esc((S.docs.gcur||{})[g.id]??g.start??"")}"></label>`:""}</div>`}
+function goalForm(D,act){const ex=[...new Set(ofType("workout").flatMap(w=>(w.exercises||[]).map(e=>String(e.name||"").trim())).filter(Boolean))].slice(0,80);
+  return `<div class="stack goalform" style="gap:8px"><label class="field"><span class="label">What kind of goal</span><select data-act="gdF" data-k="kind">${GOAL_KINDS.map(([k,l])=>`<option value="${k}" ${D.kind===k?"selected":""}>${l}</option>`).join("")}</select></label>
+    ${D.kind==="lift"?`<label class="field"><span class="label">Exercise</span><input list="gdEx" data-act="gdF" data-k="ex" value="${esc(D.ex||"")}" placeholder="e.g. Hip thrust"><datalist id="gdEx">${ex.map(n=>`<option value="${esc(n)}">`).join("")}</datalist></label><div class="grid2"><label class="field"><span class="label">Target kg</span><input type="number" inputmode="decimal" step="any" data-act="gdF" data-k="kg" value="${esc(D.kg||"")}"></label><label class="field"><span class="label">For reps</span><input type="number" inputmode="numeric" data-act="gdF" data-k="reps" value="${esc(D.reps||"")}" placeholder="e.g. 10"></label></div>`
+      :D.kind==="weight"?`<label class="field"><span class="label">Target bodyweight (kg)</span><input type="number" inputmode="decimal" step="any" data-act="gdF" data-k="kg" value="${esc(D.kg||"")}"></label>`
+      :D.kind==="sessions"||D.kind==="protein"?`<label class="field"><span class="label">${D.kind==="sessions"?"Sessions a week":"Days a week on protein target"}</span><input type="number" inputmode="numeric" min="1" max="7" data-act="gdF" data-k="target" value="${esc(D.target||"")}" placeholder="${D.kind==="sessions"?"e.g. 4":"e.g. 5"}"></label>`
+      :`<label class="field"><span class="label">Goal</span><input data-act="gdF" data-k="name" value="${esc(D.name||"")}" placeholder="e.g. Waist down 4 cm"></label><div class="grid2"><label class="field"><span class="label">Starting value</span><input type="number" inputmode="decimal" step="any" data-act="gdF" data-k="start" value="${esc(D.start??"")}"></label><label class="field"><span class="label">Target</span><input type="number" inputmode="decimal" step="any" data-act="gdF" data-k="target" value="${esc(D.target??"")}"></label></div><label class="field"><span class="label">Unit</span><input data-act="gdF" data-k="unit" value="${esc(D.unit||"")}" placeholder="e.g. cm"></label>`}
+    ${D.kind==="sessions"||D.kind==="protein"?"":`<label class="field"><span class="label">By (optional)</span><input type="date" data-act="gdF" data-k="by" value="${esc(D.by||"")}"></label>`}
+    <div class="row"><button class="btn primary" data-act="${act}">Save goal</button><button class="btn ghost" data-act="gdCancel">Cancel</button></div></div>`}
+function goalValid(D){if(D.kind==="lift")return String(D.ex||"").trim()&&+D.kg>0;if(D.kind==="weight")return +D.kg>0;if(D.kind==="sessions"||D.kind==="protein")return +D.target>0&&+D.target<=7;return String(D.name||"").trim()&&D.target!==""&&D.target!=null}
+const goalClean=D=>{const g={id:D.id||"g"+Date.now().toString(36),kind:D.kind,made:D.made||todayKey()};["ex","kg","reps","target","start","unit","name","by"].forEach(k=>{if(D[k]!==""&&D[k]!=null)g[k]=["kg","reps","target","start"].includes(k)?+D[k]:String(D[k]).trim()});return g};
+function renderGoals(){const L=myGoals(),D=S.goalDraft&&!S.goalDraft.uid?S.goalDraft:null;
+  return `<div class="stack"><section class="panel"><div class="spread"><h2>My goals</h2>${D?"":`<button class="btn primary" data-act="goalNew">+ Goal</button>`}</div>
+    ${D?goalForm(D,"goalSave"):""}
+    ${L.length?L.map(g=>goalRow(g,{edit:true})).join(""):D?"":`<p class="small muted" style="margin:0">Set a goal and your progress fills in automatically from what you log: lifts from your workouts, bodyweight from weigh-ins, sessions and protein days each week.${myPlans().some(p=>!p.own)?" Your coach can set goals for you too.":""}</p>`}</section></div>`}
+function goalsReport(){return myGoals().slice(0,12).map(g=>{const P=goalProgress(g);return {id:g.id,name:goalName(g),coach:!!g.coach,pct:Math.round(P.pct*100),label:P.label,status:P.status,by:g.by||""}})}
+// coach: set goals for a linked client (sent through the plans table, like targets and feedback)
+function coachGoalsPanel(c){if(!c.clientUid)return"";const sent=S.docs["cgoals_"+c.clientUid],L=(sent&&sent.goals)||[],rep=c.goals||[],D=S.goalDraft&&S.goalDraft.uid===c.clientUid?S.goalDraft:null;
+  const row=g=>{const r=rep.find(x=>x.id===g.id)||{},pct=r.pct||0,beh=r.status==="behind";return `<div class="goal"><div class="spread" style="align-items:baseline;gap:8px"><b>${esc(goalName(g))}</b><span class="small muted" style="flex:none">${esc(r.label||"waiting for their app to sync")}</span></div><div class="bar"><i style="width:${pct}%;background:${beh?"var(--carb)":"var(--accent)"}"></i></div><div class="spread small"><span style="color:${beh?"var(--carb)":"var(--muted)"}">${r.status?goalStatusTxt(r):"Sent"}</span><button class="btn ghost" style="color:var(--protein);padding:2px 0" data-act="cgDel" data-id="${g.id}" data-c="${c.clientUid}">${S.confirmGoalDel===g.id?"Tap to remove":"Remove"}</button></div></div>`};
+  const own=rep.filter(r=>!r.coach);
+  return `<section class="panel"><div class="spread"><h2>Goals</h2>${D?"":`<button class="btn primary" data-act="cgNew" data-c="${c.clientUid}">+ Set a goal</button>`}</div>
+    ${D?goalForm(D,"cgSave"):""}
+    ${L.length?L.map(row).join(""):D?"":`<p class="small muted" style="margin:0">Set goals for ${esc(String(c.name||"them").split(" ")[0])}. They appear in their app with a progress bar, and their progress comes back here.</p>`}
+    ${own.length?`<span class="label">Their own goals</span>${own.map(r=>`<div class="goal"><div class="spread" style="align-items:baseline;gap:8px"><b>${esc(r.name)}</b><span class="small muted">${esc(r.label||"")}</span></div><div class="bar"><i style="width:${r.pct||0}%;background:${r.status==="behind"?"var(--carb)":"var(--accent)"}"></i></div></div>`).join("")}`:""}</section>`}
+async function pushGoals(uid,goals){const data={type:"goals",goals,by:activeProf().name,at:new Date().toISOString()};const ok=await pushCoachRow(uid,"goals",data);save("cgoals_"+uid,{type:"cgoals",clientUid:uid,goals});return ok}
 // your own programme: one-tap update to the latest ready-made version, and start it today instead of a future date
 function myProgInfo(){const done=planDoneIds(),t=todayKey(),L=ofType("mplan").filter(d=>d.progId);if(!L.length)return null;
   const pid=L.sort((a,b)=>a.date<b.date?-1:1)[0].progId,P=S.docs[pid],mine=L.filter(d=>d.progId===pid),started=mine.some(d=>done.has(d.pid)),first=mine.filter(d=>!done.has(d.pid)).map(d=>d.date).sort()[0];
@@ -1128,6 +1222,32 @@ async function myProgUpdate(){const I=myProgInfo();if(!I||!I.lib)return;if(I.sta
   S.assign={progId:id,clientUid:"me",start,days};await assignProg();toast("Updated to the latest version")}
 function myProgToday(){const I=myProgInfo();if(!I||!I.canToday)return;const done=planDoneIds(),t=todayKey(),dd=Math.round((new Date(t+"T12:00")-new Date(I.first+"T12:00"))/864e5);
   I.mine.filter(d=>!done.has(d.pid)).forEach(d=>{const cur=S.docs[d.id];if(cur){cur.date=addDays(cur.date,dd);S.docs[d.id]=cur}});save(I.mine[0].id,S.docs[I.mine[0].id]);toast("Your programme now starts today")}
+/* ---------- Today: hero + coaching summary ---------- */
+function heroInfo(){const t=todayKey(),dw=S.draftWorkout,done=ofType("workout").filter(w=>w.date===t),ups=upcomingPlans(),cp=ups.find(p=>p.date===t),tp=nextTemplate();
+  const short=n=>String(n||"").replace(/\s*·\s*Wk\s*\d+$/i,"").trim();
+  if(dw)return {k:"In progress",h:short(dw.name)||kindName(dw.kind)+" session",act:`<button class="startpill" data-act="resumeWo">${PLAY} Continue workout</button>`};
+  if(done.length)return {k:"Done today",h:(short(done[0].name)||kindName(done[0].kind))+" ✓",act:`<button class="startpill" data-act="goCardio">Log cardio</button>`};
+  if(cp){const sets=(cp.exercises||[]).reduce((a,e)=>a+((e.sets||[]).length||+((e.rx||{}).sets)||3),0),mins=Math.max(15,Math.round(sets*1.9/5)*5);
+    return {cp,k:(cp.week?`Week ${cp.week}${cp.weeks?" of "+cp.weeks:""} · `:"")+(cp.own?"Your programme":"From "+(cp.coachName||"your coach")),h:short(cp.name)+" today.",act:`<button class="startpill" data-act="planStart" data-id="${cp.id}">${PLAY} Start · ${mins} min</button><button class="btn ghost" style="align-self:center" data-tab="train">Do my own session instead ›</button>`}}
+  const nx=ups.find(p=>p.date>t);if(nx)return {k:"Next: "+planDayLabel(nx.date)+" · "+short(nx.name),h:"Rest day.",act:`<button class="startpill" data-tab="train">Train anyway</button>`};
+  if(tp)return {k:"Next up",h:tp.name,act:`<button class="startpill" data-act="tplStart" data-id="${tp.id}">${PLAY} Start workout</button>`};
+  return {k:"Today",h:"Time to train.",act:`<button class="startpill" data-tab="train">${PLAY} Pick a session</button>`}}
+function todayHero(rsc){const I=heroInfo(),n=QUOTES.length,qi=(((dayIndex()+(S.quoteShift||0))%n)+n)%n,first=String((S.docs.profile&&S.docs.profile.name)||activeProf().name||"").trim().split(/\s+/)[0],st=planStreak().n;
+  return `<section class="hero${LOOK.photo?" photo":""}"><div class="hero-top"><span class="dt"><button data-act="prevDay" aria-label="Previous day">‹</button>${fmtDay(S.day)}${st?" · 🔥 "+st:""}</span>
+      <span class="hbtns"><button class="iconbtn" data-act="themeToggle" aria-label="Switch to ${curTheme()==="dark"?"light":"dark"} mode">${curTheme()==="dark"?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>'}</button>${rsc!=null?`<button class="rd" data-tab="recover" aria-label="Readiness ${rsc}, open Recover"><b>${rsc}</b>ready</button>`:`<button class="rd" data-act="rdPopOpen">Check in</button>`}</span></div>
+    <div><div class="hero-k">${esc((first?first+" · ":"")+I.k)}</div><h1 class="hero-h${String(I.h).length>16?" long":""}">${esc(I.h)}</h1></div>
+    <p class="hero-q"><span>“${esc(QUOTES[qi][0])}” <span style="opacity:.75">${esc(QUOTES[qi][1])}</span></span><button data-act="nextQuote" aria-label="Show another quote">↻</button></p></section>`}
+function coachNote(cp){const f=unreadFeedback()||coachMsgs("feedback").sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0],fresh=f&&String(f.at||"")>=addDays(todayKey(),-7);
+  const txt=cp&&!cp.own&&cp.note&&cp.note.length<160?cp.note:fresh?(f.text||f.focus):"";if(!txt)return"";const by=(cp&&!cp.own&&cp.note?cp.coachName:f&&f.by)||"your coach";
+  return `<button class="coachnote" data-act="readFb"><span class="avatar">${esc(initials(by))}</span><span><span class="k">From ${esc(by)}${unreadFeedback()?" · new":""}</span><p>${esc(String(txt).slice(0,200))}</p></span></button>`}
+function todayBody(){const I=heroInfo(),t=todayKey(),ws=weekStart(),G=myGoals()[0],planned=myPlans().filter(p=>p.date>=ws&&p.date<=addDays(ws,6)).length,done=ofType("workout").filter(w=>w.date>=ws&&w.date<=t).length;
+  const pt=+settings().targets.protein||0,days=Math.round((new Date(t+"T12:00")-new Date(ws+"T12:00"))/864e5)+1,pd=[...Array(days)].filter((_,i)=>{const d=S.docs["day_"+addDays(ws,i)];return d&&pt&&totals(d).protein>=pt*.9}).length;
+  const ciDue=!S.docs["ci_"+ws]&&days>=5;let gb="";
+  if(G){const P=goalProgress(G);gb=`<button class="goalbar" data-act="goGoals"><span class="gt"><span class="label">${G.coach?"Your goal · from "+esc(G.coachBy):"Your goal"}</span><span class="small muted">${G.by?"by "+fmtDay(G.by):esc(P.label)}</span></span><span class="gt"><b>${esc(goalName(G))}</b><b style="color:${P.status==="behind"?"var(--carb)":"var(--accent)"}">${Math.round(P.pct*100)}%</b></span><span class="bar"><i style="width:${Math.round(P.pct*100)}%;background:${P.status==="behind"?"var(--carb)":"var(--accent)"}"></i></span></button>`}
+  return `${coachNote(I.cp)}${I.act}${gb}
+    <div class="wkstats"><div><b>${done}${planned?"/"+planned:""}</b><span>Sessions this week</span></div>${NUM()?`<div><b>${pd}/${days}</b><span>Protein days</span></div>`:`<div><b>${(settings().habits||[]).filter(h=>(dayDoc(t).habits||{})[h]).length}/${(settings().habits||[]).length}</b><span>Habits today</span></div>`}<div><b>${planStreak().n?"🔥 "+planStreak().n:planStreak().best||0}</b><span>${planStreak().n?"In a row":"Best streak"}</span></div></div>
+    ${!G?`<button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="goGoals">+ Set a goal</button>`:""}
+    ${ciDue?`<button class="duerow" data-act="goCheckin"><span><b>Weekly check-in due Sunday</b><span class="small muted" style="display:block">Weight, photos and how the week felt · 2 min</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}`}
 /* ---------- programme status: missed sessions, streaks, finished programmes ---------- */
 const planMeta=()=>S.docs.planMeta||{type:"planMeta",skips:[],ack:[]};
 const planSkipped=id=>(planMeta().skips||[]).includes(id);
@@ -1930,7 +2050,7 @@ loadLook();
 function saveLook(){try{localStorage.setItem("pf-look:"+PROF.active,JSON.stringify(LOOK))}catch(e){toast("Couldn't save that photo on this device. Try a smaller one.");LOOK.photo=null}applyLook();render()}
 function applyLook(){const a=ACCENTS.find(x=>x[0]===LOOK.accent)||ACCENTS[0];let st=document.getElementById("lookcss");if(!st){st=document.createElement("style");st.id="lookcss";document.body.appendChild(st)}
   st.textContent=`:root{--accent:${a[1]};--accent-ink:#fff}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--accent:${a[2]};--accent-ink:#0D0E10}}:root[data-theme="dark"]{--accent:${a[2]};--accent-ink:#0D0E10}`
-    +(LOOK.photo?`.quote.photo{background-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.55)),url("${LOOK.photo}")}`:"");
+    +(LOOK.photo?`.hero.photo,.quote.photo{background-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.55)),url("${LOOK.photo}")}`:"");
   if(LOOK.theme==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",LOOK.theme)}
 function lookPanel(){
   return `<section class="panel" aria-label="Appearance">
@@ -2149,7 +2269,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity()}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport()}}
 function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
   const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
   return {lastFood:days.pop()||null,lastWorkout:(ofType("workout")[0]||{}).date||null,ready,lastCheckin:(ofType("checkin")[0]||{}).date||null,at:todayKey()}}
@@ -2165,7 +2285,7 @@ function coachSeg(){return `<div class="seg" role="tablist" aria-label="Check-in
 function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.kind!=="progress-report"||!Array.isArray(j.weeks))throw 0;
     const id="client_"+String(j.shareId||j.name).replace(/[^a-z0-9_-]/gi,""),old=S.docs[id]||{};
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
-    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
+    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
 const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["readiness","Readiness"],["recovery","Recovery sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
@@ -2338,15 +2458,22 @@ function clientFlags(c){const F=[],t=todayKey(),R=c.recent||{},done=new Set((c.p
   const lr=daysSince(c.received||c.date);if(lr!=null&&lr>=7)F.push(["grey",`No update from their app for ${lr} days`]);
   return F}
 const flagRank=F=>F.reduce((a,[c])=>a+(c==="red"?100:c==="amber"?10:1),0);
+// how much of this week's plan a client has done so far: sessions, nutrition days on target, habits
+function clientWeekPct(c){const wk=(c.weeks||[])[(c.weeks||[]).length-1];if(!wk)return null;const t=todayKey(),ws=weekStart();if(wk.week&&wk.week!==ws)return null;
+  const el=Math.round((new Date(t+"T12:00")-new Date(ws+"T12:00"))/864e5)+1,parts=[];
+  const pl=c.clientUid?ofType("cplan").filter(p=>p.clientUid===c.clientUid&&p.date>=ws&&p.date<=t).length:0,need=pl||Math.max(1,Math.round(3*el/7));parts.push(Math.min(1,(wk.sessions||0)/need));
+  if(!c.habitsOnly&&wk.daysLogged!=null)parts.push(Math.min(1,(wk.onTarget||0)/el));
+  if(wk.habitsPct!=null)parts.push(Math.min(1,wk.habitsPct*7/el/100));
+  return Math.round(parts.reduce((a,b)=>a+b,0)/parts.length*100)}
 function renderClients(){if(S.progView)return renderProgrammes();if(CL.user&&(!CL.repAt||Date.now()-CL.repAt>60000)){CL.repAt=Date.now();fetchClientReports()}
   const list=ofType("client").map(c=>({c,F:clientFlags(c)})).sort((a,b)=>flagRank(b.F)-flagRank(a.F)||String(a.c.name).localeCompare(String(b.c.name))).map(x=>Object.assign(x.c,{_F:x.F}));const c=S.clientOpen&&S.docs[S.clientOpen];
   const need=list.filter(x=>x._F.some(f=>f[0]!=="grey")).length;
   const head="";
   if(c)return head+clientDetail(S.clientOpen,c);
-  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="dashsum"><div><b>${need}</b><span>need attention</span></div><div><b>${list.length-need}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length}</b><span>sessions planned this week</span></div></section>`:""}${list.length?`<section class="panel" style="padding:4px 16px">${list.map(cl=>{const w=cl.weeks.filter(x=>x.weight!=null),ch=w.length>1?r1(w[w.length-1].weight-w[0].weight):null,last=cl.weeks[cl.weeks.length-1];
-      const F=cl._F||[],wk=cl.weeks[cl.weeks.length-1]||{},rd=(cl.recent&&cl.recent.ready||[])[0];
-      return `<button class="setrow clientrow" data-act="openClient" data-id="${cl.id}" style="flex-wrap:wrap">${F.length?`<span class="flags">${F.slice(0,3).map(([k,t])=>`<i class="flag ${k}">${esc(t)}</i>`).join("")}</span>`:`<span class="flags"><i class="flag green">On track</i></span>`}<span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small muted" style="display:block">${esc(GOALS[cl.goal]||"No goal set")} · report ${fmtDay(String(cl.received||cl.date).slice(0,10))}</span></span></span>
-        <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none">${w.length?fmtN(w[w.length-1].weight)+" kg":"—"}${ch!=null?`<span class="muted" style="display:block">${ch>0?"+":""}${fmtN(ch)} kg</span>`:""}</span></button>`}).join("")}</section>`
+  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="dashsum"><div><b>${list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>need you</span></div><div><b>${list.length-list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length}</b><span>sessions planned this week</span></div></section>`:""}${list.length?(()=>{const row=cl=>{const F=cl._F||[],pc=clientWeekPct(cl),warn=F.find(f=>f[0]==="red"||f[0]==="amber"),gl=(cl.goals||[])[0],wk=cl.weeks[cl.weeks.length-1]||{};
+        return `<button class="setrow clientrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small ${warn?"":"muted"}" style="display:block;${warn?"color:var(--carb)":""}">${warn?esc(F.filter(f=>f[0]!=="grey").slice(0,2).map(f=>f[1]).join(" · ")):esc([wk.sessions!=null?wk.sessions+" session"+(wk.sessions===1?"":"s")+" this week":"",gl?gl.name+" "+gl.pct+"%":GOALS[cl.goal]||""].filter(Boolean).join(" · ")||"Report "+fmtDay(String(cl.received||cl.date).slice(0,10)))}</span></span></span><span class="rpct" style="color:${warn||(pc!=null&&pc<60)?"var(--carb)":"var(--accent)"}">${pc==null?"–":pc+"%"}</span></button>`};
+      const needL=list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)),okL=list.filter(cl=>!needL.includes(cl));
+      return `${needL.length?`<span class="rsec warn">Needs you</span><section class="panel" style="padding:4px 16px">${needL.map(row).join("")}</section>`:""}${okL.length?`<span class="rsec">On track</span><section class="panel" style="padding:4px 16px">${okL.map(row).join("")}</section>`:""}<span class="small muted">% = how much of this week's plan they've done so far: sessions, days on their food targets, and habits.</span>`})()
     :`<section class="panel"><h2>No clients yet</h2><p class="small" style="margin:0">Ask your client to open <b>You → Check-in</b> in their own app and tap <b>Create and send report</b>. When they send you the file, tap <b>Import report</b> above and choose it.</p></section>`}
     <section class="panel"><h2>How this protects your clients</h2><p class="small" style="margin:0">You only see what each client chooses to send: weekly summaries, never individual meals or their account. Reports are stored in your app on this phone only. Delete a client here when you stop working together.</p></section></div>`}
 function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=>w.win||w.struggle||w.focus);
@@ -2357,6 +2484,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
     :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check and pain log with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}
     ${c.health&&c.health.pain&&c.health.pain.length?`<div class="hint small"><b>Active pain reported</b>${c.health.pain.map(x=>`<span>${esc(x.area)}${x.side&&x.side!=="n/a"?" ("+esc(x.side)+")":""}: ${x.score}/10${x.kind?", "+esc(x.kind).toLowerCase():""}, since ${fmtDay(x.since)}${x.flags?", warning signs ticked":""}</span>`).join("")}</div>`:""}</section>
   ${(()=>{const F=clientFlags(c);return F.length?`<section class="panel"><h2>Needs attention</h2><div class="flags" style="display:flex;flex-wrap:wrap;gap:6px">${F.map(([k,t])=>`<i class="flag ${k}">${esc(t)}</i>`).join("")}</div></section>`:""})()}
+  ${coachGoalsPanel(c)}
   ${plansSection(c)}
   ${coachSetPanel(c)}
   ${feedbackPanel(c)}
@@ -2560,7 +2688,7 @@ async function fullSync(){if(!CL.user||CL.syncing)return;CL.syncing=true;CL.stat
     if(first)jset("dirty",[]);
     await pullDocs(first);
     if(first){const d=new Set();Object.keys(S.docs).forEach(id=>{if(!CL.remoteIds.has(id))d.add(id)});jset("dirty",[...d]);lsSet(ckey("synced"),CL.user.id)}
-    CL.syncing=false;await pushDirty();await loadLinks();if(lsGet("pf-invite"))await acceptInvite();await fetchPlans();retryPlanDels();pushPendingPlans();CL.syncedOnce=true;if(S.docs.profile&&S.docs.profile.coach)loadCode()}
+    CL.syncing=false;await pushDirty();await loadLinks();if(lsGet("pf-invite"))await acceptInvite();await fetchPlans();retryPlanDels();pushPendingPlans();pushReports();CL.syncedOnce=true;if(S.docs.profile&&S.docs.profile.coach)loadCode()}
   catch(e){CL.status=navigator.onLine===false?"offline":"error";CL.err=(e&&e.message)||"Sync failed"}
   CL.syncing=false;cloudRender()}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&CL.user)fullSync()});
@@ -2584,7 +2712,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 /* ---------- coach-planned sessions ---------- */
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
@@ -3183,6 +3311,15 @@ document.addEventListener("click",e=>{
       if(!e.sets.some(z=>!z.done)){const nx=dw.exercises.findIndex(y=>y.sets.some(z=>!z.done));S.wlOpen=nx>=0?nx:null}render();break}
     case "restNotifyOn":enablePush().then(r=>{const st=clone(settings());st.rest={...(st.rest||{}),notify:true};save("settings",st);toast(r==="on"?"Done. You'll get a notification when rest ends, even with the screen locked":r==="denied"?"Notifications are blocked for this app in your phone's settings":"Notifications on while the app is open");render()});break;
     case "rdPopOpen":S.rdDraft={type:"readiness",date:todayKey()};S.rdPop="form";render();break;
+    case "goalNew":S.goalDraft={kind:"lift",reps:""};render();break;
+    case "gdCancel":S.goalDraft=null;render();break;
+    case "goalSave":{const D=S.goalDraft;if(!goalValid(D)){toast("Fill in the goal details");break}const g=goalClean(D);S.goalDraft=null;save("goal_"+g.id,{type:"goal",...g});toast("Goal saved. Progress fills in as you log");break}
+    case "goalDel":{if(S.confirmGoalDel!==ds.id){S.confirmGoalDel=ds.id;render();break}S.confirmGoalDel=null;remove("goal_"+ds.id);break}
+    case "cgNew":S.goalDraft={kind:"lift",reps:"",uid:ds.c};render();break;
+    case "cgSave":{const D=S.goalDraft;if(!goalValid(D)){toast("Fill in the goal details");break}const g=goalClean(D),uid=D.uid,L=[...((S.docs["cgoals_"+uid]||{}).goals||[]),g];S.goalDraft=null;pushGoals(uid,L).then(ok=>{render();toast(ok?"Goal sent. It shows in their app on its next sync":"Saved. It'll send when you're back online")});break}
+    case "cgDel":{if(S.confirmGoalDel!==ds.id){S.confirmGoalDel=ds.id;render();break}S.confirmGoalDel=null;const L=((S.docs["cgoals_"+ds.c]||{}).goals||[]).filter(g=>g.id!==ds.id);pushGoals(ds.c,L).then(()=>render());break}
+    case "goCheckin":S.tab="you";S.youView="checkin";render();window.scrollTo(0,0);break;
+    case "goGoals":S.tab="you";S.youView="goals";render();window.scrollTo(0,0);break;
     case "tgl":S[ds.k]=!S[ds.k];render();break;
     case "planViewClose":{const V=S.planView||{};S.progView=V.prev;S.clientOpen=V.back;S.planView=null;S.planCheck=null;render();window.scrollTo(0,0);break}
     case "planViewClose_":S.planView=null;S.planCheck=null;render();break;
@@ -3364,6 +3501,9 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="wpType"&&S.draftWorkout&&S.wp){const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=cur&&S.draftWorkout.exercises[cur.ei],si=ex?wpCurSet(ex):-1,st=ex&&ex.sets[si];
     if(st){const old=st[ds.f],raw=String(t.value).replace(",","."),v=Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0));st[ds.f]=v;ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});render()}}
   if(ds.act==="wlSet"&&S.draftWorkout){const e=S.draftWorkout.exercises[+ds.ei],x=e&&e.sets[+ds.si];if(x){const raw=String(t.value).replace(",","."),v=t.value===""?"":Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0)),old=x[ds.f];x[ds.f]=v;e.sets.slice(+ds.si+1).forEach(y=>{if(!y.done&&String(y[ds.f])===String(old))y[ds.f]=v});S.draftWorkout.lastAct=Date.now();if(typeof persistDraft==="function")persistDraft()}return}
+  if(ds.act==="gdF"&&S.goalDraft){S.goalDraft[ds.k]=t.value;if(ds.k==="kind")render();return}
+  if(ds.act==="goalCur"){const g=S.docs["goal_"+ds.id];if(g)save("goal_"+ds.id,{...g,cur:+t.value});return}
+  if(ds.act==="goalCurC"){const m={...(S.docs.gcur||{type:"gcur"})};m[ds.id]=+t.value;save("gcur",m);return}
   if(ds.act==="habit"){const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=t.checked;save("day_"+S.day,x)}
   if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
   if(ds.act==="obHabit"){const H=S.onboard.d.habits;if(t.checked){if(!H.includes(ds.h))H.push(ds.h)}else S.onboard.d.habits=H.filter(x=>x!==ds.h)}
