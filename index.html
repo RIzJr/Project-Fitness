@@ -519,6 +519,8 @@ section.panel{border-radius:22px}
 .rpct{font-family:var(--display);font-size:24px;line-height:1;flex:none}
 .cd-gap .wp-ring{width:150px;height:150px}.cd-gap .wp-ring>div{width:126px;height:126px}.cd-gap .wp-ring b{font-size:44px}
 .ahead{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin:2px 0}
+.flexplan{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}.fdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.fdays button{border:1.5px solid var(--line);background:transparent;color:var(--fg);border-radius:12px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:1px;font:inherit;cursor:pointer}.fdays button span{font-size:10.5px;color:var(--muted);font-weight:700}.fdays button b{font-size:15px}.fdays button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#000}.fdays button[aria-pressed=true] span{color:#000}
+.flexsum{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1131,7 +1133,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-30-4";
+const APP_VERSION="2026-10-31-1";
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
 async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
@@ -1230,8 +1232,8 @@ function heroInfo(){const t=todayKey(),dw=S.draftWorkout,done=ofType("workout").
   if(dw)return {k:"In progress",h:short(dw.name)||kindName(dw.kind)+" session",act:`<button class="startpill" data-act="resumeWo">${PLAY} Continue workout</button>`};
   if(done.length)return {k:"Done today",h:(short(done[0].name)||kindName(done[0].kind))+" ✓",act:`<button class="startpill" data-act="goCardio">Log cardio</button>`};
   if(cp){const sets=(cp.exercises||[]).reduce((a,e)=>a+((e.sets||[]).length||+((e.rx||{}).sets)||3),0),mins=Math.max(15,Math.round(sets*1.9/5)*5);
-    return {cp,k:(cp.week?`Week ${cp.week}${cp.weeks?" of "+cp.weeks:""} · `:"")+(cp.own?"Your programme":"From "+(cp.coachName||"your coach")),h:short(cp.name)+" today.",act:`<button class="startpill" data-act="planStart" data-id="${cp.id}">${PLAY} Start · ${mins} min</button><button class="btn ghost" style="align-self:center" data-tab="train">Do my own session instead ›</button>`}}
-  const nx=ups.find(p=>p.date>t);if(nx)return {k:"Next: "+planDayLabel(nx.date)+" · "+short(nx.name),h:"Rest day.",act:`<button class="startpill" data-tab="train">Train anyway</button>`};
+    return {cp,k:(cp.flex?`Session ${cp.seqN} of ${cp.seqTotal} · ${cp.planned?"planned today":"any day"} · `:cp.week?`Week ${cp.week}${cp.weeks?" of "+cp.weeks:""} · `:"")+(cp.own?"Your programme":"From "+(cp.coachName||"your coach")),h:short(cp.name)+" today.",act:`<button class="startpill" data-act="planStart" data-id="${cp.id}">${PLAY} Start · ${mins} min</button><button class="btn ghost" style="align-self:center" data-tab="train">Do my own session instead ›</button>`}}
+  const nx=ups.find(p=>p.date>t);if(nx)return {k:"Next: "+planDayLabel(nx.date)+" · "+short(nx.name),h:"Rest day.",act:nx.flex?`<button class="startpill" data-act="planStart" data-id="${nx.id}">${PLAY} Do ${esc(short(nx.name))} today</button>`:`<button class="startpill" data-tab="train">Train anyway</button>`};
   if(tp)return {k:"Next up",h:tp.name,act:`<button class="startpill" data-act="tplStart" data-id="${tp.id}">${PLAY} Start workout</button>`};
   return {k:"Today",h:"Time to train.",act:`<button class="startpill" data-tab="train">${PLAY} Pick a session</button>`}}
 function todayHero(rsc){const I=heroInfo(),n=QUOTES.length,qi=(((dayIndex()+(S.quoteShift||0))%n)+n)%n,first=String((S.docs.profile&&S.docs.profile.name)||activeProf().name||"").trim().split(/\s+/)[0],st=planStreak().n;
@@ -1242,7 +1244,7 @@ function todayHero(rsc){const I=heroInfo(),n=QUOTES.length,qi=(((dayIndex()+(S.q
 function coachNote(cp){const f=unreadFeedback()||coachMsgs("feedback").sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0],fresh=f&&String(f.at||"")>=addDays(todayKey(),-7);
   const txt=cp&&!cp.own&&cp.note&&cp.note.length<160?cp.note:fresh?(f.text||f.focus):"";if(!txt)return"";const by=(cp&&!cp.own&&cp.note?cp.coachName:f&&f.by)||"your coach";
   return `<button class="coachnote" data-act="readFb"><span class="avatar">${esc(initials(by))}</span><span><span class="k">From ${esc(by)}${unreadFeedback()?" · new":""}</span><p>${esc(String(txt).slice(0,200))}</p></span></button>`}
-function todayBody(){const I=heroInfo(),t=todayKey(),ws=weekStart(),G=myGoals()[0],planned=myPlans().filter(p=>p.date>=ws&&p.date<=addDays(ws,6)).length,done=ofType("workout").filter(w=>w.date>=ws&&w.date<=t).length;
+function todayBody(){const I=heroInfo(),t=todayKey(),ws=weekStart(),G=myGoals()[0],planned=myPlans().filter(p=>!p.flex&&p.date>=ws&&p.date<=addDays(ws,6)).length+((flexWeek()||{}).pw||0),done=ofType("workout").filter(w=>w.date>=ws&&w.date<=t).length;
   const pt=+settings().targets.protein||0,days=Math.round((new Date(t+"T12:00")-new Date(ws+"T12:00"))/864e5)+1,pd=[...Array(days)].filter((_,i)=>{const d=S.docs["day_"+addDays(ws,i)];return d&&pt&&totals(d).protein>=pt*.9}).length;
   const ciDue=!S.docs["ci_"+ws]&&days>=5;let gb="";
   if(G){const P=goalProgress(G);gb=`<button class="goalbar" data-act="goGoals"><span class="gt"><span class="label">${G.coach?"Your goal · from "+esc(G.coachBy):"Your goal"}</span><span class="small muted">${G.by?"by "+fmtDay(G.by):esc(P.label)}</span></span><span class="gt"><b>${esc(goalName(G))}</b><b style="color:${P.status==="behind"?"var(--carb)":"var(--accent)"}">${Math.round(P.pct*100)}%</b></span><span class="bar"><i style="width:${Math.round(P.pct*100)}%;background:${P.status==="behind"?"var(--carb)":"var(--accent)"}"></i></span></button>`}
@@ -1271,7 +1273,7 @@ async function shiftPlans(docs){let n=0;const sent=[];
 const dDiff=(a,b)=>Math.round((new Date(a+"T12:00")-new Date(b+"T12:00"))/864e5);
 function doneDates(){const m={};ofType("workout").forEach(w=>{if(w.planId&&(!m[w.planId]||w.date<m[w.planId]))m[w.planId]=w.date});return m}
 function nextFreeDay(){const t=todayKey();return ofType("workout").some(w=>w.date===t)?addDays(t,1):t}
-function aheadInfo(){const t=todayKey(),m=doneDates(),own=ofType("mplan"),ack=planMeta().aheadAck||[];
+function aheadInfo(){const t=todayKey(),m=doneDates(),own=ofType("mplan").filter(d=>!d.flex),ack=planMeta().aheadAck||[];
   const early=own.filter(d=>m[d.pid]&&m[d.pid]<d.date&&m[d.pid]>=addDays(t,-14)).sort((a,b)=>m[a.pid]!==m[b.pid]?(m[a.pid]<m[b.pid]?1:-1):(a.date<b.date?1:-1));
   // the most recent session you trained early decides it; once you've answered for it, older ones don't come back
   for(const a of early.slice(0,1)){const key=a.pid+"|"+a.date;if(ack.includes(key))continue;const grp=own.filter(d=>(!a.progId||d.progId===a.progId)&&!m[d.pid]&&!planSkipped(d.pid));
@@ -1280,7 +1282,7 @@ function aheadInfo(){const t=todayKey(),m=doneDates(),own=ofType("mplan"),ack=pl
     const skipL=grp.filter(d=>d.date>=t&&d.date<target.date).sort((x,y)=>x.date<y.date?-1:1);
     return {a,wd:m[a.pid],target,to,dd:dDiff(target.date,to),skipL,key}}return null}
 // move one of your own sessions (and everything after it) earlier so it lands on a given day; sessions it jumps over are marked skipped
-function pullForward(pid,to,ackKey){const done=planDoneIds(),t=todayKey(),own=ofType("mplan"),T=own.find(d=>d.pid===pid);if(!T)return null;const dd=dDiff(T.date,to);if(dd<=0)return null;
+function pullForward(pid,to,ackKey){const done=planDoneIds(),t=todayKey(),own=ofType("mplan").filter(d=>!d.flex),T=own.find(d=>d.pid===pid);if(!T)return null;const dd=dDiff(T.date,to);if(dd<=0)return null;
   const grp=own.filter(d=>(!T.progId||d.progId===T.progId)&&!done.has(d.pid)),move=grp.filter(d=>d.date>=T.date),skip=grp.filter(d=>d.date<T.date&&d.date>=t&&!planSkipped(d.pid));
   const m=clone(planMeta());m.skips=[...new Set([...(m.skips||[]),...skip.map(d=>d.pid)])].slice(-300);if(ackKey){const dm=doneDates(),all=own.filter(d=>dm[d.pid]&&dm[d.pid]<d.date).map(d=>d.pid+"|"+d.date);m.aheadAck=[...new Set([...(m.aheadAck||[]),ackKey,...all])].slice(-100)}S.docs.planMeta=m;
   move.forEach(d=>{const cur=S.docs[d.id];if(cur){cur.date=addDays(cur.date,-dd);S.docs[d.id]=cur}});
@@ -2109,7 +2111,7 @@ function scheduleReminders(){clearTimeout(scheduleReminders._d);scheduleReminder
   const add=(ms,fn)=>{if(ms>=0&&ms<864e5)scheduleReminders._t.push(setTimeout(fn,ms))};
   if(R.food.on)add(at(R.food.time),()=>{const d=S.docs["day_"+todayKey()];if(!(d&&d.foods&&d.foods.length)&&!remSent("food|"+today)){markRem("food|"+today);showNote("Log today's food 🍽️","Nothing logged yet today. A quick log keeps you on track.","food","./?go=food")}});
   if(R.ready.on)add(at(R.ready.time),()=>{if(!S.docs["ready_"+todayKey()]&&!remSent("ready|"+today)){markRem("ready|"+today);showNote("Morning check-in ⚡","30 seconds: how did you sleep and how do you feel?","ready","./?go=ready")}});
-  if(R.plan.on)add(at(R.plan.time),()=>{const p=upcomingPlans().find(x=>x.date===todayKey());if(p&&!S.draftWorkout&&!remSent("plan|"+today)){markRem("plan|"+today);showNote("Today's session is ready 💪",(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.","plan","./?go=train")}});
+  if(R.plan.on)add(at(R.plan.time),()=>{const p=upcomingPlans().find(x=>x.date===todayKey()&&!x.anyDay);if(p&&!S.draftWorkout&&!remSent("plan|"+today)){markRem("plan|"+today);showNote("Today's session is ready 💪",(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.","plan","./?go=train")}});
   const dw=S.draftWorkout;if(R.idle.on&&dw&&dw.lastAct)add(dw.lastAct+R.idle.mins*60000-now.getTime()+1000,()=>{const d=S.draftWorkout;if(!d||idleMins()<R.idle.mins)return;
     if(document.hidden){if(!remSent("idle|"+d.started)){markRem("idle|"+d.started);showNote("Still training?",`Your workout has had no activity for ${Math.round(idleMins())} min. Tap to finish and save it, or keep going.`,"idle","./?go=train")}}else{S.idlePrompt=true;render()}});
 },50)}
@@ -2368,15 +2370,17 @@ function progRx(P,rx,w,del){const [lo,hi]=parseReps(rx.reps),inc=+rx.inc||0,base
   if(del){sets=Math.max(1,Math.round(sets/2));if(kg!=null)kg=kg*0.9;rir=rir===""||rir==null?3:Math.min(4,+rir+2)}
   return {sets,reps:rx.secs?"":reps,range:!rx.secs&&lo!==hi?`${lo}-${hi}`:"",kg:kg==null?"":Math.round(kg/1.25)*1.25,rir:rir??"",secs:secs||"",tempo:rx.tempo||"",rest:rx.rest||""}}
 function progSessions(P,A){const out=[];for(let w=1;w<=P.weeks;w++){const del=!!P.deload&&P.weeks>2&&w===P.weeks;
-  P.days.forEach((d,di)=>{const wd=A.days[di];if(wd==null||wd==="")return;const date=addDays(A.start,(w-1)*7+(+wd));
+  P.days.forEach((d,di)=>{const wd=A.flex?di:A.days[di];if(wd==null||wd==="")return;const date=addDays(A.start,(w-1)*7+(+wd));
     const exercises=d.exercises.filter(e=>String(e.name||"").trim()).map(e=>{const mode=(e.rx.secs&&!String(e.rx.reps||"").trim())?"time":exMode(e.name),rx=progRx(P,e.rx,w,del);return {name:e.name.trim(),...(mode==="time"?{mode}:{}),note:e.note||"",why:e.why||"",rx,sets:rxToSets(rx,mode)}});
     if(exercises.length)out.push({date,progWhy:w===1&&di===0?(P.why||""):"",name:`${d.name||"Day "+(di+1)} · Wk ${w}`,kind:d.kind||"gym",note:(del?"Deload week: lighter weights and fewer sets. Recover now, come back stronger. ":"")+(P.note||""),exercises,progId:A.progId||P.id,progRev:P.rev||0,progName:P.name,week:w,weeks:P.weeks})})}
+  // flexible order: sessions keep their order and the person picks the days; dates are only a rough guide at the target pace
+  if(A.flex){const pw=+A.perWeek||3;out.forEach((x,i)=>{x.flex=true;x.seq=i;x.perWeek=pw;x.date=addDays(A.start,Math.floor(i*7/pw))})}
   return out}
 async function pushPlans(docs){const c=await sbClient();if(!c||!CL.user||!docs.length)return false;
   for(let i=0;i<docs.length;i+=100){const {error}=await c.from("plans").upsert(docs.slice(i,i+100).map(d=>({coach_id:CL.user.id,client_id:d.clientUid,id:d.pid,data:planPayload(d)})),{onConflict:"coach_id,client_id,id"});
     if(error){toast(isPlanTableMissing(error)?"Planning needs a one-off database update. Run supabase-update-2.sql in Supabase":"Couldn't send yet. It'll retry next sync");return false}}return true}
 async function assignProg(){const A=S.assign,P=S.docs[A.progId];if(!P||!A.clientUid){toast("Pick a client");return}if(!A.start){toast("Pick a start date");return}
-  if(!A.days.some(x=>x!==""&&x!=null)){toast("Pick a day of the week for each session");return}
+  if(!A.flex&&!A.days.some(x=>x!==""&&x!=null)){toast("Pick a day of the week for each session");return}
   const list=progSessions(P,A),coachName=activeProf().name,stamp=Date.now().toString(36),docs=[];
   if(A.clientUid==="me"){list.forEach((x,i)=>save("mplan_"+stamp+"p"+i,{type:"mplan",pid:"m"+stamp+"p"+i,...x,coachName:""}));S.assign=null;S.progView=null;S.tab="train";render();toast(`Added ${list.length} sessions to your plan. They're on Today and Train`);return}
   list.forEach((x,i)=>{const id="cplan_"+stamp+"p"+i;const doc={type:"cplan",clientUid:A.clientUid,pid:id.replace(/^cplan_/,""),coachName,pending:true,...x};save(id,doc);docs.push({id,...S.docs[id]})});
@@ -2442,14 +2446,19 @@ function progEditor(){const D=S.progDraft,di=Math.min(S.progDay||0,D.days.length
     <div class="row"><button class="btn" data-act="pgExAdd">+ Add exercise</button>${D.days.length>1?`<button class="btn ghost" style="color:var(--protein)" data-act="pgDayDel">Remove this day</button>`:""}</div>
     <span class="small muted">Reps can be a range, e.g. 8-12. Kg is the starting weight; leave it blank and they use their own weights. "+kg" is how much weight is added when it progresses.</span></section>
   <div class="row" style="margin-bottom:14px"><button class="btn primary" data-act="pgSave">Save programme</button><button class="btn ghost" data-act="progBack">Cancel</button></div>`}
+// does this person already follow a flexible-order plan? (then new programmes default to it, at the same weekly target)
+function flexOf(uid){if(!uid)return 0;const d=(uid==="me"?ofType("mplan"):ofType("cplan").filter(x=>x.clientUid===uid)).find(x=>x.flex);return d?(d.perWeek||3):0}
 function progAssignPanel(){const A=S.assign,P=S.docs[A.progId],clients=[{clientUid:"me",name:"Myself"},...ofType("client").filter(c=>c.clientUid)];if(!P)return"";
+  if(A.flex===undefined){const f=flexOf(A.clientUid);A.flex=!!f;A.perWeek=f||3}
   const n=P.days.length*P.weeks;
   return `<section class="panel"><div class="spread"><h2>Assign “${esc(P.name)}”</h2><button class="btn ghost" data-act="assignCancel">Cancel</button></div>
     ${clients.length?`<label class="field"><span class="label">Who is it for?</span><select data-act="asF" data-k="clientUid"><option value="">Choose…</option>${clients.map(c=>`<option value="${c.clientUid}" ${A.clientUid===c.clientUid?"selected":""}>${esc(c.name)}</option>`).join("")}</select></label>`
       :`<p class="small muted" style="margin:0">No linked clients yet. Clients link to you with your coach code (Settings → Cloud account).</p>`}
+    <div class="field"><span class="label">How do the days work?</span><div class="seg" style="grid-template-columns:1fr 1fr"><button data-act="asMode" data-v="" aria-pressed="${!A.flex}">Fixed days</button><button data-act="asMode" data-v="1" aria-pressed="${!!A.flex}">Flexible order</button></div>
+      <span class="small muted">${A.flex?`Good for beginners and busy weeks. Sessions stay in order (${P.days.slice(0,3).map(d=>esc(d.name)).join(", ")}${P.days.length>3?"…":""}) and ${A.clientUid==="me"?"you pick":"they pick"} the days. No missed days, just a weekly target.`:"Each session is set on a weekday. Missed ones show as missed."}</span></div>
     <label class="field"><span class="label">Start date (week 1)</span><input type="date" data-act="asF" data-k="start" value="${esc(A.start)}"></label>
-    <div class="field"><span class="label">Which day each session falls on</span>${P.days.map((d,i)=>`<div class="spread" style="padding:4px 0"><span class="small"><b>${esc(d.name)}</b></span><div class="seg" style="grid-template-columns:repeat(8,1fr);flex:1;max-width:330px;margin-left:10px">${WEEKDAYS.map((w,k)=>`<button data-act="asDay" data-i="${i}" data-v="${k}" aria-pressed="${String(A.days[i])===String(k)}" style="font-size:11.5px;padding:7px 0">${w}</button>`).join("")}<button data-act="asDay" data-i="${i}" data-v="" aria-pressed="${A.days[i]===""}" style="font-size:11.5px;padding:7px 0" aria-label="Skip">–</button></div></div>`).join("")}</div>
-    <span class="small muted">Creates ${n} sessions over ${P.weeks} weeks, each with the right sets, reps and weights for that week. You can still edit any single session afterwards.</span>
+    ${A.flex?`<div class="field"><span class="label">Target sessions a week</span><div class="seg" style="grid-template-columns:repeat(5,1fr)">${[1,2,3,4,5].map(k=>`<button data-act="asPW" data-v="${k}" aria-pressed="${(+A.perWeek||3)===k}">${k}</button>`).join("")}</div></div>`:`<div class="field"><span class="label">Which day each session falls on</span>${P.days.map((d,i)=>`<div class="spread" style="padding:4px 0"><span class="small"><b>${esc(d.name)}</b></span><div class="seg" style="grid-template-columns:repeat(8,1fr);flex:1;max-width:330px;margin-left:10px">${WEEKDAYS.map((w,k)=>`<button data-act="asDay" data-i="${i}" data-v="${k}" aria-pressed="${String(A.days[i])===String(k)}" style="font-size:11.5px;padding:7px 0">${w}</button>`).join("")}<button data-act="asDay" data-i="${i}" data-v="" aria-pressed="${A.days[i]===""}" style="font-size:11.5px;padding:7px 0" aria-label="Skip">–</button></div></div>`).join("")}</div>`}
+    <span class="small muted">Creates ${n} sessions${A.flex?` in order, about ${P.weeks} weeks at ${+A.perWeek||3} a week`:` over ${P.weeks} weeks`}, each with the right sets, reps and weights for that week. You can still edit any single session afterwards.</span>
     <div class="row"><button class="btn primary" data-act="assignGo" ${clients.length?"":"disabled"}>Send ${n} sessions</button></div></section>`}
 function renderProgrammes(){if(S.progView==="edit"&&S.progDraft)return progEditor();if(S.planView)return planViewer();
   const L=ofType("cprog").sort((a,b)=>a.name.localeCompare(b.name));
@@ -2465,7 +2474,7 @@ function renderProgrammes(){if(S.progView==="edit"&&S.progDraft)return progEdito
       :`<section class="panel"><p class="small muted" style="margin:0">No programmes yet. Build one, or fill in the spreadsheet template and import it.</p></section>`}</div>`}
 // see a person's programmed sessions exactly as they appear in their app, and check the cloud copy matches
 function planViewer(){const V=S.planView,me=V.uid==="me",c=me?null:ofType("client").find(x=>x.clientUid===V.uid),who=me?"Your plan":(c?c.name:"Client");
-  const all=(me?ofType("mplan"):ofType("cplan").filter(d=>d.clientUid===V.uid)).filter(d=>!V.progId||planProg(d)===V.progId).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  const all=(me?ofType("mplan"):ofType("cplan").filter(d=>d.clientUid===V.uid)).filter(d=>!V.progId||planProg(d)===V.progId).sort((a,b)=>a.flex&&b.flex?(a.seq??0)-(b.seq??0):a.date<b.date?-1:a.date>b.date?1:0);
   const done=me?planDoneIds():new Set(((c&&c.planDone)||[]).map(x=>x.id||x)),t=todayKey(),C=S.planCheck&&S.planCheck.uid===V.uid?S.planCheck:null;
   const progs=[...new Set(all.map(d=>d.progName||"Single sessions"))];
   const weeks={};all.forEach(d=>{const k=(d.progName||"Single sessions")+"|"+(d.week?"Week "+d.week+(d.weeks?" of "+d.weeks:""):"Week of "+fmtDay(addDays(d.date,-((new Date(d.date+"T12:00").getDay()+6)%7))));(weeks[k]=weeks[k]||[]).push(d)});
@@ -2474,8 +2483,8 @@ function planViewer(){const V=S.planView,me=V.uid==="me",c=me?null:ofType("clien
     ${me?"":`<div class="row"><button class="btn" data-act="planCheck" data-c="${V.uid}">${C&&C.busy?"Checking…":"Check what's in their app"}</button></div>
     ${C&&!C.busy?(C.err?`<p class="small" style="color:var(--protein);margin:0">${esc(C.err)}</p>`:`<div class="small ${C.missing.length||C.extra.length?"":"good"}">${C.missing.length||C.extra.length?`In their app: ${C.remote} sessions. <b>${C.missing.length}</b> missing from their app, <b>${C.extra.length}</b> in their app that you've deleted.<div class="row" style="margin-top:6px"><button class="btn primary" data-act="planFix" data-c="${V.uid}">Fix it: resend missing and remove deleted</button></div>`:`✓ Their app has all ${C.remote} sessions, matching your list.`}</div>`):""}`}
     ${V.progId&&all.some(d=>!done.has(d.pid))?`<button class="btn ghost" style="color:var(--protein);align-self:flex-start" data-act="progUnassign" data-id="${V.progId}" data-c="${V.uid}">${S.confirmUnassign===V.progId+"|"+V.uid?"Tap to remove all sessions not done yet":"Remove this programme from "+(me?"my plan":esc(c?c.name.split(" ")[0]:"them"))}</button>`:""}</section>
-    ${all.length?Object.entries(weeks).map(([k,L])=>{const [pn,wl]=k.split("|");return `<section class="panel"><div class="spread"><b>${esc(wl)}</b><span class="label">${esc(pn)}</span></div><div class="hist">${L.map(p=>{const st=done.has(p.pid)?`<span class="small good">✓ Done</span>`:p.date<t?`<span class="small" style="color:var(--protein)">Missed</span>`:p.date===t?`<span class="small" style="color:var(--accent)">Today</span>`:"";
-      return `<div class="item"><div class="spread"><span style="min-width:0"><span class="label">${fmtDay(p.date)}</span><b style="display:block">${esc(p.name||"Session")}</b><span class="small muted">${(p.exercises||[]).length} exercises · ${kindName(p.kind)}${p.pending?" · not sent yet":""}</span></span>${st}</div>
+    ${all.length?Object.entries(weeks).map(([k,L])=>{const [pn,wl]=k.split("|");return `<section class="panel"><div class="spread"><b>${esc(wl)}</b><span class="label">${esc(pn)}</span></div><div class="hist">${L.map(p=>{const st=done.has(p.pid)?`<span class="small good">✓ Done</span>`:p.flex?"":p.date<t?`<span class="small" style="color:var(--protein)">Missed</span>`:p.date===t?`<span class="small" style="color:var(--accent)">Today</span>`:"";
+      return `<div class="item"><div class="spread"><span style="min-width:0"><span class="label">${p.flex?"Session "+((p.seq??0)+1)+" · any day, in order":fmtDay(p.date)}</span><b style="display:block">${esc(p.name||"Session")}</b><span class="small muted">${(p.exercises||[]).length} exercises · ${kindName(p.kind)}${p.pending?" · not sent yet":""}</span></span>${st}</div>
         ${p.note?`<div class="small" style="margin-top:6px">💬 ${esc(p.note)}</div>`:""}
         <details><summary class="small muted">See exercises</summary>${(p.exercises||[]).map(e=>`<div class="small" style="padding:3px 0"><b>${esc(e.name)}</b> <span class="muted">${esc(rxText(e))}</span>${e.note?`<span class="muted"> · ${esc(e.note)}</span>`:""}</div>`).join("")}</details></div>`}).join("")}</div></section>`}).join("")
       :`<section class="panel"><p class="small muted" style="margin:0">Nothing programmed${V.progId?" from this programme":""}.</p></section>`}</div>`}
@@ -2496,20 +2505,26 @@ function addLibraryProg(key){const L=PROG_LIBRARY.find(x=>x.key===key);if(!L)ret
   const id="cprog_"+Date.now().toString(36);save(id,doc);return id}
 const nextMonday=()=>{const d=new Date(todayKey()+"T12:00:00"),k=(8-d.getDay())%7||7;return addDays(todayKey(),k)};
 const daysSince=d=>d?Math.floor((new Date(todayKey())-new Date(String(d).slice(0,10)))/864e5):null;
+// a client on a flexible-order plan: sessions done this week vs their weekly target, and where they are in the order
+function clientFlex(c){if(!c||!c.clientUid)return null;const L=ofType("cplan").filter(p=>p.clientUid===c.clientUid&&p.flex);if(!L.length)return null;
+  const pw=L[0].perWeek||3,ids=new Set(L.map(p=>p.pid)),ws=weekStart(),el=dDiff(todayKey(),ws)+1,pd=(c.planDone||[]).filter(x=>ids.has(x.id||x)),done=pd.filter(x=>x.date>=ws).length,dn=new Set(pd.map(x=>x.id||x));
+  const order=L.slice().sort((a,b)=>(a.seq??0)-(b.seq??0)),next=order.find(p=>!dn.has(p.pid));
+  return {pw,done,expect:Math.floor(pw*el/7),behind:done<Math.floor(pw*el/7),next,pos:next?order.indexOf(next)+1:order.length,total:order.length,doneIds:dn}}
 function clientFlags(c){const F=[],t=todayKey(),R=c.recent||{},done=new Set((c.planDone||[]).map(x=>x.id||x));
   if(c.health&&c.health.pain&&c.health.pain.length)F.push(["red",`Pain: ${c.health.pain.map(x=>x.area).join(", ")}`]);
   if(c.health&&c.health.flagged)F.push(["red","Health check needs GP clearance"]);
-  if(c.clientUid){const missed=ofType("cplan").filter(p=>p.clientUid===c.clientUid&&p.date<t&&p.date>=addDays(t,-7)&&!done.has(p.pid)).length;if(missed)F.push(["red",`Missed ${missed} planned session${missed>1?"s":""} (last 7 days)`])}
+  const fx=clientFlex(c);if(fx&&fx.behind)F.push(["amber",`Flexible plan: ${fx.done} of ${fx.pw} sessions this week`]);
+  if(c.clientUid){const missed=ofType("cplan").filter(p=>p.clientUid===c.clientUid&&!p.flex&&p.date<t&&p.date>=addDays(t,-7)&&!done.has(p.pid)).length;if(missed)F.push(["red",`Missed ${missed} planned session${missed>1?"s":""} (last 7 days)`])}
   const rs=(R.ready||[]).slice(0,3).map(x=>x.s).filter(x=>x!=null);if(rs.length===3&&rs.every(x=>x<50))F.push(["amber","Low readiness 3 days running"]);
   const lf=daysSince(R.lastFood);if(R.at&&!c.habitsOnly&&(lf==null||lf>=3))F.push(["amber",lf==null?"No food logged yet":`No food logged for ${lf} days`]);
-  const lw=daysSince(R.lastWorkout);if(R.at&&(lw==null||lw>=7))F.push(["amber",lw==null?"No sessions logged yet":`No session for ${lw} days`]);
+  const lw=daysSince(R.lastWorkout);if(R.at&&(lw==null||lw>=(fx?6:7)))F.push(["amber",lw==null?"No sessions logged yet":`No session for ${lw} days`]);
   const lr=daysSince(c.received||c.date);if(lr!=null&&lr>=7)F.push(["grey",`No update from their app for ${lr} days`]);
   return F}
 const flagRank=F=>F.reduce((a,[c])=>a+(c==="red"?100:c==="amber"?10:1),0);
 // how much of this week's plan a client has done so far: sessions, nutrition days on target, habits
 function clientWeekPct(c){const wk=(c.weeks||[])[(c.weeks||[]).length-1];if(!wk)return null;const t=todayKey(),ws=weekStart();if(wk.week&&wk.week!==ws)return null;
   const el=Math.round((new Date(t+"T12:00")-new Date(ws+"T12:00"))/864e5)+1,parts=[];
-  const pl=c.clientUid?ofType("cplan").filter(p=>p.clientUid===c.clientUid&&p.date>=ws&&p.date<=t).length:0,need=pl||Math.max(1,Math.round(3*el/7));parts.push(Math.min(1,(wk.sessions||0)/need));
+  const fx=clientFlex(c),pl=c.clientUid?ofType("cplan").filter(p=>p.clientUid===c.clientUid&&!p.flex&&p.date>=ws&&p.date<=t).length:0,need=(pl+(fx?Math.max(1,Math.round(fx.pw*el/7)):0))||Math.max(1,Math.round(3*el/7));parts.push(Math.min(1,(wk.sessions||0)/need));
   if(!c.habitsOnly&&wk.daysLogged!=null)parts.push(Math.min(1,(wk.onTarget||0)/el));
   if(wk.habitsPct!=null)parts.push(Math.min(1,wk.habitsPct*7/el/100));
   return Math.round(parts.reduce((a,b)=>a+b,0)/parts.length*100)}
@@ -2518,7 +2533,7 @@ function renderClients(){if(S.progView)return renderProgrammes();if(CL.user&&(!C
   const need=list.filter(x=>x._F.some(f=>f[0]!=="grey")).length;
   const head="";
   if(c)return head+clientDetail(S.clientOpen,c);
-  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="dashsum"><div><b>${list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>need you</span></div><div><b>${list.length-list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length}</b><span>sessions planned this week</span></div></section>`:""}${list.length?(()=>{const row=cl=>{const F=cl._F||[],pc=clientWeekPct(cl),warn=F.find(f=>f[0]==="red"||f[0]==="amber"),gl=(cl.goals||[])[0],wk=cl.weeks[cl.weeks.length-1]||{};
+  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="dashsum"><div><b>${list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>need you</span></div><div><b>${list.length-list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>!p.flex&&p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length+list.reduce((a,cl)=>a+((clientFlex(cl)||{}).pw||0),0)}</b><span>sessions planned this week</span></div></section>`:""}${list.length?(()=>{const row=cl=>{const F=cl._F||[],pc=clientWeekPct(cl),warn=F.find(f=>f[0]==="red"||f[0]==="amber"),gl=(cl.goals||[])[0],wk=cl.weeks[cl.weeks.length-1]||{};
         return `<button class="setrow clientrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small ${warn?"":"muted"}" style="display:block;${warn?"color:var(--carb)":""}">${warn?esc(F.filter(f=>f[0]!=="grey").slice(0,2).map(f=>f[1]).join(" · ")):esc([wk.sessions!=null?wk.sessions+" session"+(wk.sessions===1?"":"s")+" this week":"",gl?gl.name+" "+gl.pct+"%":GOALS[cl.goal]||""].filter(Boolean).join(" · ")||"Report "+fmtDay(String(cl.received||cl.date).slice(0,10)))}</span></span></span><span class="rpct" style="color:${warn||(pc!=null&&pc<60)?"var(--carb)":"var(--accent)"}">${pc==null?"–":pc+"%"}</span></button>`};
       const needL=list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)),okL=list.filter(cl=>!needL.includes(cl));
       return `${needL.length?`<span class="rsec warn">Needs you</span><section class="panel" style="padding:4px 16px">${needL.map(row).join("")}</section>`:""}${okL.length?`<span class="rsec">On track</span><section class="panel" style="padding:4px 16px">${okL.map(row).join("")}</section>`:""}<span class="small muted">% = how much of this week's plan they've done so far: sessions, days on their food targets, and habits.</span>`})()
@@ -2766,7 +2781,34 @@ async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)ret
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
 const plansKey=()=>"pf-plans:"+PROF.active;
 function coachRows(){if(CL.plans)return CL.plans;try{return JSON.parse(lsGet(plansKey())||"[]")}catch(e){return[]}}
-function myPlans(){return [...coachRows().filter(p=>!p.type||p.type==="plan"),...ofType("mplan").map(d=>({...d,docId:d.id,id:d.pid,own:true}))]}
+function myPlans(){return flexDates([...coachRows().filter(p=>!p.type||p.type==="plan"),...ofType("mplan").map(d=>({...d,docId:d.id,id:d.pid,own:true}))])}
+// flexible-order sessions: done ones sit on the day they were trained; the rest queue up in order on the days you planned, otherwise "any day"
+function flexWeekDays(){const t=todayKey();return [...new Set(((S.docs.flexWeek||{}).days||[]).filter(d=>d>=t))].sort()}
+function flexDates(L){if(!L.some(p=>p.flex))return L;const m=doneDates(),t=todayKey(),out=L.filter(p=>!p.flex),groups={};
+  L.filter(p=>p.flex).forEach(p=>{const k=(p.own?"m":"c")+(p.progId||p.progName||"");(groups[k]=groups[k]||[]).push(p)});
+  const plan=flexWeekDays(),trainedToday=ofType("workout").some(w=>w.date===t);let pi=0;
+  Object.values(groups).forEach(G=>{G.sort((a,b)=>(a.seq??0)-(b.seq??0)||(a.date<b.date?-1:1));const tot=G.length,pw=G[0].perWeek||3,gap=Math.max(1,Math.round(7/pw));let last=null,n=0;
+    G.forEach((p,i)=>{const q={...p,seqN:i+1,seqTotal:tot};
+      if(m[p.id]){q.date=m[p.id];q.doneFlex=true;out.push(q);return}
+      if(planSkipped(p.id)){out.push(q);return}
+      if(pi<plan.length){q.date=plan[pi++];q.planned=true}
+      else{q.date=last?addDays(last,gap):(trainedToday?addDays(t,1):t);q.anyDay=true}
+      q.next=n++===0;last=q.date;out.push(q)})});
+  return out}
+const flexPlans=()=>myPlans().filter(p=>p.flex);
+function flexWeek(){const F=flexPlans();if(!F.length)return null;const ws=weekStart(),ids=new Set(F.map(p=>p.id)),pw=Math.max(...F.map(p=>p.perWeek||3));
+  const done=ofType("workout").filter(w=>w.planId&&ids.has(w.planId)&&w.date>=ws).length;return {pw,done,F}}
+// weeks in a row the weekly target was hit (this week counts once it's hit)
+function flexStreak(){const W=flexWeek();if(!W)return 0;const ids=new Set(W.F.map(p=>p.id)),wos=ofType("workout").filter(w=>w.planId&&ids.has(w.planId));let n=0,ws=weekStart();
+  const cnt=a=>wos.filter(w=>w.date>=a&&w.date<=addDays(a,6)).length;if(cnt(ws)>=W.pw)n++;ws=addDays(ws,-7);while(cnt(ws)>=W.pw&&n<200){n++;ws=addDays(ws,-7)}return n}
+const flexLabel=p=>p.planned?planDayLabel(p.date):p.date===todayKey()?"Any day":"Any day from "+(p.date===addDays(todayKey(),1)?"tomorrow":fmtDay(p.date));
+const isLegDay=p=>/lower|leg|glute|squat/i.test(p.name||"");
+function flexPlanner(){const t=todayKey(),sel=new Set(flexWeekDays()),days=[...Array(7)].map((_,i)=>addDays(t,i)),Q=upcomingPlans().filter(p=>p.flex&&p.planned).sort((a,b)=>a.date<b.date?-1:1);
+  const warn=Q.find((p,i)=>i&&isLegDay(p)&&isLegDay(Q[i-1])&&dDiff(p.date,Q[i-1].date)===1);
+  return `<div class="flexplan"><span class="label">Plan my week · tap the days you can train</span>
+    <div class="fdays">${days.map(d=>{const nd=new Date(d+"T12:00");return `<button data-act="flexDay" data-v="${d}" aria-pressed="${sel.has(d)}"><span>${d===t?"Today":WEEKDAYS[(nd.getDay()+6)%7]}</span><b>${nd.getDate()}</b></button>`}).join("")}</div>
+    ${Q.length?`<span class="small muted">${Q.slice(0,5).map(p=>`${planDayLabel(p.date)}: ${esc(String(p.name||"").replace(/\s*·\s*Wk\s*\d+$/i,""))}`).join(" · ")}</span>`:`<span class="small muted">No days picked: your next session is ready any day. Pick days to get reminders.</span>`}
+    ${warn?`<span class="small" style="color:var(--carb)">${esc(Q[Q.indexOf(warn)-1].name.replace(/\s*·\s*Wk\s*\d+$/i,""))} and ${esc(warn.name.replace(/\s*·\s*Wk\s*\d+$/i,""))} land on back-to-back days. If you can, leave a day between them, or keep the second one lighter.</span>`:""}</div>`}
 const coachMsgs=t=>coachRows().filter(p=>p.type===t);
 async function fetchPlans(){const c=await sbClient();if(!c||!CL.user||!CL.links||!CL.links.length){if(CL.links&&!CL.links.length&&myPlans().length){CL.plans=[];lsSet(plansKey(),"[]")}return}
   const {data,error}=await c.from("plans").select("id,coach_id,data,updated_at").eq("client_id",CL.user.id);if(error)return;
@@ -2786,25 +2828,28 @@ function upcomingPlans(){const done=planDoneIds(),from=addDays(todayKey(),-3);re
 const planDayLabel=d=>{const t=todayKey();return d===t?"Today":d===addDays(t,1)?"Tomorrow":d<t?"Missed · "+fmtDay(d):fmtDay(d)};
 const fmtSecs=t=>{t=+t||0;return t>=60?(t%60?Math.floor(t/60)+":"+String(t%60).padStart(2,"0"):t/60+" min"):t+"s"};
 const rxText=e=>{const r=e.rx||{},n=(e.sets||[]).length||r.sets||0;return `${n} × ${r.secs?fmtSecs(r.secs):(r.reps||"?")}${r.range?" (range "+r.range+")":""}${r.kg?" @ "+fmtN(+r.kg)+" kg":""}${r.rir!==""&&r.rir!=null?" · "+r.rir+" in reserve":""}${r.tempo?" · tempo "+r.tempo:""}${r.rest?" · rest "+fmtSecs(r.rest):""}`};
-function startPlan(id){const P=myPlans().find(x=>x.id===id);if(!P)return;const kind=P.kind||"gym",cp=L=>(L||[]).map(x=>({name:x.name,detail:x.detail||"",done:false}));
+function startPlan(id){const P=myPlans().find(x=>x.id===id);if(!P)return;
+  // flexible plan after a long break (10+ days): repeat your last weights instead of moving up
+  const fl=P.flex?ofType("workout").filter(w=>w.planId&&myPlans().some(q=>q.flex&&q.id===w.planId&&(q.progId||q.progName)===(P.progId||P.progName))).map(w=>w.date).sort().pop():null,gapDays=fl?dDiff(todayKey(),fl):0,gapKeep=gapDays>10;const kind=P.kind||"gym",cp=L=>(L||[]).map(x=>({name:x.name,detail:x.detail||"",done:false}));
   S.draftWorkout={type:"workout",date:todayKey(),name:P.name||"Coach's session",kind,planId:P.id,coachNote:P.note||"",coachName:P.coachName||"",
     warmup:P.warmup&&P.warmup.length?cp(P.warmup):presetList(WARM_PRESET,kind),cooldown:P.cooldown&&P.cooldown.length?cp(P.cooldown):presetList(COOL_PRESET,kind),
-    exercises:(P.exercises||[]).map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];return {name:e.name,mode:e.mode,note:e.note||"",why:e.why||"",rx:e.rx||null,...(e.rx&&+e.rx.rest?{rest:+e.rx.rest}:{}),
-      sets:(e.sets||[]).map((st,i)=>{const ls=last[i]||last[last.length-1]||{};return {kg:st.kg!==""&&st.kg!=null?st.kg:(ls.kg??""),reps:st.reps??"",secs:st.secs??"",rir:st.rir??""}})}})};
-  const T=todayReady();S.tab="train";wpStart();if(T&&T.sc!=null&&T.sc<50&&S.draftWorkout.exercises.some(e=>e.sets.length))S.lightAsk=true;render();window.scrollTo(0,0);if(!S.lightAsk)toast(P.own?"Your session is ready. Let's go 💪":"Your coach's session is ready. Let's go 💪")}
+    exercises:(P.exercises||[]).map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];const keep=gapKeep&&last.length;return {name:e.name,mode:e.mode,note:e.note||"",why:e.why||"",rx:e.rx||null,...(e.rx&&+e.rx.rest?{rest:+e.rx.rest}:{}),
+      sets:(e.sets||[]).map((st,i)=>{const ls=last[i]||last[last.length-1]||{};return {kg:keep&&ls.kg!==""&&ls.kg!=null?ls.kg:st.kg!==""&&st.kg!=null?st.kg:(ls.kg??""),reps:st.reps??"",secs:st.secs??"",rir:st.rir??""}})}})};
+  const T=todayReady();S.tab="train";wpStart();if(T&&T.sc!=null&&T.sc<50&&S.draftWorkout.exercises.some(e=>e.sets.length))S.lightAsk=true;render();window.scrollTo(0,0);if(!S.lightAsk)toast(gapKeep?`It's been ${gapDays} days, so you're on your last weights today. Build back up 💪`:P.own?"Your session is ready. Let's go 💪":"Your coach's session is ready. Let's go 💪")}
 function coachPlansPanel(){const L=upcomingPlans().filter(p=>p.date>=todayKey()).slice(0,12),mc=missedCard();if(!L.length)return mc;const fromCoach=L.some(p=>!p.own),n=L[0],more=L.slice(1),t=todayKey();
   const sub=p=>`${(p.exercises||[]).length} exercises · ${kindName(p.kind)}${p.coachName?" · from "+esc(p.coachName):""}`;
-  return `<section class="panel"><div class="spread"><h2>${fromCoach?"Planned for you":"Your programme"}</h2><span class="label">${(()=>{const k=planStreak().n;return k?"🔥 "+k+" in a row":L.length+" planned"})()}</span></div>
+  return `<section class="panel"><div class="spread"><h2>${fromCoach?"Planned for you":"Your programme"}</h2><span class="label">${(()=>{const W=flexWeek();if(W){const fs=flexStreak();return `This week ${W.done}/${W.pw}${fs?" · 🔥 "+fs+" wk"+(fs>1?"s":""):""}`}const k=planStreak().n;return k?"🔥 "+k+" in a row":L.length+" planned"})()}</span></div>
     ${aheadCard()}
-    <div class="spread"><span style="min-width:0"><span class="label">Next · ${planDayLabel(n.date)}</span><b style="display:block">${esc(n.name||"Session")}</b><span class="small muted">${sub(n)}</span></span><button class="btn ${n.date<=t?"primary":""}" data-act="planStart" data-id="${n.id}">${PLAY} Start</button></div>
+    <div class="spread"><span style="min-width:0"><span class="label">Next · ${n.flex?flexLabel(n)+" · session "+n.seqN+" of "+n.seqTotal:planDayLabel(n.date)}</span><b style="display:block">${esc(n.name||"Session")}</b><span class="small muted">${sub(n)}</span></span><button class="btn ${n.date<=t?"primary":""}" data-act="planStart" data-id="${n.id}">${PLAY} Start</button></div>
     ${mc}
+    ${L.some(p=>p.flex)?flexPlanner():""}
     ${(()=>{const I=fromCoach?null:myProgInfo();if(!I||!(I.stale||I.canToday))return"";return `<div class="row" style="gap:4px">${I.stale&&!I.started?`<button class="btn primary" data-act="myProgUpdate">Update to latest version</button>`:""}${I.canToday?`<button class="btn" data-act="myProgToday">Start today instead</button>`:""}</div><span class="small muted">${I.canToday?`Starts ${fmtDay(I.first)}. “Start today” moves every session earlier and keeps the same gaps between them.`:"A newer version of this programme is ready."}</span>`})()}
     ${S.planMore?`<div class="stack" style="gap:6px">${n.note?`<div class="small">💬 ${esc(n.note)}</div>`:""}
       <div>${(n.exercises||[]).map(e=>`<div class="small" style="padding:2px 0"><b>${esc(e.name)}</b> <span class="muted">${esc(rxText(e))}</span></div>`).join("")}</div>
       ${n.progWhy||L.find(p=>p.progWhy)?`<details><summary class="small">Why this programme</summary><div class="small" style="white-space:pre-wrap">${esc(n.progWhy||L.find(p=>p.progWhy).progWhy)}</div></details>`:""}
       <span class="small muted">Fancy something different today? Start your own session below.${fromCoach?" Your coach still sees it.":""}</span>
       ${ofType("mplan").length?`<button class="btn ghost" style="align-self:flex-start;padding:4px 0" data-act="planView" data-c="me">See or remove my whole programme ›</button>`:""}</div>`:""}
-    ${S.plansOpen&&more.length?`<div class="hist">${more.map(p=>`<div class="item"><div class="spread"><span style="min-width:0"><span class="label" style="${p.date<t?"color:var(--protein)":""}">${planDayLabel(p.date)}</span><b style="display:block">${esc(p.name||"Session")}</b></span><span class="row" style="gap:2px;flex-wrap:nowrap">${p.own&&p.date>nextFreeDay()?`<button class="btn ghost" data-act="planNext" data-id="${p.id}">Do next</button>`:""}<button class="btn ghost" data-act="planStart" data-id="${p.id}">${PLAY} Start</button></span></div>
+    ${S.plansOpen&&more.length?`<div class="hist">${more.map(p=>`<div class="item"><div class="spread"><span style="min-width:0"><span class="label" style="${p.date<t&&!p.flex?"color:var(--protein)":""}">${p.flex?(p.planned?planDayLabel(p.date)+" · ":"Then · ")+"session "+p.seqN:planDayLabel(p.date)}</span><b style="display:block">${esc(p.name||"Session")}</b></span><span class="row" style="gap:2px;flex-wrap:nowrap">${p.own&&!p.flex&&p.date>nextFreeDay()?`<button class="btn ghost" data-act="planNext" data-id="${p.id}">Do next</button>`:""}${p.flex?`<span class="small muted">in order</span>`:`<button class="btn ghost" data-act="planStart" data-id="${p.id}">${PLAY} Start</button>`}</span></div>
       <details><summary class="small muted">${sub(p)}</summary>${(p.exercises||[]).map(e=>`<div class="small" style="padding:2px 0"><b>${esc(e.name)}</b> <span class="muted">${esc(rxText(e))}</span></div>`).join("")}</details></div>`).join("")}</div>`:""}
     <div class="row" style="gap:4px">${more.length?`<button class="btn ghost" data-act="tgl" data-k="plansOpen" aria-expanded="${!!S.plansOpen}">${S.plansOpen?"Hide next workouts ▴":"Next workouts ("+more.length+") ▾"}</button>`:""}<button class="btn ghost" data-act="tgl" data-k="planMore" aria-expanded="${!!S.planMore}">${S.planMore?"Fewer details ▴":"More options ▾"}</button></div></section>`}
 // coach side
@@ -2812,7 +2857,7 @@ const isPlanTableMissing=e=>/plans|relation|schema cache|does not exist|Could no
 async function pushPlan(doc){const c=await sbClient();if(!c||!CL.user)return false;const {id,clientUid}=doc;
   const {error}=await c.from("plans").upsert({coach_id:CL.user.id,client_id:clientUid,id:doc.pid,data:planPayload(doc)},{onConflict:"coach_id,client_id,id"});
   if(error){if(isPlanTableMissing(error))toast("Planning needs a one-off database update. Run supabase-update-2.sql in Supabase");else toast("Couldn't send the plan yet. It'll retry next sync");return false}return true}
-const planPayload=d=>({type:"plan",date:d.date,name:d.name,kind:d.kind,note:d.note||"",coachName:d.coachName||"",progName:d.progName||"",week:d.week||null,weeks:d.weeks||null,progWhy:d.progWhy||"",exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],updated:new Date().toISOString()});
+const planPayload=d=>({type:"plan",...(d.flex?{flex:true,seq:d.seq,perWeek:d.perWeek||3}:{}),date:d.date,name:d.name,kind:d.kind,note:d.note||"",coachName:d.coachName||"",progName:d.progName||"",week:d.week||null,weeks:d.weeks||null,progWhy:d.progWhy||"",exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],updated:new Date().toISOString()});
 async function pushPendingPlans(){if(!CL.user)return;for(const d of ofType("cplan").filter(x=>x.pending)){if(await pushPlan(d)){const cur=S.docs[d.id];if(cur){delete cur.pending;save(d.id,cur)}}}}
 const pdelKey=()=>"pf-pdel:"+(CL.user?CL.user.id:"");
 function queuePlanDel(rows){let q=[];try{q=JSON.parse(lsGet(pdelKey())||"[]")}catch(e){}rows.forEach(r=>{if(!q.some(x=>x[0]===r[0]&&x[1]===r[1]))q.push(r)});lsSet(pdelKey(),JSON.stringify(q))}
@@ -2827,7 +2872,7 @@ const progStale=(P,a)=>{const done=a.uid==="me"?planDoneIds():new Set(((ofType("
 // swap: remove the not-done sessions from the old version, then open Assign with the same weekdays
 async function progSwap(progId,uid){const P=S.docs[progId];if(!P)return;const a=progAssignees(progId).find(x=>x.uid===uid);if(!a)return;
   const wd=d=>(new Date(d.date+"T12:00").getDay()+6)%7,used=[...new Set(a.docs.map(wd))].sort((x,y)=>x-y),days=P.days.map((dy,i)=>used.length===P.days.length?used[i]:(P.days.length>4?[0,1,2,3,4,5,6]:[0,1,3,5,2,4,6])[i]??"");
-  const r=await dropProg(progId,uid);S.planView=null;S.progView="list";S.assign={progId,clientUid:uid,start:nextMonday(),days};render();window.scrollTo(0,0);toast(`Removed ${r.n} old sessions. Check the start date and days, then tap Assign`)}
+  const r=await dropProg(progId,uid);S.planView=null;S.progView="list";const fx=a.docs.find(d=>d.flex);S.assign={progId,clientUid:uid,start:fx?todayKey():nextMonday(),days,...(fx?{flex:true,perWeek:fx.perWeek||3}:{})};render();window.scrollTo(0,0);toast(`Removed ${r.n} old sessions. Check the start date and days, then tap Assign`)}
 const planProg=d=>d.progId||(d.progName&&(ofType("cprog").find(p=>p.name===d.progName)||{}).id)||null;
 function progAssignees(progId){const t=todayKey(),out={},myDone=planDoneIds(),cls=ofType("client");
   ofType("cplan").filter(d=>planProg(d)===progId).forEach(d=>{const c=cls.find(x=>x.clientUid===d.clientUid),done=new Set(((c&&c.planDone)||[]).map(x=>x.id||x));const o=out[d.clientUid]=out[d.clientUid]||{uid:d.clientUid,name:c?c.name:"A client",docs:[],left:0,done:0};o.docs.push(d);done.has(d.pid)?o.done++:o.left++});
@@ -2880,19 +2925,23 @@ function feedbackPanel(c){if(!c.clientUid)return"";const wks=c.weeks.slice(-4).r
       <div class="row"><button class="btn primary" data-act="fbSend">Send</button><button class="btn ghost" data-act="fbCancel">Cancel</button></div>`
     :sentL.length?sentL.map(f=>`<div class="small" style="padding:4px 0"><b>${fmtDay(f.week)}</b> ${esc(String(f.text||"").slice(0,80))}${f.focus?` <span class="muted">· focus: ${esc(f.focus)}</span>`:""}</div>`).join(""):`<p class="small muted" style="margin:0">Reply to their weekly check-in. They see it on their Check-in screen and a note on Today.</p>`}</section>`}
 function plansSection(c){if(!c.clientUid)return `<section class="panel"><h2>Planned sessions</h2><p class="small muted" style="margin:0">To plan sessions for ${esc(c.name)}, they need to link to you with your coach code (Settings → Cloud account → Share with a coach).</p></section>`;
-  const done=new Set((c.planDone||[]).map(x=>x.id||x)),t=todayKey(),mine=ofType("cplan").filter(x=>x.clientUid===c.clientUid&&x.date>=addDays(t,-21)).sort((a,b)=>a.date<b.date?-1:1);
+  const done=new Set((c.planDone||[]).map(x=>x.id||x)),t=todayKey(),fx=clientFlex(c),mine=ofType("cplan").filter(x=>x.clientUid===c.clientUid&&(x.flex?(done.has(x.pid)?(((c.planDone||[]).find(y=>(y.id||y)===x.pid)||{}).date||"")>=addDays(t,-21):true):x.date>=addDays(t,-21))).sort((a,b)=>a.flex&&b.flex?(a.seq??0)-(b.seq??0):a.date<b.date?-1:1);
+  const fxNext=mine.filter(p=>p.flex&&!done.has(p.pid)),mineShow=mine.filter(p=>!p.flex||done.has(p.pid)||fxNext.indexOf(p)<6);
   const open=S.planDraft&&S.planDraft.clientUid===c.clientUid;
   return `<section class="panel"><div class="spread"><h2>Planned sessions</h2>${open?"":`<span class="row" style="gap:4px"><button class="btn ghost" data-act="planView" data-c="${c.clientUid}">View all</button><button class="btn" data-act="assignFor" data-id="${c.clientUid}">Assign programme</button><button class="btn primary" data-act="plNew" data-id="${c.clientUid}">+ Session</button></span>`}</div>
     ${open?planEditor():""}
-    ${mine.length?`<div class="hist">${mine.map(p=>{const st=done.has(p.pid)?`<span class="small good">✓ Done</span>`:p.date<t?`<span class="small" style="color:var(--protein)">Missed</span>`:p.date===t?`<span class="small" style="color:var(--accent)">Today</span>`:"";
+    ${fx?`<div class="flexsum"><b>Flexible order · ${fx.done} of ${fx.pw} this week</b><span class="small muted">${fx.next?`Up next: ${esc(fx.next.name||"Session")} (session ${fx.pos} of ${fx.total}). They pick the days.`:"All sessions done."}</span></div>`:""}
+    ${mine.length?`<div class="hist">${mineShow.map(p=>{const dd=((c.planDone||[]).find(y=>(y.id||y)===p.pid)||{}).date;const st=done.has(p.pid)?`<span class="small good">✓ Done${p.flex&&dd?" "+fmtDay(dd):""}</span>`:p.flex?(fx&&fx.next&&fx.next.pid===p.pid?`<span class="small" style="color:var(--accent)">Up next</span>`:""):p.date<t?`<span class="small" style="color:var(--protein)">Missed</span>`:p.date===t?`<span class="small" style="color:var(--accent)">Today</span>`:"";
       const did=(c.planDone||[]).find(x=>(x.id||x)===p.pid&&x.sets);
-      return `<div class="item"><div class="spread"><span><b>${fmtDay(p.date)}</b> · ${esc(p.name||"Session")} <span class="small muted">${(p.exercises||[]).length} ex · ${kindName(p.kind)}</span>${p.pending?` <span class="small muted">(not sent yet)</span>`:""}</span>${st}</div>
+      return `<div class="item"><div class="spread"><span><b>${p.flex?"Session "+((p.seq??0)+1):fmtDay(p.date)}</b> · ${esc(p.name||"Session")} <span class="small muted">${(p.exercises||[]).length} ex · ${kindName(p.kind)}</span>${p.pending?` <span class="small muted">(not sent yet)</span>`:""}</span>${st}</div>
         ${did?`<details><summary class="small">Planned vs what they did</summary><div class="pva">${(p.exercises||[]).map(e=>{const a=did.sets.find(x=>exKey(x.name)===exKey(e.name)),tot=a?a.sets.length:0,hit=a?a.sets.filter((x,i)=>{const pl=(e.sets||[])[i]||{};return (+x[1]||0)>=(+pl.reps||+pl.secs||0)}).length:0;
           return `<div class="small"><b>${esc(e.name)}</b><span class="muted"> plan ${esc(rxText(e))}</span><br>${a?`${a.sets.map(x=>`${fmtN(+x[0]||0)}×${x[1]}`).join(", ")} <span class="${hit>=(e.sets||[]).length?"good":"muted"}">${hit>=(e.sets||[]).length&&tot?"✓ all reps hit. Ready to progress":`${tot} of ${(e.sets||[]).length} sets`}</span>`:`<span style="color:var(--protein)">Skipped</span>`}</div>`}).join("")}
           ${did.sets.filter(x=>!(p.exercises||[]).some(e=>exKey(e.name)===exKey(x.name))).map(x=>`<div class="small"><b>${esc(x.name)}</b> <span class="muted">(added: ${x.sets.map(y=>`${fmtN(+y[0]||0)}×${y[1]}`).join(", ")})</span></div>`).join("")}</div></details>`:""}
         <div class="row" style="gap:4px"><button class="btn ghost" data-act="plEdit" data-id="${p.id}">Edit</button><button class="btn ghost" data-act="plCopy" data-id="${p.id}">Copy</button><button class="btn ghost" style="color:var(--protein)" data-act="plRemove" data-id="${p.id}">${S.confirmPlanDel===p.id?"Tap to delete":"Delete"}</button></div></div>`}).join("")}</div>`:open?"":`<p class="small muted" style="margin:0">Nothing planned yet. Plan a session and it appears in their app with a Start button, sets and weights ready.</p>`}
     ${(()=>{const groups=[...new Set(mine.filter(p=>planProg(p)&&p.date>=t).map(p=>planProg(p)+"|"+(p.progName||"Programme")))];return groups.map(g=>{const [gid,gn]=g.split("|");return `<button class="btn ghost" style="color:var(--protein);align-self:flex-start" data-act="plDropProg" data-id="${gid}" data-c="${c.clientUid}">${S.confirmDrop===gid?"Tap to remove all upcoming sessions":"Remove upcoming sessions from “"+esc(gn)+"”"}</button>`}).join("")})()}
-    ${(()=>{const mi=mine.filter(p=>p.date<t&&p.date>=addDays(t,-7)&&!done.has(p.pid));if(!mi.length)return"";
+    ${(()=>{const groups=[...new Set(mine.filter(p=>planProg(p)&&!done.has(p.pid)).map(p=>planProg(p)))];return groups.map(gid=>{const G=mine.filter(p=>planProg(p)===gid&&!done.has(p.pid)),isF=G.some(p=>p.flex),nm=(G[0]&&G[0].progName)||"programme";
+      return `<button class="btn ghost" style="align-self:flex-start" data-act="plFlex" data-id="${gid}" data-c="${c.clientUid}" data-v="${isF?"":"1"}">${isF?"Switch “"+esc(nm)+"” back to fixed days":"Switch “"+esc(nm)+"” to flexible order (3 a week)"}</button>`}).join("")})()}
+    ${(()=>{const mi=mine.filter(p=>!p.flex&&p.date<t&&p.date>=addDays(t,-7)&&!done.has(p.pid));if(!mi.length)return"";
       return `<div class="hint small"><b>Missed ${mi.length} in the last 7 days.</b><span>${mi.length>=2?"Check in on what got in the way. Rather than asking them to catch up, push their programme back a week so the progression still lines up.":"One miss is fine: they carry on with the next session. Check in if it happens again."}</span>${mi.length>=2?`<button class="btn" style="align-self:flex-start" data-act="plShiftClient" data-c="${c.clientUid}">Push their programme back a week</button>`:""}</div>`})()}
     <span class="small muted">"Done" updates when they finish the session and their app syncs.</span></section>`}
 async function savePlanDraft(){const D=S.planDraft,ex=D.ex.filter(e=>String(e.name||"").trim());if(!D.date){toast("Pick a day");return}if(!ex.length){toast("Add at least one exercise");return}
@@ -3332,10 +3381,14 @@ document.addEventListener("click",e=>{
     case "progSwap":progSwap(ds.id,ds.c);break;
     case "aheadMove":{const A=aheadInfo();if(!A)break;const r=pullForward(A.target.pid,A.to,A.key);if(r)toast(`Moved ${r.n} sessions ${r.dd} day${r.dd>1?"s":""} earlier${r.skipped?", skipped "+r.skipped:""}. Next: ${planDayLabel(A.to)}`);break}
     case "aheadKeep":{const A=aheadInfo();if(!A)break;const m=clone(planMeta()),dm=doneDates(),all=ofType("mplan").filter(d=>dm[d.pid]&&dm[d.pid]<d.date).map(d=>d.pid+"|"+d.date);m.aheadAck=[...new Set([...(m.aheadAck||[]),A.key,...all])].slice(-100);save("planMeta",m);toast("Kept your dates");break}
+    case "flexDay":{const t=todayKey(),cur=new Set(flexWeekDays());cur.has(ds.v)?cur.delete(ds.v):cur.add(ds.v);save("flexWeek",{type:"flexWeek",days:[...cur].filter(d=>d>=t).sort()});break}
     case "planNext":{const to=nextFreeDay(),r=pullForward(ds.id,to);if(r)toast(`Moved ${r.n} sessions ${r.dd} day${r.dd>1?"s":""} earlier${r.skipped?", skipped "+r.skipped:""}. Next: ${planDayLabel(to)}`);break}
     case "planSkip":{const m=clone(planMeta());m.skips=[...new Set([...(m.skips||[]),...ds.ids.split(",")])].slice(-300);save("planMeta",m);toast("Skipped. Carry on with your next session");break}
     case "planShift":{const M=missedRecent(),from=M.length?M[M.length-1].date:todayKey(),done=planDoneIds(),L=ofType("mplan").filter(d=>d.date>=from&&!done.has(d.pid));shiftPlans(L).then(n=>toast(`Moved ${n} sessions back a week`));break}
-    case "plShiftClient":{const t=todayKey(),c=ofType("client").find(x=>x.clientUid===ds.c),done=new Set(((c&&c.planDone)||[]).map(x=>x.id||x)),mine=ofType("cplan").filter(p=>p.clientUid===ds.c&&!done.has(p.pid)),mi=mine.filter(p=>p.date<t&&p.date>=addDays(t,-7)).sort((a,b)=>a.date<b.date?-1:1),from=mi.length?mi[0].date:t;
+    case "plFlex":{const on=!!ds.v,c=ofType("client").find(x=>x.clientUid===ds.c),done=new Set(((c&&c.planDone)||[]).map(x=>x.id||x)),L=ofType("cplan").filter(p=>p.clientUid===ds.c&&planProg(p)===ds.id).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0),sent=[];
+      L.forEach((p,i)=>{if(done.has(p.pid))return;const cur=S.docs[p.id];if(!cur)return;if(on){cur.flex=true;cur.seq=i;cur.perWeek=cur.perWeek||3}else{delete cur.flex;delete cur.seq;delete cur.perWeek}cur.pending=true;S.docs[p.id]=cur;sent.push(p.id)});
+      sent.forEach(id=>save(id,S.docs[id]));pushPlans(sent.map(id=>({id,...S.docs[id]}))).then(ok=>{if(ok)sent.forEach(id=>{const cu=S.docs[id];if(cu){delete cu.pending;save(id,cu)}});toast(`${on?"Flexible order on":"Back to fixed days"}${c?" for "+c.name.split(" ")[0]:""}${ok?". Their app updates on its next sync":". It'll send when you're back online"}`)});break}
+    case "plShiftClient":{const t=todayKey(),c=ofType("client").find(x=>x.clientUid===ds.c),done=new Set(((c&&c.planDone)||[]).map(x=>x.id||x)),mine=ofType("cplan").filter(p=>p.clientUid===ds.c&&!p.flex&&!done.has(p.pid)),mi=mine.filter(p=>p.date<t&&p.date>=addDays(t,-7)).sort((a,b)=>a.date<b.date?-1:1),from=mi.length?mi[0].date:t;
       shiftPlans(mine.filter(p=>p.date>=from)).then(n=>{render();toast(`Moved ${n} sessions back a week${c?" for "+c.name.split(" ")[0]:""}`)});break}
     case "progAck":{const m=clone(planMeta());m.ack=[...new Set([...(m.ack||[]),ds.k])];save("planMeta",m);break}
     case "progOpenTrainGo":S.tab="train";S.progView="list";S.assign=null;render();window.scrollTo(0,0);break;
@@ -3404,6 +3457,8 @@ document.addEventListener("click",e=>{
     case "assignFor":{S.clientOpen=null;S.progView="list";const first=ofType("cprog")[0];S.assign=first?{progId:first.id,clientUid:ds.id,start:nextMonday(),days:first.days.map((_,i)=>(first.days.length>4?[0,1,2,3,4,5,6]:[0,1,3,5,2,4,6])[i]??"")}:null;render();window.scrollTo(0,0);if(!first)toast("Build a programme first, then assign it");else if(ofType("cprog").length>1)toast("Tap Assign on the programme you want");break}
     case "assignCancel":S.assign=null;render();break;
     case "asDay":S.assign.days[+ds.i]=ds.v===""?"":+ds.v;render();break;
+    case "asMode":S.assign.flex=!!ds.v;if(S.assign.flex&&!S.assign.perWeek)S.assign.perWeek=3;render();break;
+    case "asPW":S.assign.perWeek=+ds.v;render();break;
     case "assignGo":assignProg();break;
     case "planStart":startPlan(ds.id);break;
     case "plNew":S.planDraft=newPlanDraft(ds.id);render();break;
@@ -3547,7 +3602,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
     if(t.tagName==="SELECT"||ds.k==="name"||ds.k==="weeks")render()}
   if(ds.act==="pgDeload"&&S.progDraft){S.progDraft.deload=t.checked;render()}
   if(ds.act==="pgRamp"&&S.progDraft){S.progDraft.rirRamp=t.checked;render()}
-  if(S.assign&&ds.act==="asF"){S.assign[ds.k]=t.value;render()}
+  if(S.assign&&ds.act==="asF"){S.assign[ds.k]=t.value;if(ds.k==="clientUid"){const f=flexOf(t.value);if(f){S.assign.flex=true;S.assign.perWeek=f}}render()}
   if(S.csDraft&&ds.act==="csF"){S.csDraft.targets[ds.k]=t.value}
   if(S.fbDraft&&ds.act==="fbF"&&ds.k==="week"){S.fbDraft.week=t.value;render()}
   if(S.planDraft&&(ds.act==="plF"||ds.act==="plRx")){if(ds.act==="plF")S.planDraft[ds.k]=t.value;else S.planDraft.ex[+ds.i].rx[ds.k]=t.value}

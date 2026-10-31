@@ -52,14 +52,18 @@ export async function run(sb: any, push: any, now = new Date()) {
   let sentCount = 0;
   for (const [uid, list] of byUser) {
     const tz = list[0].tz || "Europe/London", L = localParts(tz, now);
-    const { data: docs } = await sb.from("docs").select("id,data").eq("user_id", uid).in("id", ["settings", "active", "day_" + L.date, "ready_" + L.date]);
+    const { data: docs } = await sb.from("docs").select("id,data").eq("user_id", uid).in("id", ["settings", "active", "flexWeek", "day_" + L.date, "ready_" + L.date]);
     const get = (id: string) => { const r = (docs || []).find((x: any) => x.id === id); return r && !(r.data && r.data._del) ? r.data : null; };
     const { data: plans } = await sb.from("plans").select("id,data").eq("client_id", uid);
-    const plansToday = (plans || []).filter((x: any) => x.data && x.data.date === L.date).map((x: any) => ({ id: x.id, name: x.data.name }));
+    // fixed-day sessions remind on their date; flexible-order sessions only on days the person picked in "Plan my week"
+    const plansToday = (plans || []).filter((x: any) => x.data && !x.data.flex && x.data.date === L.date).map((x: any) => ({ id: x.id, name: x.data.name }));
+    const flexIds = new Set((plans || []).filter((x: any) => x.data && x.data.flex).map((x: any) => x.id));
+    const fw = get("flexWeek");
+    if (flexIds.size && fw && Array.isArray(fw.days) && fw.days.includes(L.date)) plansToday.push({ id: "flex", name: "Your next session" });
     let doneIds = new Set<string>();
-    if (plansToday.length) { const { data: wos } = await sb.from("docs").select("data").eq("user_id", uid).like("id", "wo_%").eq("data->>date", L.date); doneIds = new Set((wos || []).map((w: any) => w.data && w.data.planId).filter(Boolean)); }
+    if (plansToday.length) { const { data: wos } = await sb.from("docs").select("data").eq("user_id", uid).like("id", "wo_%").eq("data->>date", L.date); doneIds = new Set((wos || []).map((w: any) => w.data && w.data.planId).filter(Boolean)); if ([...doneIds].some(id => flexIds.has(id))) doneIds.add("flex"); }
     const { data: logs } = await sb.from("push_log").select("kind,key").eq("user_id", uid);
-    const sent = new Set((logs || []).map((x: any) => x.kind + "|" + x.key));
+    const sent = new Set<string>((logs || []).map((x: any) => x.kind + "|" + x.key));
     const settings = get("settings") || {};
     const due = decide({ cfg: settings.reminders, tz, now, day: get("day_" + L.date), ready: get("ready_" + L.date), plansToday, doneIds, active: get("active"), sent });
     for (const d of due) {
