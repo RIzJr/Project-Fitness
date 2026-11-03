@@ -87,7 +87,7 @@ Do this once Apple confirms your membership by email.
 
 In App Store Connect, open the app and go to **Distribution**, then **iOS App 1.0**.
 
-**Screenshots (iPhone 6.9")**: upload the five images from the `app-store-screenshots` folder in this order: 1-today, 2-plan, 3-workout, 4-rest, 6-clients.
+**Screenshots (iPhone 6.9")**: upload the five images from the `app-store-screenshots` folder in this order: 1-today, 2-plan, 3-workout, 4-rest, 5-clients.
 
 **Subtitle** (30 characters max)
 > Training, food & coaching
