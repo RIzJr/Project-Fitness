@@ -1,0 +1,45 @@
+# Codemagic: builds the iPhone app in the cloud (on a Mac) and uploads it to TestFlight.
+# Set-up once in codemagic.io (see APP-STORE.md):
+#   1. Team integrations > Developer Portal: add the App Store Connect API key and name it  PF ASC key
+#   2. Code signing identities: Generate certificate (Apple Distribution), then Fetch profiles (App Store, com.rizjr.projectfitness)
+# Then press "Start new build" and pick "iOS to TestFlight".
+workflows:
+  ios-testflight:
+    name: iOS to TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    integrations:
+      app_store_connect: PF ASC key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.rizjr.projectfitness
+      node: 22
+      xcode: latest
+    # Builds only start when you press the button (saves free minutes).
+    # To build automatically on every push to main, delete the # on the next 4 lines.
+    # triggering:
+    #   events: [push]
+    #   branch_patterns:
+    #     - pattern: main
+    scripts:
+      - name: Install
+        script: npm ci
+      - name: Copy the web app into the iPhone project
+        script: npm run build && npx cap sync ios
+      - name: Code signing
+        script: xcode-project use-profiles
+      - name: Build number
+        script: |
+          cd ios/App
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" App.xcodeproj/project.pbxproj
+      - name: Build the app
+        script: xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

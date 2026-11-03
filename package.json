@@ -1,0 +1,21 @@
+{
+  "name": "project-fitness",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Project Fitness: the web app plus its iPhone wrapper (Capacitor). The web app itself needs no build; this is only for the App Store version.",
+  "scripts": {
+    "build": "node scripts/build-www.mjs",
+    "ios": "npm run build && npx cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/local-notifications": "8.3.1",
+    "@capacitor/status-bar": "8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}

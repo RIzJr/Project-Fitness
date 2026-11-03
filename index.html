@@ -1133,9 +1133,39 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-10-31-1";
+const APP_VERSION="2026-11-03-1";
+/* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
+const NATIVE=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform());
+const NPlug=n=>NATIVE&&window.Capacitor.Plugins?window.Capacitor.Plugins[n]||null:null;
+const WEB_URL="https://rizjr.github.io/Project-Fitness/";
+const appUrl=()=>NATIVE?WEB_URL:location.origin+location.pathname;
+let nPerm=null;
+async function nativePermCheck(){const L=NPlug("LocalNotifications");if(!L)return null;try{nPerm=(await L.checkPermissions()).display}catch(e){}return nPerm}
+async function nativePermAsk(){const L=NPlug("LocalNotifications");if(!L)return "unsupported";try{nPerm=(await L.requestPermissions()).display;if(nPerm==="granted"){nativeDaily();return "on"}return "denied"}catch(e){return "error"}}
+const N_ID={rest:9001,idle:9002,food:1000,ready:1100,plan:1200};
+async function nCancel(ids){const L=NPlug("LocalNotifications");if(!L||!ids.length)return;try{await L.cancel({notifications:ids.map(id=>({id}))})}catch(e){}}
+async function nSchedule(list){const L=NPlug("LocalNotifications");if(!L||nPerm!=="granted"||!list.length)return;
+  try{await L.schedule({notifications:list.map(n=>({id:n.id,title:n.title,body:n.body,schedule:{at:new Date(n.at),allowWhileIdle:true},extra:{go:n.go||""}}))})}catch(e){}}
+// rest-over and "still training?" alerts: scheduled only while the app is in the background, so there's no double alert while you're looking at it
+async function nativeBgSync(){if(!NATIVE)return;await nCancel([N_ID.rest,N_ID.idle]);if(!document.hidden||S.lock)return;const L=[],R=S.rest,c=restCfg(),dw=S.draftWorkout,rc=remCfg();
+  if(R&&!R.fired&&c.notify&&R.end>Date.now()+1000)L.push({id:N_ID.rest,title:"Rest over 💪",body:"Time for your next set.",at:R.end,go:"train"});
+  if(rc.idle.on&&dw&&dw.lastAct)L.push({id:N_ID.idle,title:"Still training?",body:"Your workout has had no activity for a while. Tap to finish and save it, or keep going.",at:Math.max(Date.now()+60000,dw.lastAct+rc.idle.mins*60000),go:"train"});
+  await nSchedule(L)}
+// daily reminders for the next 7 days, re-planned whenever something changes (food logged, check-in done, session finished)
+async function nativeDaily(){if(!NATIVE||nPerm!=="granted"||S.lock||S.example)return;const R=remCfg(),now=Date.now(),t=todayKey(),ids=[],L=[];
+  const at=(day,tm)=>{const [h,m]=String(tm).split(":").map(Number),d=new Date(day+"T12:00:00");d.setHours(h||0,m||0,0,0);return d.getTime()};
+  const ups=upcomingPlans(),trained=ofType("workout").some(w=>w.date===t);
+  for(let i=0;i<7;i++){const day=addDays(t,i);ids.push(N_ID.food+i,N_ID.ready+i,N_ID.plan+i);
+    if(R.food.on){const d=S.docs["day_"+day];if(!(d&&d.foods&&d.foods.length)&&at(day,R.food.time)>now)L.push({id:N_ID.food+i,title:"Log today's food 🍽️",body:"Nothing logged yet today. A quick log keeps you on track.",at:at(day,R.food.time),go:"food"})}
+    if(R.ready.on&&!S.docs["ready_"+day]&&at(day,R.ready.time)>now)L.push({id:N_ID.ready+i,title:"Morning check-in ⚡",body:"30 seconds: how did you sleep and how do you feel?",at:at(day,R.ready.time),go:"ready"});
+    if(R.plan.on){const p=ups.find(x=>x.date===day&&!x.anyDay);if(p&&!(i===0&&(trained||S.draftWorkout))&&at(day,R.plan.time)>now)L.push({id:N_ID.plan+i,title:"Today's session is ready 💪",body:(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.",at:at(day,R.plan.time),go:"train"})}}
+  await nCancel(ids);await nSchedule(L)}
+if(NATIVE){document.documentElement.classList.add("native");document.addEventListener("visibilitychange",()=>{nativeBgSync();if(!document.hidden)nativeDaily()});
+  nativePermCheck().then(()=>nativeDaily());
+  try{NPlug("LocalNotifications")?.addListener("localNotificationActionPerformed",e=>{const g=e&&e.notification&&e.notification.extra&&e.notification.extra.go;if(g)setTimeout(()=>goTo(g),300)})}catch(e){}
+  try{NPlug("StatusBar")?.setOverlaysWebView({overlay:true})}catch(e){}}
 function busy(){return !!(S.draftWorkout||S.editFood!=null||S.onboard||S.painDraft||S.rdEdit||S.healthDraft||S.editHabits||S.routine||S.lock||(S.cDraft&&S.cDraft.mins)||document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))}
-async function checkUpdate(justOpened){if(location.protocol==="file:"||!navigator.onLine)return;
+async function checkUpdate(justOpened){if(NATIVE||location.protocol==="file:"||!navigator.onLine)return;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});if(!r.ok)return;const m=(await r.text()).match(/APP_VERSION="([^"]+)"/);
     if(!m||m[1]===APP_VERSION)return;
     try{const reg=await navigator.serviceWorker?.getRegistration();reg&&reg.update()}catch(e){}
@@ -1426,7 +1456,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
   const R=S.rest;
   if(S.wpView==="list"&&cur.t!=="finish"&&!(cur.t==="warmup"&&S.wu)&&!(cur.t==="cooldown"&&S.cdRun))return wpListView(dw,head,steps,cur);
   if(R&&cur.t==="ex"){const left=Math.max(0,(R.end-Date.now())/1000),ex=dw.exercises[cur.ei],si=wpCurSet(ex),nextEx=si<0?dw.exercises[cur.ei+1]:null,st=si>=0?ex.sets[si]:null,md=exMode(ex.name,ex.mode),last=[...ex.sets].reverse().find(x=>x.done);
-    const val=x=>md==="time"?(+x.secs||0)+" s"+(+x.kg?" +"+fmtN(+x.kg)+" kg":""):(+x.kg?fmtN(+x.kg)+" × ":"")+(x.reps||0),kgStep=dw.kind==="gym"||dw.kind==="functional"?2.5:1,canAsk="Notification" in window&&Notification.permission==="default";
+    const val=x=>md==="time"?(+x.secs||0)+" s"+(+x.kg?" +"+fmtN(+x.kg)+" kg":""):(+x.kg?fmtN(+x.kg)+" × ":"")+(x.reps||0),kgStep=dw.kind==="gym"||dw.kind==="functional"?2.5:1,canAsk=NATIVE?/^prompt/.test(nPerm||""):"Notification" in window&&Notification.permission==="default";
     return `<div class="player">${head}<div class="wp-body wp-rest">
       <div class="wp-ring" id="wpRing" style="--p:${R.fired?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}"><div><span class="label">${R.fired?"Rest over":"Rest"}</span><b id="wpRest">${R.fired?"Go!":mmss(left)}</b><span>of ${mmss(R.total)}</span></div></div>
       ${last?`<span class="small muted" style="text-align:center">Set ${ex.sets.indexOf(last)+1} logged · ${esc(val(last))}${last.rir!==""&&last.rir!=null?" · "+last.rir+" in reserve":""}</span>`:""}
@@ -2075,7 +2105,7 @@ function loadLook(){LOOK={accent:"Lime",theme:"dark",photo:null,v:2};try{const l
     if(l.v!==2){LOOK.theme="dark";LOOK.accent="Lime";LOOK.v=2;try{localStorage.setItem("pf-look:"+PROF.active,JSON.stringify(LOOK))}catch(e){}}}}catch(e){}}
 loadLook();
 function saveLook(){try{localStorage.setItem("pf-look:"+PROF.active,JSON.stringify(LOOK))}catch(e){toast("Couldn't save that photo on this device. Try a smaller one.");LOOK.photo=null}applyLook();render()}
-function applyLook(){const a=ACCENTS.find(x=>x[0]===LOOK.accent)||ACCENTS[0];let st=document.getElementById("lookcss");if(!st){st=document.createElement("style");st.id="lookcss";document.body.appendChild(st)}
+function applyLook(){try{NPlug("StatusBar")?.setStyle({style:curTheme()==="dark"?"DARK":"LIGHT"})}catch(e){}const a=ACCENTS.find(x=>x[0]===LOOK.accent)||ACCENTS[0];let st=document.getElementById("lookcss");if(!st){st=document.createElement("style");st.id="lookcss";document.body.appendChild(st)}
   st.textContent=`:root{--accent:${a[1]};--accent-ink:#fff}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--accent:${a[2]};--accent-ink:#0D0E10}}:root[data-theme="dark"]{--accent:${a[2]};--accent-ink:#0D0E10}`
     +(LOOK.photo?`.hero.photo,.quote.photo{background-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.55)),url("${LOOK.photo}")}`:"");
   if(LOOK.theme==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",LOOK.theme)}
@@ -2109,9 +2139,10 @@ function idleMins(){const dw=S.draftWorkout;return dw&&dw.lastAct?(Date.now()-dw
 function scheduleReminders(){clearTimeout(scheduleReminders._d);scheduleReminders._d=setTimeout(()=>{(scheduleReminders._t||[]).forEach(clearTimeout);scheduleReminders._t=[];
   if(S.lock||S.example)return;const R=remCfg(),now=new Date(),today=todayKey(),at=t=>{const [h,m]=String(t).split(":").map(Number),d=new Date();d.setHours(h||0,m||0,0,0);return d.getTime()-now.getTime()};
   const add=(ms,fn)=>{if(ms>=0&&ms<864e5)scheduleReminders._t.push(setTimeout(fn,ms))};
-  if(R.food.on)add(at(R.food.time),()=>{const d=S.docs["day_"+todayKey()];if(!(d&&d.foods&&d.foods.length)&&!remSent("food|"+today)){markRem("food|"+today);showNote("Log today's food 🍽️","Nothing logged yet today. A quick log keeps you on track.","food","./?go=food")}});
-  if(R.ready.on)add(at(R.ready.time),()=>{if(!S.docs["ready_"+todayKey()]&&!remSent("ready|"+today)){markRem("ready|"+today);showNote("Morning check-in ⚡","30 seconds: how did you sleep and how do you feel?","ready","./?go=ready")}});
-  if(R.plan.on)add(at(R.plan.time),()=>{const p=upcomingPlans().find(x=>x.date===todayKey()&&!x.anyDay);if(p&&!S.draftWorkout&&!remSent("plan|"+today)){markRem("plan|"+today);showNote("Today's session is ready 💪",(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.","plan","./?go=train")}});
+  if(NATIVE)nativeDaily();
+  if(R.food.on&&!NATIVE)add(at(R.food.time),()=>{const d=S.docs["day_"+todayKey()];if(!(d&&d.foods&&d.foods.length)&&!remSent("food|"+today)){markRem("food|"+today);showNote("Log today's food 🍽️","Nothing logged yet today. A quick log keeps you on track.","food","./?go=food")}});
+  if(R.ready.on&&!NATIVE)add(at(R.ready.time),()=>{if(!S.docs["ready_"+todayKey()]&&!remSent("ready|"+today)){markRem("ready|"+today);showNote("Morning check-in ⚡","30 seconds: how did you sleep and how do you feel?","ready","./?go=ready")}});
+  if(R.plan.on&&!NATIVE)add(at(R.plan.time),()=>{const p=upcomingPlans().find(x=>x.date===todayKey()&&!x.anyDay);if(p&&!S.draftWorkout&&!remSent("plan|"+today)){markRem("plan|"+today);showNote("Today's session is ready 💪",(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.","plan","./?go=train")}});
   const dw=S.draftWorkout;if(R.idle.on&&dw&&dw.lastAct)add(dw.lastAct+R.idle.mins*60000-now.getTime()+1000,()=>{const d=S.draftWorkout;if(!d||idleMins()<R.idle.mins)return;
     if(document.hidden){if(!remSent("idle|"+d.started)){markRem("idle|"+d.started);showNote("Still training?",`Your workout has had no activity for ${Math.round(idleMins())} min. Tap to finish and save it, or keep going.`,"idle","./?go=train")}}else{S.idlePrompt=true;render()}});
 },50)}
@@ -2120,15 +2151,15 @@ setTimeout(()=>{const dw=S.draftWorkout,R=remCfg();if(dw&&R.idle.on&&idleMins()>
 // coming back to the app with a session left running
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const dw=S.draftWorkout,R=remCfg();if(dw&&R.idle.on&&idleMins()>=R.idle.mins){S.idlePrompt=true;S.tab="train";render()}});
 const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
-async function enablePush(){if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))return "unsupported";
+async function enablePush(){if(NATIVE)return nativePermAsk();if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))return "unsupported";
   const perm=Notification.permission==="granted"?"granted":await Notification.requestPermission();if(perm!=="granted")return "denied";
   if(!CL.user||!FN_URL())return "local";
   let key;try{const r=await fetch(FN_URL(),{headers:{apikey:CLOUD_KEY}});if(!r.ok)throw 0;key=(await r.json()).publicKey;if(!key)throw 0}catch(e){return "noserver"}
   try{const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(key)});
     const j=sub.toJSON(),c=await sbClient();const {error}=await c.from("push_subs").upsert({user_id:CL.user.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,tz:Intl.DateTimeFormat().resolvedOptions().timeZone},{onConflict:"user_id,endpoint"});
     if(error)return /push_subs|relation|schema|does not exist/i.test(error.message)?"noserver":"error";lsSet("pf-push:"+PROF.active,"on");return "on"}catch(e){return "error"}}
-function setReminders(){const R=remCfg(),perm="Notification" in window?Notification.permission:"unsupported",pushOn=lsGet("pf-push:"+PROF.active)==="on",st=S.pushStatus;
-  const standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone,ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+function setReminders(){const R=remCfg(),perm=NATIVE?(nPerm==="granted"?"granted":nPerm==="denied"?"denied":"default"):"Notification" in window?Notification.permission:"unsupported",pushOn=NATIVE?nPerm==="granted":lsGet("pf-push:"+PROF.active)==="on",st=NATIVE?null:S.pushStatus;
+  const standalone=NATIVE||window.matchMedia("(display-mode: standalone)").matches||navigator.standalone,ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
   const row=(k,label,sub,extra)=>`<div class="remrow"><label class="habit" style="flex:1"><input type="checkbox" data-act="remOn" data-k="${k}" ${R[k].on?"checked":""}><span><b>${label}</b><span class="small muted" style="display:block">${sub}</span></span></label>${extra}</div>`;
   return `<section class="panel"><h2>Phone notifications</h2>
     ${perm==="granted"&&pushOn?`<div class="small good"><b>On.</b> Reminders arrive even when the app is closed.</div>`
@@ -2249,9 +2280,9 @@ function wpListView(dw,head,steps,cur){const R=S.rest,openEi=S.wlOpen!=null?S.wl
     ${R?`<div class="wl-rest"><span><span class="label">${R.fired?"Rest over":"Rest"}</span><b id="wpRest">${R.fired?"Go!":mmss((R.end-Date.now())/1000)}</b></span><span class="row" style="gap:6px;flex-wrap:nowrap"><button data-act="restAdj" data-d="-15">−15</button><button data-act="restAdj" data-d="15">+15</button><button class="dark" data-act="restSkip">Skip</button></span></div>`:""}
     <button class="wp-big" data-act="wpGo" data-v="${steps.length-1}">Finish workout</button></div>`}
 // buzz when rest ends: vibration where supported (Android); on iPhone Safari a hidden switch gives a light haptic tap where the phone allows it
-function haptic(){try{if(navigator.vibrate&&navigator.vibrate([300,150,300]))return;let l=document.getElementById("hapt");if(!l){l=document.createElement("label");l.id="hapt";l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click();setTimeout(()=>l.click(),200)}catch(e){}}
+function haptic(){const H=NPlug("Haptics");if(H){try{H.vibrate({duration:350});setTimeout(()=>H.vibrate({duration:350}),500)}catch(e){}return}try{if(navigator.vibrate&&navigator.vibrate([300,150,300]))return;let l=document.getElementById("hapt");if(!l){l=document.createElement("label");l.id="hapt";l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click();setTimeout(()=>l.click(),200)}catch(e){}}
 // tell the server when rest ends, so a push notification arrives even if the phone is locked (needs supabase-update-4.sql)
-async function restServer(endMs){if(!CL.user||lsGet("pf-push:"+PROF.active)!=="on")return;try{const c=await sbClient();if(!c)return;
+async function restServer(endMs){if(NATIVE)return;if(!CL.user||lsGet("pf-push:"+PROF.active)!=="on")return;try{const c=await sbClient();if(!c)return;
   if(endMs)await c.from("rest_timers").upsert({user_id:CL.user.id,ends_at:new Date(endMs).toISOString()});else await c.from("rest_timers").delete().eq("user_id",CL.user.id)}catch(e){}}
 async function notifyRestOver(){const c=restCfg();if(!c.notify||document.visibilityState==="visible"||!("Notification" in window)||Notification.permission!=="granted")return;
   const opt={body:"Time for your next set.",tag:"rest",renotify:true,icon:"icon-192.png",badge:"icon-192.png",vibrate:[300,150,300]};
@@ -2272,15 +2303,15 @@ function tickRest(){const R=S.rest,el=document.getElementById("restbar");if(!R){
   const key=(over?"o":"r")+"|"+Math.ceil(left);if(el._k!==key){el._k=key;el.innerHTML=html}
   el.classList.toggle("over",over);el.hidden=false}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)tickRest()});
-function setRest(){const c=restCfg(),perm="Notification" in window?Notification.permission:"unsupported";
-  const standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+function setRest(){const c=restCfg(),perm=NATIVE?(nPerm==="granted"?"granted":nPerm==="denied"?"denied":"default"):"Notification" in window?Notification.permission:"unsupported";
+  const standalone=NATIVE||window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
   return `<section class="panel"><h2>Rest between sets</h2>
     <div class="spread"><div><div class="count" style="text-align:left">${mmss(c.secs)}</div><div class="small muted">Starts when you tick a set done on the Train tab</div></div>
       <div class="steppers" style="grid-column:auto"><button data-act="restDef" data-d="-15" aria-label="15 seconds less">−</button><button class="add" style="--c:var(--accent)" data-act="restDef" data-d="15" aria-label="15 seconds more">+</button></div></div>
     <div class="row">${[60,90,120,180].map(v=>`<button class="btn${c.secs===v?" primary":""}" data-act="restSet" data-v="${v}">${mmss(v)}</button>`).join("")}</div></section>
   <section class="panel"><h2>When rest ends</h2>
     <label class="habit"><input type="checkbox" data-act="restOpt" data-k="sound" ${c.sound?"checked":""}><span>Beep</span></label>
-    <label class="habit"><input type="checkbox" data-act="restOpt" data-k="vibrate" ${c.vibrate?"checked":""}><span>Vibrate <span class="small muted">(Android phones)</span></span></label>
+    <label class="habit"><input type="checkbox" data-act="restOpt" data-k="vibrate" ${c.vibrate?"checked":""}><span>Vibrate${NATIVE?"":` <span class="small muted">(Android phones)</span>`}</span></label>
     <label class="habit"><input type="checkbox" data-act="restOpt" data-k="notify" ${c.notify&&perm==="granted"?"checked":""} ${perm==="unsupported"||perm==="denied"?"disabled":""}><span>Notification</span></label>
     <span class="small muted">${perm==="denied"?"Notifications are blocked for this app. Turn them on in your phone's settings for this site or app, then come back."
       :perm==="unsupported"?(standalone?"This phone doesn't support notifications here.":"On iPhone, notifications only work once the app is added to your Home Screen. See About for how.")
@@ -2979,7 +3010,7 @@ function renderGate(){
       <div class="row"><button class="btn primary" type="button" data-act="gateMode" data-v="up">Create account</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
     ${H.type==="exists"?`<div class="hint"><b>You already have an account with this email.</b><span class="small">Sign in with your password instead, or reset it if you've forgotten.</span>
       <div class="row"><button class="btn primary" type="button" data-act="gateMode" data-v="in">Sign in</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
-    ${up?`<label class="habit"><input type="checkbox" id="au_consent" ${CL.consent?"checked":""} data-act="auConsent"><span class="small">I've read the <a href="privacy.html" target="_blank" rel="noopener">privacy notice</a> and agree to my data being stored in my account.</span></label>`
+    ${up?`<label class="habit"><input type="checkbox" id="au_consent" ${CL.consent?"checked":""} data-act="auConsent"><span class="small">I've read the <a href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">privacy notice</a> and agree to my data being stored in my account.</span></label>`
       :`<p class="gate-p"><button type="button" class="gate-link" data-act="forgotPw">Forgot password?</button></p>`}
     <div class="gate-btns"><button class="btn gate-back" type="button" data-act="gateBack">Back</button><button class="btn primary gate-next" type="submit" ${busy?"disabled":""}>${busy?'<span class="spin dark" aria-hidden="true"></span>':up?"Create":"Sign in"}</button></div>`;
   return `<div class="gate">${inv?`<div class="hint small" style="margin-bottom:0"><b>Your coach has invited you 👋</b><span>Create an account (or sign in) and you'll be connected automatically, ready for the sessions they plan for you.</span></div>`:""}<form id="authForm" class="gate-card stack" data-gate="1" novalidate>${brand}${body}</form>
@@ -2990,11 +3021,11 @@ const authMsg=e=>{const m=(e&&e.message)||"";return /Invalid login/i.test(m)?"Em
 async function doAuth(kind){const c=await sbClient();if(!c){toast("Can't reach the account service. Check your connection");return}
   const email=(document.getElementById("au_email")||{}).value?.trim(),pw=(document.getElementById("au_pw")||{}).value||"";
   if(!email||!/@/.test(email)){toast("Enter your email");return}
-  if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});CL.authHint=null;cloudRender();toast(error?authMsg(error):"Password reset email sent to "+email);return}
+  if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:appUrl()});CL.authHint=null;cloudRender();toast(error?authMsg(error):"Password reset email sent to "+email);return}
   if(pw.length<8){toast("Password must be at least 8 characters");return}
   if(kind==="up"&&!(document.getElementById("au_consent")||{}).checked){CL.authHint=CL.authHint||{email,pw};CL.authHint.email=email;CL.authHint.pw=pw;toast("Tick the box to agree to the privacy notice first");document.getElementById("au_consent")?.focus();return}
   CL.busy=true;cloudRender();
-  const {data,error}=kind==="up"?await c.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname,data:{privacy_version:PRIVACY_VERSION,privacy_accepted_at:new Date().toISOString()}}}):await c.auth.signInWithPassword({email,password:pw});
+  const {data,error}=kind==="up"?await c.auth.signUp({email,password:pw,options:{emailRedirectTo:appUrl(),data:{privacy_version:PRIVACY_VERSION,privacy_accepted_at:new Date().toISOString()}}}):await c.auth.signInWithPassword({email,password:pw});
   CL.busy=false;
   if(error){const m=error.message||"";
     // Supabase answers the same for "no account" and "wrong password", so offer both next steps
@@ -3026,7 +3057,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
         <div class="row"><button class="btn primary" type="button" data-act="signUp">Create account</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
       ${CL.authHint&&CL.authHint.type==="exists"?`<div class="hint"><b>You already have an account with this email.</b><span class="small">Sign in with your password instead, or reset it if you've forgotten.</span>
         <div class="row"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
-      <label class="habit"><input type="checkbox" id="au_consent" ${CL.consent?"checked":""} data-act="auConsent"><span class="small">New accounts: I've read the <a href="privacy.html" target="_blank" rel="noopener">privacy notice</a> and agree to my data being stored in my account.</span></label>
+      <label class="habit"><input type="checkbox" id="au_consent" ${CL.consent?"checked":""} data-act="auConsent"><span class="small">New accounts: I've read the <a href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">privacy notice</a> and agree to my data being stored in my account.</span></label>
       <div class="row"><button class="btn primary" type="submit" ${CL.busy?"disabled":""}>Sign in</button><button class="btn" type="button" data-act="signUp" ${CL.busy?"disabled":""}>Create account</button><button class="btn ghost" type="button" data-act="forgotPw">Forgot password?</button></div></form></section>
     <section class="panel"><h2>Privacy</h2><p class="small" style="margin:0">Only you can read your account's data. If you link a coach, they receive weekly summaries only, never individual meals, photos or your contact details. Progress photos never leave this phone.</p></section>`;
   return `<section class="panel"><h2>Signed in</h2><div class="small"><b>${esc(CL.user.email||"")}</b></div>
@@ -3039,7 +3070,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
       <label class="habit"><input type="checkbox" data-act="linkNotes" data-id="${l.coach_id}" ${l.include_notes?"checked":""}><span class="small">Include my check-in notes</span></label></div>`).join("")}</div>`:""}
     <form id="linkForm" class="row" style="flex-wrap:nowrap"><input id="lk_code" placeholder="Coach code, e.g. K7P2QX" autocomplete="off" autocapitalize="characters" maxlength="8"><button class="btn" type="submit">Link</button></form>
     <span class="small muted">Your coach gets weekly summaries (weight, nutrition averages, habits, training, check-in scores), updated as you log. Never individual meals, photos or contact details. Stop sharing any time.</span></section>
-  <section class="panel"><h2>Delete my account</h2><p class="small" style="margin:0">Permanently deletes your account and everything stored in it online, including any coach links and shared reports. This can't be undone. <a href="privacy.html" target="_blank" rel="noopener">Privacy notice</a></p>
+  <section class="panel"><h2>Delete my account</h2><p class="small" style="margin:0">Permanently deletes your account and everything stored in it online, including any coach links and shared reports. This can't be undone. <a href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">Privacy notice</a></p>
     <label class="habit"><input type="checkbox" id="delLocal" ${CL.delLocal?"checked":""} data-act="delLocal"><span class="small">Also delete everything on this phone</span></label>
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="deleteAccount">${CL.confirmDel?"Tap again to delete for good":"Delete my account"}</button></section>`}
 
@@ -3119,9 +3150,9 @@ function setData(){const me=activeProf(),n=Object.values(S.docs).filter(d=>d&&d.
 function setAbout(){return `<section class="panel"><h2>Project Fitness</h2>
   <p class="small" style="margin:0">Your data is stored in this browser on this device. There's no account or server, so nobody else can see it, but clearing your browser data or losing the phone loses it. Keep a backup from Data & backup.</p>
   <p class="small" style="margin:0">Users on one phone are kept separate. For clients to log on their own phones while you see their progress, the app would need real accounts and an online database. That's a later upgrade.</p>
-  <h2 style="margin-top:6px">Install as an app</h2>
-  <p class="small" style="margin:0"><b>iPhone:</b> open the app's web address in Safari, tap Share, then Add to Home Screen.<br><b>Android:</b> open it in Chrome, tap ⋮, then Install app (or Add to Home screen).<br>It then opens full screen with its own icon and works offline.</p>
-  <a class="btn" style="align-self:flex-start;text-decoration:none" href="privacy.html" target="_blank" rel="noopener">Read the privacy notice</a>
+  ${NATIVE?"":`<h2 style="margin-top:6px">Install as an app</h2>
+  <p class="small" style="margin:0"><b>iPhone:</b> open the app's web address in Safari, tap Share, then Add to Home Screen.<br><b>Android:</b> open it in Chrome, tap ⋮, then Install app (or Add to Home screen).<br>It then opens full screen with its own icon and works offline.</p>`}
+  <a class="btn" style="align-self:flex-start;text-decoration:none" href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">Read the privacy notice</a>
   <p class="small muted" style="margin:0">Food data: built-in UK list and Open Food Facts. Calorie suggestions: Mifflin-St Jeor.</p></section>`}
 function renderLock(){const L=S.lock,p=PROF.list.find(x=>x.id===L.id)||{},others=PROF.list.filter(x=>x.id!==L.id);
   return `<div class="stack" style="max-width:340px;margin:10vh auto 0"><div style="text-align:center"><span class="avatar big" style="margin:0 auto">${esc(initials(p.name))}</span><h1 style="margin-top:12px">${esc(p.name)}</h1><div class="sub">Enter PIN to open this profile</div></div>
@@ -3373,7 +3404,7 @@ document.addEventListener("click",e=>{
     case "fbCancel":S.fbDraft=null;render();break;
     case "fbSend":{const D=S.fbDraft;if(!D.text.trim()&&!D.focus.trim()){toast("Write some feedback first");break}const at=new Date().toISOString(),data={type:"feedback",week:D.week,text:D.text.trim(),focus:D.focus.trim(),by:activeProf().name,at};
       pushCoachRow(D.uid,"fb_"+D.week,data).then(ok=>{if(ok){save("cfb_"+D.uid+"_"+D.week,{type:"cfb",clientUid:D.uid,...data});S.fbDraft=null;render();toast("Feedback sent")}});break}
-    case "shareInvite":{const url=location.origin+location.pathname+"?coach="+encodeURIComponent(CL.code||""),text=`Join me on Project Fitness: tap the link, create your account and you'll be connected to me as your coach.`;
+    case "shareInvite":{const url=appUrl()+"?coach="+encodeURIComponent(CL.code||""),text=`Join me on Project Fitness: tap the link, create your account and you'll be connected to me as your coach.`;
       if(navigator.share)navigator.share({title:"Project Fitness",text,url}).catch(()=>{});else navigator.clipboard?.writeText(url).then(()=>toast("Invite link copied"),()=>toast(url));break}
     case "plDropProg":{if(S.confirmDrop!==ds.id){S.confirmDrop=ds.id;render();break}S.confirmDrop=null;dropProg(ds.id,ds.c).then(r=>{render();toast(`Removed ${r.n} sessions${r.ok?" from their app":". They'll disappear from their app when you're back online"}`)});break}
     case "progUnassign":{const k=ds.id+"|"+ds.c;if(S.confirmUnassign!==k){S.confirmUnassign=k;render();break}S.confirmUnassign=null;dropProg(ds.id,ds.c).then(r=>{render();toast(`Removed ${r.n} sessions${ds.c==="me"?" from your plan":r.ok?". Gone from their app too":". They'll disappear from their app when you're back online"}`)});break}
@@ -3631,6 +3662,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="remOn"||ds.act==="remTime"||ds.act==="remMins"){const st=clone(settings()),R=remCfg();if(ds.act==="remOn")R[ds.k].on=t.checked;else if(ds.act==="remTime")R[ds.k].time=t.value||R[ds.k].time;else R.idle.mins=+t.value;st.reminders=R;save("settings",st);
     if(ds.act==="remOn"&&t.checked&&"Notification" in window&&Notification.permission==="default"){enablePush().then(r=>{S.pushStatus=r;render()})}}
   if(ds.act==="restOpt"){const st=clone(settings()),c={...REST_DEF,...(st.rest||{})};
+    if(ds.k==="notify"&&t.checked&&NATIVE&&nPerm!=="granted"){nativePermAsk().then(r=>{const s2=clone(settings());s2.rest={...REST_DEF,...(s2.rest||{}),notify:r==="on"};save("settings",s2);if(r!=="on")toast("Notifications weren't allowed. Turn them on in Settings › Project Fitness")});return}
     if(ds.k==="notify"&&t.checked&&"Notification" in window&&Notification.permission!=="granted"){Notification.requestPermission().then(r=>{const s2=clone(settings());s2.rest={...REST_DEF,...(s2.rest||{}),notify:r==="granted"};save("settings",s2);if(r!=="granted")toast("Notifications weren't allowed")});return}
     c[ds.k]=t.checked;st.rest=c;save("settings",st)}
   if(ds.act==="target"){const st=clone(settings());st.targets[ds.k]=Math.max(0,Math.round(+t.value||0));save("settings",st)}
@@ -3736,7 +3768,7 @@ applyLook();
 if(activeProf().pin)S.lock={id:PROF.active,boot:true};
 if(!window.claude||!window.claude.use){loadLocal();afterLoad();restoreDraft()}
 setTimeout(()=>checkUpdate(false),4000);
-if("serviceWorker" in navigator&&window.isSecureContext&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+if(!NATIVE&&"serviceWorker" in navigator&&window.isSecureContext&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 // load demos and food lists once the first screen is drawn
 (window.requestIdleCallback||(f=>setTimeout(f,1200)))(()=>{loadDemos();loadFoods()},{timeout:2500});
 // opened from a coach's invite link: remember the code, link once signed in
@@ -3744,8 +3776,8 @@ if("serviceWorker" in navigator&&window.isSecureContext&&location.protocol!=="fi
   if(!S.gateMode)S.gateMode="up";setTimeout(()=>{if(CL.user&&CL.syncedOnce)acceptInvite()},1500)})();
 async function acceptInvite(){const code=lsGet("pf-invite");if(!code||!CL.user)return;try{localStorage.removeItem("pf-invite")}catch(e){}if(CL.links&&CL.links.length)return;await linkCoach(code)}
 // opened from a reminder: jump to the right place
-(()=>{const go=new URLSearchParams(location.search).get("go");if(!go)return;try{history.replaceState(null,"",location.pathname)}catch(e){}
-  setTimeout(()=>{if(S.lock||S.onboard)return;if(go==="food"){S.tab="today";render();setTimeout(()=>{document.getElementById("logPanel")?.scrollIntoView({behavior:"smooth"});document.getElementById("q")?.focus()},150)}else if(go==="ready"){S.tab="recover";render()}else if(go==="train"){S.tab="train";render()}},400)})();
+function goTo(go){if(S.lock||S.onboard)return;if(go==="food"){S.tab="today";render();setTimeout(()=>{document.getElementById("logPanel")?.scrollIntoView({behavior:"smooth"});document.getElementById("q")?.focus()},150)}else if(go==="ready"){S.tab="recover";render()}else if(go==="train"){S.tab="train";render()}}
+(()=>{const go=new URLSearchParams(location.search).get("go");if(!go)return;try{history.replaceState(null,"",location.pathname)}catch(e){}setTimeout(()=>goTo(go),400)})();
 render();
 (async function connect(){
   if(!window.claude||!window.claude.use)return;
