@@ -521,6 +521,22 @@ section.panel{border-radius:22px}
 .ahead{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin:2px 0}
 .flexplan{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}.fdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.fdays button{border:1.5px solid var(--line);background:transparent;color:var(--fg);border-radius:12px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:1px;font:inherit;cursor:pointer}.fdays button span{font-size:10.5px;color:var(--muted);font-weight:700}.fdays button b{font-size:15px}.fdays button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#000}.fdays button[aria-pressed=true] span{color:#000}
 .flexsum{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px}
+
+/* iPhone feel: fixed tab bar, no bounce or sideways drift, safe areas, no input zoom */
+html,body{overscroll-behavior:none;overflow-x:clip}
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+*{-webkit-tap-highlight-color:transparent}
+button,nav.tabs,.chip,.startpill,.tile,img,svg{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.wrap{padding-top:calc(18px + env(safe-area-inset-top,0px))}
+html.native body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:12;pointer-events:none}
+nav.tabs{transform:translateZ(0);-webkit-backface-visibility:hidden}
+body:has(.player),body:has(.sheet),body:has(.viewer){overflow:hidden}
+.sheet{max-height:calc(100dvh - env(safe-area-inset-top,0px) - 24px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.player{overscroll-behavior:contain}
+.player,.player *:not(input):not(textarea){-webkit-user-select:none;user-select:none}
+html.kb nav.tabs,html.kb .restbar,html.kb .toast{display:none!important}
+html.kb .wrap{padding-bottom:24px}
+@media (pointer:coarse){input,select,textarea{font-size:16px}}
 </style>
 
 <div class="wrap" id="app"></div>
@@ -1126,14 +1142,14 @@ function routineRunner(){const R=S.routine,rt=findRoutine(R.id);if(!rt)return"";
     <div class="rtbody">${demoSVG(st[0])?`<div class="demo-wrap">${demoSVG(st[0],210)}</div>`:""}<div class="rtname">${esc(st[0])}</div><p style="margin:0">${esc(st[2]||(demoKey(st[0])?demoTip(st[0]):"Move slowly and breathe. Never push into pain."))}</p>${demoKey(st[0])&&!/^breath/.test(demoKey(st[0]))?`<a class="vidlink" href="${videoLink(st[0])}" target="_blank" rel="noopener">▶ Watch a video of this</a>`:""}<div class="rtime" id="rtTime">${mmss((R.paused?R.left:(R.end-Date.now()))/1000)}</div><div class="prog"><i id="rtBar" style="width:0%"></i></div>${nx?`<p class="small" style="opacity:.7">Next: ${esc(nx[0])}</p>`:""}</div>
     <div class="vbar"><button class="btn" data-act="rtPrev" ${R.i?"":"disabled"}>‹ Back</button><button class="btn" data-act="rtPause">${R.paused?"Resume":"Pause"}</button><button class="btn" data-act="rtNext">Next ›</button></div></div>`}
 function rtGo(i){const R=S.routine,rt=findRoutine(R.id);if(i>=rt.steps.length){R.done=true;clearInterval(rtGo._i);save("rec_"+Date.now(),{type:"recovery",date:todayKey(),activity:rt.name,mins:routineMins(rt)});if(restCfg().sound)beep();render();return}
-  R.i=Math.max(0,i);R.paused=false;R.end=Date.now()+rt.steps[R.i][1]*1000;if(i>0&&restCfg().sound)beep();if(navigator.vibrate)navigator.vibrate(150);render();clearInterval(rtGo._i);rtGo._i=setInterval(rtTick,250)}
+  R.i=Math.max(0,i);R.paused=false;R.end=Date.now()+rt.steps[R.i][1]*1000;if(i>0&&restCfg().sound)beep();buzz(150);render();clearInterval(rtGo._i);rtGo._i=setInterval(rtTick,250)}
 function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=findRoutine(R.id),left=(R.end-Date.now())/1000;if(left<=0){rtGo(R.i+1);return}
   const t=document.getElementById("rtTime"),b=document.getElementById("rtBar");if(t)t.textContent=mmss(left);if(b)b.style.width=((1-left/rt.steps[R.i][1])*100).toFixed(1)+"%"}
 
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-03-1";
+const APP_VERSION="2026-11-05-1";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 const NATIVE=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform());
 const NPlug=n=>NATIVE&&window.Capacitor.Plugins?window.Capacitor.Plugins[n]||null:null;
@@ -1160,7 +1176,10 @@ async function nativeDaily(){if(!NATIVE||nPerm!=="granted"||S.lock||S.example)re
     if(R.ready.on&&!S.docs["ready_"+day]&&at(day,R.ready.time)>now)L.push({id:N_ID.ready+i,title:"Morning check-in ⚡",body:"30 seconds: how did you sleep and how do you feel?",at:at(day,R.ready.time),go:"ready"});
     if(R.plan.on){const p=ups.find(x=>x.date===day&&!x.anyDay);if(p&&!(i===0&&(trained||S.draftWorkout))&&at(day,R.plan.time)>now)L.push({id:N_ID.plan+i,title:"Today's session is ready 💪",body:(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.",at:at(day,R.plan.time),go:"train"})}}
   await nCancel(ids);await nSchedule(L)}
-if(NATIVE){document.documentElement.classList.add("native");document.addEventListener("visibilitychange",()=>{nativeBgSync();if(!document.hidden)nativeDaily()});
+{const kbIn=t=>t&&(t.tagName==="TEXTAREA"||t.tagName==="SELECT"||(t.tagName==="INPUT"&&!/^(checkbox|radio|range|button|submit|file|color)$/i.test(t.type)));let kbT=null;
+  document.addEventListener("focusin",e=>{if(kbIn(e.target)&&matchMedia("(pointer:coarse)").matches){clearTimeout(kbT);document.documentElement.classList.add("kb")}});
+  document.addEventListener("focusout",e=>{if(kbIn(e.target)){clearTimeout(kbT);kbT=setTimeout(()=>{if(!kbIn(document.activeElement))document.documentElement.classList.remove("kb")},120)}})}
+if(NATIVE){document.documentElement.classList.add("native");try{document.querySelector('meta[name="viewport"]').setAttribute("content","width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover")}catch(e){}document.addEventListener("visibilitychange",()=>{nativeBgSync();if(!document.hidden)nativeDaily()});
   nativePermCheck().then(()=>nativeDaily());
   try{NPlug("LocalNotifications")?.addListener("localNotificationActionPerformed",e=>{const g=e&&e.notification&&e.notification.extra&&e.notification.extra.go;if(g)setTimeout(()=>goTo(g),300)})}catch(e){}
   try{NPlug("StatusBar")?.setOverlaysWebView({overlay:true})}catch(e){}}
@@ -1432,7 +1451,7 @@ function wpEnsureName(){const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=cu
   if(q){ex.name=q;S.wpRename=null;S.pick=null;return true}
   toast("Pick an exercise, or type your own in the search box");const el=document.getElementById("wpPickQ");if(el)el.focus();return false}
 function wpDoneSet(){if(!wpEnsureName())return;const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei],si=wpCurSet(ex),st=ex.sets[si];if(!st)return;
-  st.done=true;if(st.kg==="")st.kg=0;S.wp.si=null;if(navigator.vibrate)navigator.vibrate(30);
+  st.done=true;if(st.kg==="")st.kg=0;S.wp.si=null;buzz(30);
   // more sets: rest; last set: move on (rest before the next exercise, straight to cool-down/finish otherwise)
   const more=ex.sets.some(x=>!x.done),nxt=wpSteps(dw)[S.wp.step+1];
   if(more)startRest(restFor(dw,ex));else if(nxt&&nxt.t==="ex"){S.wp.step++;startRest(restFor(dw,ex))}render()}
@@ -2178,7 +2197,7 @@ const REST_DEF={secs:90,sound:true,vibrate:true,notify:true};
 const restCfg=()=>({...REST_DEF,...(settings().rest||{})});
 // rest between sets: the exercise's own setting, else a default for the training style (gym uses the Settings value)
 const REST_KIND={bodyweight:60,functional:60,calisthenics:90};
-const restFor=(dw,ex)=>+(ex&&ex.rest)||(dw&&REST_KIND[dw.kind])||restCfg().secs;
+const restFor=(dw,ex)=>ex&&ex.rest!==undefined&&ex.rest!==""&&!isNaN(+ex.rest)?+ex.rest:(dw&&REST_KIND[dw.kind])||restCfg().secs;
 
 /* ---------- timed holds: count the hold down, then log the set and rest ---------- */
 function holdTick(){const H=S.hold;if(!H||!playerOn())return;const left=(H.end-Date.now())/1000;
@@ -2225,10 +2244,10 @@ function cdManual(){try{return localStorage.getItem("pf-cdmanual")==="1"}catch(e
 function cdSetManual(v){try{localStorage.setItem("pf-cdmanual",v?"1":"0")}catch(e){}}
 function cdGo(){const C=S.cdRun;if(!C)return;C.gap=null;C.left=null;C.total=C.stages[C.idx].secs;C.end=Date.now()+C.total*1000;render();window.scrollTo(0,0)}
 setInterval(()=>{const C=S.cdRun;if(!C||!playerOn())return;
-  if(C.gap){if(C.gap.wait)return;const gl=(C.gap.end-Date.now())/1000;if(gl<=0){const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate(120);cdGo();return}
+  if(C.gap){if(C.gap.wait)return;const gl=(C.gap.end-Date.now())/1000;if(gl<=0){const c=restCfg();if(c.sound)beep();if(c.vibrate)buzz(120);cdGo();return}
     const t=document.getElementById("cdClock"),r=document.getElementById("cdRing");if(t)t.textContent=Math.ceil(gl);if(r)r.style.setProperty("--p",Math.min(100,(1-gl/C.gap.total)*100).toFixed(1));return}
   if(C.left!=null)return;const left=(C.end-Date.now())/1000;
-  if(left<=0){const c=restCfg();if(c.sound)beep();if(c.vibrate&&navigator.vibrate)navigator.vibrate(200);cdAdvance();return}
+  if(left<=0){const c=restCfg();if(c.sound)beep();if(c.vibrate)buzz(200);cdAdvance();return}
   const t=document.getElementById("cdClock"),r=document.getElementById("cdRing");if(t)t.textContent=mmss(left);if(r)r.style.setProperty("--p",Math.min(100,(1-left/C.total)*100).toFixed(1))},250);
 function coolRun(dw,head){const C=S.cdRun,st=C.stages[C.idx],it=dw.cooldown[st.i]||{},base=cdBase(st.name),dk=cdDemo(st.name),left=C.left!=null?C.left:(C.end-Date.now())/1000,nx=C.stages[C.idx+1];
   if(C.gap)return coolGap(dw,head);
@@ -2280,6 +2299,8 @@ function wpListView(dw,head,steps,cur){const R=S.rest,openEi=S.wlOpen!=null?S.wl
     ${R?`<div class="wl-rest"><span><span class="label">${R.fired?"Rest over":"Rest"}</span><b id="wpRest">${R.fired?"Go!":mmss((R.end-Date.now())/1000)}</b></span><span class="row" style="gap:6px;flex-wrap:nowrap"><button data-act="restAdj" data-d="-15">−15</button><button data-act="restAdj" data-d="15">+15</button><button class="dark" data-act="restSkip">Skip</button></span></div>`:""}
     <button class="wp-big" data-act="wpGo" data-v="${steps.length-1}">Finish workout</button></div>`}
 // buzz when rest ends: vibration where supported (Android); on iPhone Safari a hidden switch gives a light haptic tap where the phone allows it
+// short taps: a light native haptic in the iPhone app, a tiny vibration on Android
+function buzz(ms){const H=NPlug("Haptics");if(H){try{ms>=100?H.impact({style:"MEDIUM"}):H.impact({style:"LIGHT"})}catch(e){}return}try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
 function haptic(){const H=NPlug("Haptics");if(H){try{H.vibrate({duration:350});setTimeout(()=>H.vibrate({duration:350}),500)}catch(e){}return}try{if(navigator.vibrate&&navigator.vibrate([300,150,300]))return;let l=document.getElementById("hapt");if(!l){l=document.createElement("label");l.id="hapt";l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click();setTimeout(()=>l.click(),200)}catch(e){}}
 // tell the server when rest ends, so a push notification arrives even if the phone is locked (needs supabase-update-4.sql)
 async function restServer(endMs){if(NATIVE)return;if(!CL.user||lsGet("pf-push:"+PROF.active)!=="on")return;try{const c=await sbClient();if(!c)return;
@@ -2287,7 +2308,7 @@ async function restServer(endMs){if(NATIVE)return;if(!CL.user||lsGet("pf-push:"+
 async function notifyRestOver(){const c=restCfg();if(!c.notify||document.visibilityState==="visible"||!("Notification" in window)||Notification.permission!=="granted")return;
   const opt={body:"Time for your next set.",tag:"rest",renotify:true,icon:"icon-192.png",badge:"icon-192.png",vibrate:[300,150,300]};
   try{if(navigator.serviceWorker&&navigator.serviceWorker.controller){const r=await navigator.serviceWorker.ready;return r.showNotification("Rest over 💪",opt)}new Notification("Rest over 💪",opt)}catch(e){}}
-function startRest(secs){const c=restCfg();secs=secs||c.secs;unlockAudio();S.rest={end:Date.now()+secs*1000,total:secs,fired:false,t0:Date.now()};restServer(S.rest.end);tickRest();
+function startRest(secs){const c=restCfg();if(secs===0){stopRestQuiet&&stopRestQuiet();return}secs=secs||c.secs;unlockAudio();S.rest={end:Date.now()+secs*1000,total:secs,fired:false,t0:Date.now()};restServer(S.rest.end);tickRest();
   clearInterval(startRest._i);startRest._i=setInterval(tickRest,250)}
 function stopRest(){clearInterval(startRest._i);if(S.rest&&!S.rest.fired)restServer(null);S.rest=null;const el=document.getElementById("restbar");el.hidden=true;el.innerHTML="";if(playerOn())render()}
 const mmss=t=>{t=Math.max(0,Math.ceil(t));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")};
@@ -2864,7 +2885,7 @@ function startPlan(id){const P=myPlans().find(x=>x.id===id);if(!P)return;
   const fl=P.flex?ofType("workout").filter(w=>w.planId&&myPlans().some(q=>q.flex&&q.id===w.planId&&(q.progId||q.progName)===(P.progId||P.progName))).map(w=>w.date).sort().pop():null,gapDays=fl?dDiff(todayKey(),fl):0,gapKeep=gapDays>10;const kind=P.kind||"gym",cp=L=>(L||[]).map(x=>({name:x.name,detail:x.detail||"",done:false}));
   S.draftWorkout={type:"workout",date:todayKey(),name:P.name||"Coach's session",kind,planId:P.id,coachNote:P.note||"",coachName:P.coachName||"",
     warmup:P.warmup&&P.warmup.length?cp(P.warmup):presetList(WARM_PRESET,kind),cooldown:P.cooldown&&P.cooldown.length?cp(P.cooldown):presetList(COOL_PRESET,kind),
-    exercises:(P.exercises||[]).map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];const keep=gapKeep&&last.length;return {name:e.name,mode:e.mode,note:e.note||"",why:e.why||"",rx:e.rx||null,...(e.rx&&+e.rx.rest?{rest:+e.rx.rest}:{}),
+    exercises:(P.exercises||[]).map(e=>{const h=exHistory(e.name)[0],last=h?h.sets:[];const keep=gapKeep&&last.length;return {name:e.name,mode:e.mode,note:e.note||"",why:e.why||"",rx:e.rx||null,...(e.rx&&e.rx.rest!==""&&e.rx.rest!=null&&!isNaN(+e.rx.rest)?{rest:+e.rx.rest}:{}),
       sets:(e.sets||[]).map((st,i)=>{const ls=last[i]||last[last.length-1]||{};return {kg:keep&&ls.kg!==""&&ls.kg!=null?ls.kg:st.kg!==""&&st.kg!=null?st.kg:(ls.kg??""),reps:st.reps??"",secs:st.secs??"",rir:st.rir??""}})}})};
   const T=todayReady();S.tab="train";wpStart();if(T&&T.sc!=null&&T.sc<50&&S.draftWorkout.exercises.some(e=>e.sets.length))S.lightAsk=true;render();window.scrollTo(0,0);if(!S.lightAsk)toast(gapKeep?`It's been ${gapDays} days, so you're on your last weights today. Build back up 💪`:P.own?"Your session is ready. Let's go 💪":"Your coach's session is ready. Let's go 💪")}
 function coachPlansPanel(){const L=upcomingPlans().filter(p=>p.date>=todayKey()).slice(0,12),mc=missedCard();if(!L.length)return mc;const fromCoach=L.some(p=>!p.own),n=L[0],more=L.slice(1),t=todayKey();
@@ -3370,7 +3391,7 @@ document.addEventListener("click",e=>{
     case "woKind":{const dw=S.draftWorkout;dw.kind=ds.v;S.lastKind=ds.v;if(dw._auto){dw.warmup=presetList(WARM_PRESET,ds.v);dw.cooldown=presetList(COOL_PRESET,ds.v)}render();break}
     case "wpAddEx":{const dw=S.draftWorkout;dw.exercises.push({name:"",sets:[{kg:"",reps:""}]});S.wp.step=wpSteps(dw).findIndex(x=>x.t==="ex"&&x.ei===dw.exercises.length-1);S.wp.si=null;stopRest();render();window.scrollTo(0,0);break}
     case "rampToggle":S.rampOpen=S.rampOpen===false;render();break;
-    case "rampTick":{const ex=S.draftWorkout.exercises[wpSteps(S.draftWorkout)[S.wp.step].ei];ex.wu=ex.wu||[];const k=+ds.k,j=ex.wu.indexOf(k);if(j<0)ex.wu.push(k);else ex.wu.splice(j,1);if(navigator.vibrate)navigator.vibrate(15);render();break}
+    case "rampTick":{const ex=S.draftWorkout.exercises[wpSteps(S.draftWorkout)[S.wp.step].ei];ex.wu=ex.wu||[];const k=+ds.k,j=ex.wu.indexOf(k);if(j<0)ex.wu.push(k);else ex.wu.splice(j,1);buzz(15);render();break}
     case "wuAddToggle":S.wuAdd=!S.wuAdd;render();if(S.wuAdd)setTimeout(()=>document.getElementById("wuNew")?.focus(),50);break;
     case "wuIdea":S.draftWorkout.warmup.push({name:ds.v,detail:"",done:false,custom:true});S.draftWorkout._auto=false;render();break;
     case "wuDel":S.draftWorkout.warmup.splice(+ds.i,1);if(S.wpOpen!=null)S.wpOpen=null;render();break;
@@ -3379,12 +3400,12 @@ document.addEventListener("click",e=>{
     case "wuNext":{const W=S.wu,st=W.stages[W.idx];S.draftWorkout.warmup[st.i].done=true;W.idx++;wuGoStage();break}
     case "wuPause":{const T=S.wu.timer;if(T.paused!=null){T.end=Date.now()+T.paused*1000;T.paused=null}else T.paused=Math.max(0,(T.end-Date.now())/1000);render();break}
     case "wuPlus":{const T=S.wu.timer,d=+ds.d;if(T.paused!=null)T.paused=Math.max(5,T.paused+d);else T.end=Math.max(Date.now()+5000,T.end+d*1000);T.total=Math.max(10,T.total+d);render();break}
-    case "wuDrill":{const W=S.wu,st=W.stages[W.idx],it=S.draftWorkout.warmup[st.i],d=st.drills[st.pos];it.sub=it.sub||[];if(!ds.skip&&!it.sub.includes(d[0]))it.sub.push(d[0]);if(navigator.vibrate)navigator.vibrate(20);
+    case "wuDrill":{const W=S.wu,st=W.stages[W.idx],it=S.draftWorkout.warmup[st.i],d=st.drills[st.pos];it.sub=it.sub||[];if(!ds.skip&&!it.sub.includes(d[0]))it.sub.push(d[0]);buzz(20);
       st.pos++;if(st.pos>=st.drills.length){it.done=it.sub.length>0;W.idx++;wuGoStage()}else{render();window.scrollTo(0,0)}break}
     case "wuDrillBack":{const st=S.wu.stages[S.wu.idx];st.pos=Math.max(0,st.pos-1);render();break}
-    case "wuAdj":{const st=S.wu.stages[S.wu.idx],x=st.sets[st.pos];x[ds.f]=Math.max(0,r1((+x[ds.f]||0)+(+ds.d)));if(navigator.vibrate)navigator.vibrate(8);render();break}
+    case "wuAdj":{const st=S.wu.stages[S.wu.idx],x=st.sets[st.pos];x[ds.f]=Math.max(0,r1((+x[ds.f]||0)+(+ds.d)));buzz(8);render();break}
     case "wuSet":{const W=S.wu,st=W.stages[W.idx],dw=S.draftWorkout,it=dw.warmup[st.i],x=st.sets[st.pos];it.sub=it.sub||[];it.log=it.log||[];
-      if(!ds.skip){if(!it.sub.includes(x.key))it.sub.push(x.key);it.log.push({ex:x.ex,kg:+x.kg||0,reps:+x.reps||0});if(navigator.vibrate)navigator.vibrate(30)}
+      if(!ds.skip){if(!it.sub.includes(x.key))it.sub.push(x.key);it.log.push({ex:x.ex,kg:+x.kg||0,reps:+x.reps||0});buzz(30)}
       if(x.j+1>=x.of){const e=dw.exercises.find(e=>e.name===x.ex);if(e)e.rampDone=true}
       st.pos++;if(st.pos>=st.sets.length){it.done=it.log.length>0;W.idx++;wuGoStage()}else{if(!ds.skip)startRest(60);render();window.scrollTo(0,0)}break}
     case "wuSetBack":{const st=S.wu.stages[S.wu.idx];stopRestQuiet();st.pos=Math.max(0,st.pos-1);render();break}
@@ -3442,7 +3463,7 @@ document.addEventListener("click",e=>{
     case "wlFocus":{const st=wpSteps(S.draftWorkout),k=st.findIndex(x=>x.t==="ex"&&x.ei===+ds.ei);if(k>=0)S.wp.step=k;S.wpView="focus";S.wlOpen=null;render();break}
     case "wlAddSet":{const e=S.draftWorkout.exercises[+ds.ei],l=e.sets[e.sets.length-1]||{};e.sets.push({kg:l.kg??"",reps:l.reps??"",secs:l.secs??"",rir:""});render();break}
     case "wlAddEx":{const dw=S.draftWorkout;dw.exercises.push({name:"",sets:[{kg:"",reps:"",secs:"",rir:""}]});const st=wpSteps(dw),k=st.findIndex(x=>x.t==="ex"&&x.ei===dw.exercises.length-1);if(k>=0)S.wp.step=k;S.wpView="focus";S.wlOpen=null;render();break}
-    case "wlDone":{const dw=S.draftWorkout,e=dw.exercises[+ds.ei],x=e&&e.sets[+ds.si];if(!x)break;x.done=!x.done;if(x.done){if(x.kg==="")x.kg=0;if(navigator.vibrate)navigator.vibrate(30);dw.lastAct=Date.now();
+    case "wlDone":{const dw=S.draftWorkout,e=dw.exercises[+ds.ei],x=e&&e.sets[+ds.si];if(!x)break;x.done=!x.done;if(x.done){if(x.kg==="")x.kg=0;buzz(30);dw.lastAct=Date.now();
         const st=wpSteps(dw),k=st.findIndex(y=>y.t==="ex"&&y.ei===+ds.ei);if(k>=0)S.wp.step=k;if(dw.exercises.some(y=>y.sets.some(z=>!z.done)))startRest(restFor(dw,e))}
       if(!e.sets.some(z=>!z.done)){const nx=dw.exercises.findIndex(y=>y.sets.some(z=>!z.done));S.wlOpen=nx>=0?nx:null}render();break}
     case "restNotifyOn":enablePush().then(r=>{const st=clone(settings());st.rest={...(st.rest||{}),notify:true};save("settings",st);toast(r==="on"?"Done. You'll get a notification when rest ends, even with the screen locked":r==="denied"?"Notifications are blocked for this app in your phone's settings":"Notifications on while the app is open");render()});break;
@@ -3504,13 +3525,13 @@ document.addEventListener("click",e=>{
     case "plSave":savePlanDraft();break;
     case "pickTab":S.pick.g=ds.v;render();break;
     case "wpSwap":wpSetExercise(ds.v);break;
-    case "wuSel":{const it=S.draftWorkout.warmup[+ds.i];it.sel=it.sel||[];const j=it.sel.indexOf(ds.k);if(j<0)it.sel.push(ds.k);else it.sel.splice(j,1);S.draftWorkout._auto=false;if(navigator.vibrate)navigator.vibrate(10);render();break}
+    case "wuSel":{const it=S.draftWorkout.warmup[+ds.i];it.sel=it.sel||[];const j=it.sel.indexOf(ds.k);if(j<0)it.sel.push(ds.k);else it.sel.splice(j,1);S.draftWorkout._auto=false;buzz(10);render();break}
     case "wuReps":{const it=S.draftWorkout.warmup[+ds.i],sub=warmSubs(S.draftWorkout,it).find(x=>x.n===ds.k);it.reps=it.reps||{};it.reps[ds.k]=Math.max(1,Math.min(40,drillReps(it,ds.k,sub&&sub.d)+(+ds.d)));if(it.sel&&!it.sel.includes(ds.k))it.sel.push(ds.k);else if(!it.sel)it.sel=[ds.k];render();break}
     case "wuDemo":S.wuDemo=S.wuDemo===ds.k?null:ds.k;render();break;
     case "wpOpen":S.wpOpen=S.wpOpen===+ds.i?null:+ds.i;render();break;
     case "wuPick":case "wuMins":{const it=S.draftWorkout.warmup[+ds.i];if(a==="wuPick")it.pick=ds.v;else it.mins=+ds.v;S.draftWorkout._auto=false;render();break}
     case "wuSub":{const dw=S.draftWorkout,it=dw.warmup[+ds.i];it.sub=it.sub||[];const k=ds.k,j=it.sub.indexOf(k);if(j<0)it.sub.push(k);else it.sub.splice(j,1);
-      const subs=warmSubs(dw,it);it.done=subs.length>0&&subs.every(x=>it.sub.includes(x.k));dw._auto=false;if(navigator.vibrate)navigator.vibrate(15);render();break}
+      const subs=warmSubs(dw,it);it.done=subs.length>0&&subs.every(x=>it.sub.includes(x.k));dw._auto=false;buzz(15);render();break}
     case "partDone":{const it=S.draftWorkout[ds.part][+ds.i];it.done=!it.done;S.draftWorkout._auto=false;render();break}
     case "partDel":S.draftWorkout[ds.part].splice(+ds.i,1);S.draftWorkout._auto=false;render();break;
     case "partAdd":{const L=S.draftWorkout[ds.part];L.push({name:ds.v,detail:"",done:false});S.draftWorkout._auto=false;render();document.getElementById(ds.part+(ds.v?"d":"n")+(L.length-1))?.focus();break}
@@ -3558,7 +3579,7 @@ document.addEventListener("click",e=>{
       break}
     case "resumeWo":S.tab="train";S.woList=false;if(!S.wp)S.wp={step:0};wakeOn();render();window.scrollTo(0,0);break;
     case "goCardio":S.tab="train";S.trainView="cardio";render();window.scrollTo(0,0);break;
-    case "habitTap":{const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=!x.habits[ds.h];save("day_"+S.day,x);if(x.habits[ds.h]&&navigator.vibrate)navigator.vibrate(20);break}
+    case "habitTap":{const x=editDay();x.habits=x.habits||{};x.habits[ds.h]=!x.habits[ds.h];save("day_"+S.day,x);if(x.habits[ds.h])buzz(20);break}
     case "openSettings":S.tab="settings";S.setPage=null;render();window.scrollTo(0,0);break;
     case "wpGo":S.wu=null;S.cdRun=null;S.cdAdd=false;S.hold=null;clearInterval(holdTick._i);S.wpRename=null;S.pick=null;S.wpOpen=null;S.demoOpen=null;S.wp.step=Math.max(0,+ds.v);S.wp.si=null;S.wpEnd=false;stopRest();render();window.scrollTo(0,0);break;
     case "wpList":S.woList=true;render();window.scrollTo(0,0);break;
@@ -3570,7 +3591,7 @@ document.addEventListener("click",e=>{
     case "wpAddSet":{const ex=S.draftWorkout.exercises[wpSteps(S.draftWorkout)[S.wp.step].ei],l=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:l.kg??"",reps:l.reps??"",secs:l.secs??""});S.wp.si=ex.sets.length-1;render();break}
     case "wpAdj":{const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=S.draftWorkout.exercises[cur.ei],si=wpCurSet(ex),st=ex.sets[si];if(!st)break;const old=st[ds.f],v=Math.max(0,r1((+st[ds.f]||0)+(+ds.d)));st[ds.f]=v;
       // later sets that matched this one follow the change, so you don't adjust every set
-      ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});if(navigator.vibrate)navigator.vibrate(8);render();break}
+      ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});buzz(8);render();break}
     case "wpRir":{const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=S.draftWorkout.exercises[cur.ei],st=ex.sets[wpCurSet(ex)];if(st){st.rir=String(st.rir)===ds.n?"":+ds.n;render()}break}
     case "wpDone":wpDoneSet();break;
     case "wpRest":{const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=cur&&dw.exercises[cur.ei];if(!ex)break;ex.rest=Math.min(600,Math.max(15,restFor(dw,ex)+(+ds.d)));render();break}

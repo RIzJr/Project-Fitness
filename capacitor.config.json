@@ -6,11 +6,17 @@
   "ios": {
     "contentInset": "never",
     "backgroundColor": "#000000",
-    "limitsNavigationsToAppBoundDomains": false
+    "limitsNavigationsToAppBoundDomains": false,
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
   },
   "plugins": {
     "LocalNotifications": {
-      "presentationOptions": ["banner", "sound", "list"]
+      "presentationOptions": [
+        "banner",
+        "sound",
+        "list"
+      ]
     }
   }
 }
