@@ -524,6 +524,7 @@ section.panel{border-radius:22px}
 .cd-gap .wp-ring{width:150px;height:150px}.cd-gap .wp-ring>div{width:126px;height:126px}.cd-gap .wp-ring b{font-size:44px}
 .ahead{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin:2px 0}
 .flexplan{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}.fdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.fdays button{border:1.5px solid var(--line);background:transparent;color:var(--fg);border-radius:12px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:1px;font:inherit;cursor:pointer}.fdays button span{font-size:10.5px;color:var(--muted);font-weight:700}.fdays button b{font-size:15px}.fdays button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#000}.fdays button[aria-pressed=true] span{color:#000}
+.qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .flexsum{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px}
 
 /* iPhone feel: fixed tab bar, no bounce or sideways drift, safe areas, no input zoom */
@@ -882,7 +883,7 @@ function renderStrength(){const wo=ofType("workout"),dw=S.draftWorkout;
   const hist=wo.slice(0,S.woAll?wo.length:15).map(w=>{const sets=w.exercises.reduce((s,e)=>s+e.sets.length,0);const vol=w.exercises.reduce((s,e)=>s+e.sets.reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0),0);
     const wu=(w.warmup||[]).length,cd=(w.cooldown||[]).length;
     return `<div class="item"><div class="spread"><b>${esc(w.name||"Session")}</b><span class="small muted">${fmtDay(w.date)}</span></div>
-    <div class="small muted" style="font-variant-numeric:tabular-nums"><span class="kbadge">${kindName(w.kind)}</span>${w.coachLogged?` <span class="kbadge">With ${esc(firstName(w.coachName||"your coach"))}</span>`:""} ${w.exercises.length} exercises · ${sets} sets${vol?` · ${Math.round(vol).toLocaleString("en-GB")} kg volume`:""}${wu||cd?` · warm-up ${wu?"✓":"–"} · cool-down ${cd?"✓":"–"}`:""}${w.prs&&w.prs.length?` · 🏆 ${w.prs.length} PB${w.prs.length===1?"":"s"}`:""}</div>
+    <div class="small muted" style="font-variant-numeric:tabular-nums"><span class="kbadge">${kindName(w.kind)}</span>${w.coachLogged?` <span class="kbadge">With ${esc(firstName(w.coachName||"your coach"))}</span>`:""} ${w.exercises.length} exercises · ${sets} sets${vol?` · ${Math.round(vol).toLocaleString("en-GB")} kg volume`:""}${wu||cd?` · warm-up ${wu?"✓":"–"} · cool-down ${cd?"✓":"–"}`:""}${w.prs&&w.prs.length?` · 🏆 ${w.prs.length} PB${w.prs.length===1?"":"s"}`:""}${w.hr&&w.hr.avg?` · ♥ ${w.hr.avg} avg, ${w.hr.max} max`:""}</div>
     <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${fmtSets(e.sets)}`).join("<br>")}</div>${w.coachMsg?`<div class="small">💬 ${esc(w.coachName||"Your coach")}: ${esc(w.coachMsg)}</div>`:""}
     <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="woSum" data-id="${w.id}">Summary</button><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="tplFromWo" data-id="${w.id}">Save as template</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`}).join("");
   return `${dw?"":`<div class="label" style="margin-bottom:6px">Start your own session</div><div class="row" style="margin-bottom:8px">${KINDS.map(([k,l])=>`<button class="btn${k==="gym"?" primary":""}" data-act="newWo" data-v="${k}">+ ${l}</button>`).join("")}</div>
@@ -941,7 +942,7 @@ const fmtBig=n=>n>=10000?fmtN(Math.round(n/100)/10)+"k":Math.round(n).toLocaleSt
 // weight lifted counts kg × reps (added kg only on bodyweight moves); timed holds count seconds
 function woStats(w){let sets=0,reps=0,vol=0,secs=0;(w.exercises||[]).forEach(e=>e.sets.forEach(s=>{sets++;if(s.secs!=null&&s.secs!=="")secs+=+s.secs||0;else{reps+=+s.reps||0;vol+=(+s.kg||0)*(+s.reps||0)}}));
   return {sets,reps,vol:Math.round(vol),secs,mins:woMins(w),kcal:woKcal(w)}}
-function sumTiles(w,prs){const s=woStats(w),t=[glanceTile("Time",fmtDur(s.mins),""),glanceTile("Calories","≈"+s.kcal.toLocaleString("en-GB"),"kcal burnt")];
+function sumTiles(w,prs){const s=woStats(w),t=[glanceTile("Time",fmtDur(s.mins),""),glanceTile("Calories","≈"+s.kcal.toLocaleString("en-GB"),"kcal burnt")];if(w.hr&&w.hr.avg)t.push(glanceTile("Heart rate",w.hr.avg,"avg bpm · max "+w.hr.max));
   t.push(s.vol?glanceTile("Weight lifted",s.vol.toLocaleString("en-GB"),"kg"):glanceTile("Reps",s.reps,"total"));
   t.push(glanceTile("Sets",s.sets,""));
   if(s.vol)t.push(glanceTile("Reps",s.reps,"total"));
@@ -960,7 +961,7 @@ function vsLast(cur,prev){if(!prev)return {t:"First time",c:"muted"};const a=bes
 function renderWoSummary(w){const prs=w.prs||[],fresh=S.woSumFresh;
   const parts=["warmup","cooldown"].map(p=>[p==="warmup"?"Warm-up":"Cool-down",(w[p]||[]).filter(x=>x.done)]).filter(([,l])=>l.length);
   return `<header class="top"><div><h1>${fresh?"Nice work":"Workout summary"}</h1><div class="sub">${esc(w.name||kindName(w.kind)+" session")} · ${fmtDay(w.date)}</div></div><button class="btn ghost" data-act="sumClose">${fresh?"Done":"‹ Back"}</button></header>
-  <div class="stack"><section class="panel"><div class="spread"><h2>Summary</h2><span class="kbadge">${kindName(w.kind)}</span></div>${sumTiles(w,prs)}${kcalNote()}</section>
+  <div class="stack"><section class="panel"><div class="spread"><h2>Summary</h2><span class="kbadge">${kindName(w.kind)}</span></div>${sumTiles(w,prs)}${kcalNote()}${hkOn()&&!w.hr&&w.date>=addDays(todayKey(),-2)?`<span class="small muted">Heart rate from your watch appears here once it syncs to Apple Health.</span>`:""}</section>
   <section class="panel"><h2>Personal bests</h2>${prs.length?prs.map(x=>`<div class="spread"><b>🏆 ${esc(x.name)}</b><span style="font-variant-numeric:tabular-nums">${esc(x.txt)}</span></div>`).join("")
     :`<p class="small muted" style="margin:0">No new PBs this time. Matching your numbers still counts: strength comes from showing up week after week.</p>`}</section>
   ${(w.exercises||[]).length?`<section class="panel"><h2>Exercises</h2><div class="hist">${w.exercises.map(e=>{const p=prevOf(e.name,w),v=vsLast(e.sets,p&&p.sets),pb=prs.some(x=>exKey(x.name)===exKey(e.name)),ev=Math.round(e.sets.reduce((a,s)=>a+(s.secs?0:(+s.kg||0)*(+s.reps||0)),0));
@@ -1124,6 +1125,7 @@ function renderRecover(){const today=todayKey(),r=S.docs["ready_"+today],editing
   const ws=weekStart(),recs=ofType("recovery"),wk=recs.filter(x=>x.date>=ws),dl=deloadInfo();
   const last3=[0,1,2].map(i=>readinessScore(S.docs["ready_"+addDays(today,-i)])).filter(x=>x!=null),low=last3.length===3&&last3.every(x=>x<50);
   return `<header class="top"><div><h1>Recover</h1><div class="sub">Readiness, pain and recovery</div></div></header><div class="stack">
+  ${recoveryCard()}
   <section class="panel"><div class="spread"><h2>Today's readiness</h2>${r&&!S.rdEdit?`<button class="btn ghost" data-act="rdEdit">Edit</button>`:""}</div>
     ${editing?readinessForm(draft):readinessCard(r,sc,adv)}
     ${low?`<div class="hint small"><b>Three low days in a row.</b><span>Consider an extra rest day or bringing your deload forward. Look at sleep, stress and food too.</span></div>`:""}
@@ -1154,7 +1156,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-05-5";
+const APP_VERSION="2026-11-05-6";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1167,14 +1169,14 @@ function NPlug(n){if(!NATIVE)return null;const C=window.Capacitor;if(C.Plugins&&
     if(m==="addListener")return (ev,cb)=>{let id=null;try{id=C.addListener(n,ev,cb)}catch(e){}return Promise.resolve({remove:async()=>{try{id!=null&&C.removeListener(n,id,ev,cb)}catch(e){}}})};
     return o=>{let p;try{p=C.nativePromise(n,m,o||{})}catch(e){p=Promise.reject(e)}p.catch(()=>{});return p}}}))}
 /* ---------- Apple Health (iPhone app only). Health plugin: reads steps, sleep, weight and saves weight. PFWorkout (ios/App/App/PFWorkoutPlugin.swift): saves workouts ---------- */
-const HK_BUNDLE="com.rizjr.projectfitness";
+const HK_BUNDLE="com.rizjr.projectfitness",HK_READ=["steps","sleep","weight","heartRate","restingHeartRate","heartRateVariability"];
 const hkOn=()=>NATIVE&&!!(settings().health&&settings().health.on);
 const hkType=(w)=>{if(w.type==="cardio"){const a=String(w.activity||"").toLowerCase();return /run|jog/.test(a)?"run":/walk/.test(a)?"walk":/cycl|bike/.test(a)?"cycle":/row/.test(a)?"row":/swim/.test(a)?"swim":/cross/.test(a)?"elliptical":/stair/.test(a)?"stairs":/hiit|interval/.test(a)?"hiit":/sport|other/.test(a)?"other":"cardio"}return w.kind==="gym"?"strength":"functional"};
 const HK_MET={run:9.8,walk:3.8,cycle:7.5,row:7,swim:7,elliptical:5,stairs:8,hiit:8,other:6,cardio:6};
 async function hkConnect(){const H=NPlug("Health"),W=NPlug("PFWorkout");if(!H||!W){toast("Apple Health needs the latest version of the app. Update it from TestFlight or the App Store");return}
   try{const a=await H.isAvailable();if(!a||!a.available){toast("Apple Health isn't available on this phone");return}
-    await H.requestAuthorization({read:["steps","sleep","weight"],write:["weight"]});await W.requestAuthorization();
-    const st=clone(settings());st.health={...(st.health||{}),on:true,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);toast("Apple Health connected");hkPull(true)}
+    await H.requestAuthorization({read:HK_READ,write:["weight"]});await W.requestAuthorization();
+    const st=clone(settings());st.health={...(st.health||{}),on:true,v:2,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);toast("Apple Health connected");hkPull(true)}
   catch(e){toast("Couldn't connect to Apple Health: "+((e&&e.message)||"try again"))}}
 async function hkSaveWorkout(id){if(!hkOn())return;const W=NPlug("PFWorkout"),w=S.docs[id];if(!W||!w||w.hk)return;
   try{const mins=Math.max(1,+w.mins||1),end=w.ended?new Date(w.ended):w.started?new Date(+w.started+mins*60000):(w.date===todayKey()?new Date():new Date(w.date+"T18:00:00")),start=w.started&&w.ended?new Date(w.started):new Date(end-mins*60000);
@@ -1184,6 +1186,7 @@ async function hkSaveWeight(b){if(!hkOn())return;const H=NPlug("Health");if(!H)r
 const hkLocalDate=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 // steps today (ticks a steps habit), last night's sleep (morning check-in) and weigh-ins from other apps or a smart scale
 async function hkPull(force){if(!hkOn())return;const H=NPlug("Health");if(!H)return;if(!force&&S.hkAt&&Date.now()-S.hkAt<10*60000)return;S.hkAt=Date.now();
+  if((settings().health||{}).v!==2){try{await H.requestAuthorization({read:HK_READ,write:["weight"]})}catch(e){}const st=clone(settings());st.health={...(st.health||{}),v:2};save("settings",st)}
   const now=new Date(),mid=new Date(now.getFullYear(),now.getMonth(),now.getDate()),t=todayKey();
   try{const r=await H.queryAggregated({dataType:"steps",startDate:mid.toISOString(),endDate:now.toISOString(),bucket:"day",aggregation:"sum"});
     S.hkSteps=Math.round(((r&&r.samples)||[]).reduce((a,x)=>a+(+x.value||0),0));
@@ -1196,15 +1199,82 @@ async function hkPull(force){if(!hkOn())return;const H=NPlug("Health");if(!H)ret
     const byDay={};((r&&r.samples)||[]).filter(x=>x.sourceId!==HK_BUNDLE&&+x.value>20).forEach(x=>{byDay[hkLocalDate(x.startDate)]=+x.value});let n=0;
     Object.entries(byDay).forEach(([day,kg])=>{const b=S.docs["body_"+day];if(b&&+b.weight)return;save("body_"+day,{...(b||{type:"body",date:day}),weight:Math.round(kg*10)/10,hkFrom:true});n++});
     if(n)toast(`Added ${n} weigh-in${n>1?"s":""} from Apple Health`)}catch(e){}
-  if(S.setPage==="health"||S.tab==="recover")render()}
+  await hkDays(H);await hkWorkoutsHR(H);
+  if(S.setPage==="health"||S.tab==="recover"||S.tab==="today"||S.woSum)render()}
+// last 15 days of sleep, resting heart rate (or the day's lowest heart rate when the watch doesn't send one) and HRV, for the recovery score
+async function hkDays(H){const now=new Date(),from=new Date(now.getFullYear(),now.getMonth(),now.getDate()-15),o={...((S.docs.hkdays||{}).days||{})},put=(d,k,v)=>{if(v==null||isNaN(v))return;(o[d]=o[d]||{})[k]=v};
+  const agg=async(dataType,aggregation)=>{try{const r=await H.queryAggregated({dataType,startDate:from.toISOString(),endDate:now.toISOString(),bucket:"day",aggregation});return ((r&&r.samples)||[]).filter(x=>x.value!=null&&+x.value>0).map(x=>[hkLocalDate(x.startDate),+x.value])}catch(e){return[]}};
+  (await agg("restingHeartRate","average")).forEach(([d,v])=>put(d,"rhr",Math.round(v)));
+  (await agg("heartRate","min")).forEach(([d,v])=>put(d,"hrMin",Math.round(v)));
+  (await agg("heartRateVariability","average")).forEach(([d,v])=>put(d,"hrv",Math.round(v)));
+  try{const r=await H.readSamples({dataType:"sleep",startDate:new Date(from-6*3600000).toISOString(),endDate:now.toISOString(),limit:3000,ascending:true});const by={};
+    ((r&&r.samples)||[]).filter(x=>x.sleepState&&!["inBed","awake"].includes(x.sleepState)).forEach(x=>{const d=hkLocalDate(new Date(new Date(x.endDate).getTime()+6*3600000));by[d]=(by[d]||0)+Math.max(0,new Date(x.endDate)-new Date(x.startDate))});
+    Object.entries(by).forEach(([d,ms])=>{if(ms>3600000)put(d,"sleep",Math.round(ms/360000)/10)})}catch(e){}
+  if(o[todayKey()]&&o[todayKey()].sleep!=null)S.hkSleep=o[todayKey()].sleep;
+  const keep=addDays(todayKey(),-30);Object.keys(o).forEach(d=>{if(d<keep)delete o[d]});
+  if(JSON.stringify(o)!==JSON.stringify((S.docs.hkdays||{}).days||{}))save("hkdays",{type:"hkdays",days:o})}
+// heart rate during each recent session, from the watch's samples in Apple Health (watches often sync later, so it retries for 2 days)
+const hkWin=w=>{const mins=Math.max(1,+w.mins||1);let end=w.ended?+w.ended:w.started?+w.started+mins*60000:w.type==="cardio"&&/^cardio_\d+/.test(w.id)?+w.id.slice(7):null;if(!end)return null;const start=w.started&&w.ended?+w.started:end-mins*60000;return [start,end]};
+async function hkWorkoutsHR(H){const since=addDays(todayKey(),-2),L=[...ofType("workout"),...ofType("cardio")].filter(w=>w.date>=since&&!w.hrAt&&(w.hrTry||0)<6);
+  for(const w of L){const win=hkWin(w);if(!win)continue;try{const r=await H.readSamples({dataType:"heartRate",startDate:new Date(win[0]).toISOString(),endDate:new Date(win[1]).toISOString(),limit:2000,ascending:true});
+    const v=((r&&r.samples)||[]).map(x=>+x.value).filter(x=>x>30&&x<230),cur=S.docs[w.id];if(!cur)continue;
+    if(v.length>=3){const avg=Math.round(v.reduce((a,b)=>a+b,0)/v.length),max=Math.max(...v),n={...cur,hr:{avg,max,n:v.length},hrAt:Date.now()};if(w.type==="cardio"){n.hr=+cur.hr||avg;n.hrMax=max}save(w.id,n)}
+    else save(w.id,{...cur,hrTry:(cur.hrTry||0)+1})}catch(e){}}}
+// recovery: today's sleep, resting heart rate and HRV against your own last 2 weeks, plus yesterday's training and your morning check-in
+const median=a=>{a=a.filter(x=>x!=null&&!isNaN(x)).sort((x,y)=>x-y);return a.length?a[Math.floor((a.length-1)/2)]:null};
+function recoveryFor(D){const H=(S.docs.hkdays||{}).days||{},t=H[D]||{},prev=Object.keys(H).filter(k=>k<D&&k>=addDays(D,-14)).map(k=>H[k]),parts=[];
+  const cl=x=>Math.max(0,Math.min(100,Math.round(x)));
+  if(t.sleep!=null){const base=median(prev.map(x=>x.sleep));parts.push({k:"sleep",l:"Sleep",w:30,s:cl(t.sleep/8*100),v:fmtN(t.sleep)+" h",n:base!=null?fmtN(base)+" h":null,good:t.sleep>=7})}
+  const useR=t.rhr!=null&&prev.filter(x=>x.rhr!=null).length>=4,rT=useR?t.rhr:t.hrMin,rB=median(prev.map(x=>useR?x.rhr:x.hrMin)),rN=prev.filter(x=>(useR?x.rhr:x.hrMin)!=null).length;
+  if(rT!=null&&rB!=null&&rN>=4)parts.push({k:"rhr",l:useR?"Resting heart rate":"Lowest heart rate",w:25,s:cl(70-(rT-rB)*8),v:rT+" bpm",n:rB+" bpm",good:rT<=rB});
+  const hB=median(prev.map(x=>x.hrv)),hN=prev.filter(x=>x.hrv!=null).length;
+  if(t.hrv!=null&&hB&&hN>=4)parts.push({k:"hrv",l:"HRV",w:35,s:cl(70+(t.hrv/hB-1)*150),v:t.hrv+" ms",n:hB+" ms",good:t.hrv>=hB});
+  if(!parts.length)return {building:true,days:Math.max(rN,hN,prev.length)};
+  const y=addDays(D,-1),wo=ofType("workout").filter(w=>w.date===y),cd=ofType("cardio").filter(c=>c.date===y),mins=[...wo,...cd].reduce((a,x)=>a+(+x.mins||0),0),hard=cd.some(c=>+c.rpe>=8)||mins>=75;
+  parts.push({k:"load",l:"Yesterday",w:10,s:!mins?85:hard?40:65,v:!mins?"Rest day":mins+" min"+(hard?", hard":""),n:null,good:!hard});
+  const rs=readinessScore(S.docs["ready_"+D]);if(rs!=null)parts.push({k:"check",l:"Morning check-in",w:20,s:rs,v:rs+"/100",n:null,good:rs>=60});
+  const tw=parts.reduce((a,x)=>a+x.w,0),score=Math.round(parts.reduce((a,x)=>a+x.s*x.w,0)/tw);
+  const band=score>=70?["Ready to push","good","A good day for a heavy session or a personal-best attempt."]:score>=45?["Train as planned","amber","Train as planned and keep 1 to 2 reps in reserve."]:["Go easy today","low","Go lighter today: mobility, a walk or an easy session. Push again when you've recovered."];
+  return {score,parts,label:band[0],tone:band[1],advice:band[2],hrv:parts.some(x=>x.k==="hrv")}}
+const recToneColor=t=>t==="good"?"var(--accent)":t==="amber"?"var(--carb)":"var(--protein)";
+function recoveryCard(){if(!NATIVE)return"";if(!hkOn())return `<button class="duerow" data-act="setPage" data-v="watch"><span><b>Daily recovery score</b><span class="small muted" style="display:block">Connect your watch through Apple Health to see how recovered you are each morning</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`;
+  const R=recoveryFor(todayKey());
+  if(R.building)return `<section class="panel"><h2>Recovery</h2><p class="small muted" style="margin:0">Building your normal from your watch data: ${Math.min(R.days,4)} of 4 days so far. Wear your watch to sleep and your score appears once there are 4 nights to compare.</p></section>`;
+  return `<section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">from your watch</span></div>
+    <div class="spread" style="align-items:center"><div><b style="font-family:var(--display);font-size:56px;line-height:1;color:${recToneColor(R.tone)}">${R.score}</b><span class="small muted"> / 100</span></div><div style="text-align:right;min-width:0"><b style="display:block;font-size:17px">${R.label}</b><span class="small muted">${R.advice}</span></div></div>
+    <div class="hist">${R.parts.map(x=>`<div class="spread small" style="padding:4px 0"><span>${x.l}</span><span style="text-align:right"><b style="color:${x.good?"var(--fg)":"var(--carb)"}">${esc(x.v)}</b>${x.n?` <span class="muted">· normal ${esc(x.n)}</span>`:""}</span></div>`).join("")}</div>
+    <span class="small muted">Compared with your own last 2 weeks.${R.hrv?"":" Your watch doesn't share HRV with Apple Health, so this uses sleep and heart rate."} A guide to help you plan training, not a medical measure.</span></section>`}
+function recoveryRow(){if(!hkOn())return"";const R=recoveryFor(todayKey());if(!R||R.building)return"";
+  return `<button class="duerow" data-tab="recover"><span><b>Recovery <span style="color:${recToneColor(R.tone)}">${R.score}</span> · ${R.label}</b><span class="small muted" style="display:block">${R.advice}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
+function recoveryReport(){if(!hkOn())return null;const out=[];for(let i=13;i>=0;i--){const d=addDays(todayKey(),-i),R=recoveryFor(d),h=((S.docs.hkdays||{}).days||{})[d]||{};if(R&&!R.building)out.push({week:d,score:R.score,sleep:h.sleep??null,rhr:h.rhr??h.hrMin??null,hrv:h.hrv??null})}return out.length?out:null}
+const WATCHES=[["apple","Apple Watch"],["garmin","Garmin"],["whoop","WHOOP"],["oura","Oura"],["fitbit","Fitbit / Google"],["polar","Polar"],["other","Other"]];
+const WATCH_STEPS={
+  apple:{app:[["Nothing to set up on the watch","Apple Watch saves everything to Apple Health automatically."],["Turn on sleep tracking","On your iPhone, open the Health app › Browse › Sleep and set up a sleep schedule. Then wear your watch to bed."]],gets:"Workout heart rate, resting heart rate, HRV, sleep and steps. You get the full recovery score."},
+  garmin:{app:[["Open Garmin Connect","Tap More (bottom right) › Settings › Connected Apps › Apple Health."],["Connect and allow everything","Tap Connect. On Apple's screen tap Turn On All, then Allow."],["Open Garmin Connect each morning","Garmin only sends data to Apple Health while its app is open, so open it after you wake up and let it sync. The first sync can take a while."]],gets:"Heart rate, sleep, steps and workouts. Garmin doesn't share HRV, Body Battery or resting heart rate, so your recovery uses sleep and your lowest heart rate."},
+  whoop:{app:[["Open the WHOOP app","Update it first. Open the menu and find Apple Health (in settings or integrations)."],["Connect and allow everything","Tap Connect, turn on all categories, then Allow."]],gets:"Heart rate, resting heart rate, sleep, steps and workouts. WHOOP doesn't share HRV, so your recovery uses sleep and resting heart rate."},
+  oura:{app:[["Open the Oura app","Tap the menu (top left) › Settings › Apple Health (under Data Sharing)."],["Connect and allow everything","Turn on Connect to Health, then allow all categories on Apple's screen. Let your ring sync."]],gets:"Heart rate, sleep, steps and workouts. Oura doesn't share HRV or resting heart rate, so your recovery uses sleep and your lowest heart rate."},
+  fitbit:{app:[["Use the Google Health app","Fitbit's app is now called Google Health. Update it to the latest version."],["Turn on Apple Health","Open your profile › Partner apps (on some versions: Connections › Apps and services) › Apple Health, then allow all categories."],["Restart if nothing appears","Close and reopen Google Health, then give it a little while to sync."]],gets:"Heart rate, sleep, steps and workouts. HRV isn't shared, so your recovery uses sleep and heart rate."},
+  polar:{app:[["Open Polar Flow","Tap More (bottom right) › General settings."],["Turn on Apple Health","Switch on Apple Health, choose all categories, then tap Allow."]],gets:"Workouts with heart rate, sleep and steps. Polar doesn't share all-day heart rate, so your recovery uses sleep only."},
+  other:{app:[["Find Apple Health in your watch's app","Open your watch's own app and look in its settings for Apple Health (sometimes called Health or Connected apps)."],["Connect and allow everything","Turn it on and allow all categories on Apple's screen."]],gets:"Whatever your watch shares with Apple Health: usually heart rate, sleep and steps. If its app has no Apple Health option, it can't send data to Project Fitness."}};
+function setWatch(){const k=S.watchDev||"apple",W=WATCH_STEPS[k],n0=W.app.length,on=hkOn();
+  const step=(i,t,d,extra)=>`<div class="row" style="flex-wrap:nowrap;align-items:flex-start;gap:12px;padding:6px 0"><span class="avatar" style="flex:none;width:32px;height:32px;font-size:15px">${i}</span><span style="min-width:0"><b style="display:block">${t}</b><span class="small">${d}</span>${extra||""}</span></div>`;
+  return `${NATIVE?"":`<div class="hint"><b>This works in the iPhone app.</b><span class="small">Watch data comes in through Apple Health, which only the Project Fitness iPhone app can use. Ask your coach for the app link, then follow these steps on your iPhone.</span></div>`}
+  <section class="panel"><h2>Which watch do you wear?</h2><div class="chips">${WATCHES.map(([v,l])=>`<button class="qchip" data-act="watchDev" data-v="${v}" aria-pressed="${k===v}">${l}</button>`).join("")}</div></section>
+  <section class="panel"><span class="label">In your watch's app</span>${W.app.map(([t,d],i)=>step(i+1,t,d)).join("")}
+    <span class="label" style="margin-top:6px">In Project Fitness</span>
+    ${step(n0+1,"Connect Apple Health","You › Settings (gear) › Apple Health › Connect Apple Health. On Apple's screen tap Turn On All, then Allow.",NATIVE?`<div style="margin-top:8px">${on?`<span class="small good"><b>Connected ✓</b></span>`:`<button class="btn primary" data-act="hkConnect">Connect Apple Health</button>`}</div>`:"")}
+    ${step(n0+2,"Check it's working","Wear your watch to sleep. Next morning, open Recover: your recovery score appears once there are 4 nights to compare. After a workout, its summary shows your average and peak heart rate.")}
+    <div class="hint small" style="margin-top:6px"><b>What you'll get</b><span>${W.gets}</span></div>
+    <span class="small muted">Steps counted twice? In the Health app open Steps › Data Sources & Access › Edit and drag your watch to the top.</span></section>`}
 function setHealth(){const on=hkOn();
   return `<section class="panel"><h2>${on?"Connected":"What it does"}</h2>
     <p class="small" style="margin:0">${on?"Project Fitness will":"Connect Apple Health and Project Fitness will"}:</p>
-    <ul class="small" style="margin:0;padding-left:18px"><li><b>Save your workouts</b> (and sessions your coach logs for you) so they count towards your Activity rings</li><li><b>Save your weigh-ins</b></li><li><b>Read your steps</b> and tick off your steps habit when you hit it</li><li><b>Read last night's sleep</b> to fill in your morning check-in</li><li><b>Add weigh-ins</b> from a smart scale or another app</li></ul>
+    <ul class="small" style="margin:0;padding-left:18px"><li><b>Save your workouts</b> (and sessions your coach logs for you) so they count towards your Activity rings</li><li><b>Save your weigh-ins</b></li><li><b>Read your steps</b> and tick off your steps habit when you hit it</li><li><b>Read last night's sleep</b> to fill in your morning check-in</li><li><b>Read heart rate, resting heart rate and HRV</b> for your workout heart rate and a daily recovery score</li><li><b>Add weigh-ins</b> from a smart scale or another app</li></ul>
     ${on?`<div class="grid2"><div class="tile"><span class="label">Steps today</span><b>${S.hkSteps!=null?S.hkSteps.toLocaleString("en-GB"):"—"}</b></div><div class="tile"><span class="label">Sleep last night</span><b>${S.hkSleep!=null?fmtN(S.hkSleep)+" h":"—"}</b></div></div>
+      <button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="setPage" data-v="watch">Connect your watch: step-by-step guide ›</button>
       <div class="row"><button class="btn" data-act="hkPull">Update now</button><button class="btn ghost" style="color:var(--protein)" data-act="hkOff">Turn off</button></div>
       <span class="small muted">To change what Project Fitness can see or save, open the Health app, tap your picture, then Apps › Project Fitness.</span>`
-    :`<button class="btn primary" style="align-self:flex-start" data-act="hkConnect">Connect Apple Health</button><span class="small muted">Apple asks which data to share, and you can choose. You can turn any of it off later in the Health app.</span>`}
+    :`<button class="btn primary" style="align-self:flex-start" data-act="hkConnect">Connect Apple Health</button><button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="setPage" data-v="watch">Step-by-step guide for your watch ›</button><span class="small muted">Apple asks which data to share, and you can choose. You can turn any of it off later in the Health app.</span>`}
     <span class="small muted">Health data is only used to run these features. It's never used for advertising or sold. See the privacy notice for details.</span></section>`}
 const WEB_URL="https://rizjr.github.io/Project-Fitness/";
 const appUrl=()=>NATIVE?WEB_URL:location.origin+location.pathname;
@@ -1353,6 +1423,7 @@ function todayBody(){const I=heroInfo(),t=todayKey(),ws=weekStart(),G=myGoals()[
   return `${coachNote(I.cp)}${I.act}${gb}
     <div class="wkstats"><div><b>${done}${planned?"/"+planned:""}</b><span>Sessions this week</span></div>${NUM()?`<div><b>${pd}/${days}</b><span>Protein days</span></div>`:`<div><b>${(settings().habits||[]).filter(h=>(dayDoc(t).habits||{})[h]).length}/${(settings().habits||[]).length}</b><span>Habits today</span></div>`}<div><b>${planStreak().n?"🔥 "+planStreak().n:planStreak().best||0}</b><span>${planStreak().n?"In a row":"Best streak"}</span></div></div>
     ${!G?`<button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="goGoals">+ Set a goal</button>`:""}
+    ${recoveryRow()}${watchPrompt()}
     ${isCoach()?trainClientRow():""}
     ${aheadInfo()?`<button class="duerow" data-tab="train"><span><b>You're ahead of schedule</b><span class="small muted" style="display:block">Bring your programme forward so it carries on from when you train</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}
     ${ciDue?`<button class="duerow" data-act="goCheckin"><span><b>Weekly check-in due Sunday</b><span class="small muted" style="display:block">Weight, photos and how the week felt · 2 min</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}`}
@@ -2427,7 +2498,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport()}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:recoveryReport()}}
 function liftsReport(){const o={};let n=0;for(const [k,L] of exIndex(0)){if(n++>=80)break;o[k]=L.slice(0,3).map(h=>({date:h.date,sets:(h.sets||[]).map(x=>x.secs!=null&&(x.reps==null||x.reps==="")?{kg:+x.kg||0,secs:+x.secs||0}:{kg:+x.kg||0,reps:+x.reps||0})}))}return o}
 function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
   const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
@@ -2625,6 +2696,7 @@ function clientFlags(c){const F=[],t=todayKey(),R=c.recent||{},done=new Set((c.p
   const fx=clientFlex(c);if(fx&&fx.behind)F.push(["amber",`Flexible plan: ${fx.done} of ${fx.pw} sessions this week`]);
   if(c.clientUid){const missed=ofType("cplan").filter(p=>p.clientUid===c.clientUid&&!p.flex&&p.date<t&&p.date>=addDays(t,-7)&&!done.has(p.pid)).length;if(missed)F.push(["red",`Missed ${missed} planned session${missed>1?"s":""} (last 7 days)`])}
   const rs=(R.ready||[]).slice(0,3).map(x=>x.s).filter(x=>x!=null);if(rs.length===3&&rs.every(x=>x<50))F.push(["amber","Low readiness 3 days running"]);
+  const rc=(c.recovery||[]).slice(-3).map(x=>x.score);if(rc.length===3&&rc.every(x=>x<45)&&daysSince((c.recovery||[]).slice(-1)[0].week)<=1)F.push(["amber","Low recovery 3 days running"]);
   const lf=daysSince(R.lastFood);if(R.at&&!c.habitsOnly&&(lf==null||lf>=3))F.push(["amber",lf==null?"No food logged yet":`No food logged for ${lf} days`]);
   const lw=daysSince(R.lastWorkout);if(R.at&&(lw==null||lw>=(fx?6:7)))F.push(["amber",lw==null?"No sessions logged yet":`No session for ${lw} days`]);
   const lr=daysSince(c.received||c.date);if(lr!=null&&lr>=7)F.push(["grey",`No update from their app for ${lr} days`]);
@@ -2660,6 +2732,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   ${coachGoalsPanel(c)}
   ${plansSection(c)}
   ${clientSessionsPanel(id,c)}
+  ${c.recovery&&c.recovery.length?`<section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">from their watch</span></div>${chartSVG(c.recovery,[{key:"score",label:"Recovery",color:"var(--accent)"}],{min:0,max:100,label:"Daily recovery score out of 100"})}<span class="small muted">Latest ${c.recovery[c.recovery.length-1].score}/100 (${fmtDay(c.recovery[c.recovery.length-1].week)})${c.recovery[c.recovery.length-1].sleep!=null?" · slept "+fmtN(c.recovery[c.recovery.length-1].sleep)+" h":""}. 70+ ready to push, under 45 go easy.</span></section>`:""}
   ${coachSetPanel(c)}
   ${feedbackPanel(c)}
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
@@ -2687,6 +2760,7 @@ function clientHist(cid,name){const k=exKey(name),c=S.docs[cid];if(!k||!c)return
   (c.planDone||[]).forEach(p=>(p.sets||[]).forEach(e=>{if(exKey(e.name)===k)add("pd_"+p.id,p.date,"",(e.sets||[]).map(a=>Array.isArray(a)?{kg:+a[0]||0,reps:+a[1]||0}:a))}));
   return out.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0)}
 function localSub(c){const L=csOf(c.id);return L.length?`On your phone · last session ${fmtDay(L[0].date)}`:"On your phone · no sessions yet"}
+function watchPrompt(){if(!NATIVE||hkOn()||lsGet("pf-watchoff:"+PROF.active))return"";return `<div class="duerow" style="cursor:default"><button class="linkbtn" data-act="setPage" data-v="watch" style="all:unset;cursor:pointer;flex:1;min-width:0"><b>Wear a fitness watch?</b><span class="small muted" style="display:block">Connect it in 2 minutes for workout heart rate and a daily recovery score</span></button><button class="x" data-act="watchOff" aria-label="Hide">×</button></div>`}
 function trainClientRow(){const cl=ofType("client");const t=todayKey(),today=[...new Set(ofType("cplan").filter(p=>!p.flex&&p.date===t).map(p=>(cl.find(c=>c.clientUid===p.clientUid)||{}).name).filter(Boolean).map(firstName))];
   return `<button class="duerow" data-act="tcPick"><span><b>Train a client</b><span class="small muted" style="display:block">${today.length?"Planned today: "+esc(today.join(", ")):"Log their sets, reps and weights as you train them"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
 function addClientForm(){if(!S.lcDraft)return"";return `<section class="panel"><h2>Add a client</h2><p class="small muted" style="margin:0">For someone who doesn't use the app. Their sessions are kept on your phone, and you can move them into their account if they join later.</p>
@@ -2966,7 +3040,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,recovery:j.recovery||null,_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 /* ---------- coach-planned sessions ---------- */
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
@@ -3244,7 +3318,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="deleteAccount">${CL.confirmDel?"Tap again to delete for good":"Delete my account"}</button></section>`}
 
 /* ---------- settings ---------- */
-const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["reminders","Reminders","Food, morning check-in, coach's session, workout left running"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["health","Apple Health","Save workouts and weigh-ins, read steps, sleep and weight"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
+const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["reminders","Reminders","Food, morning check-in, coach's session, workout left running"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["watch","Connect your watch","Apple Watch, Garmin, WHOOP, Oura, Fitbit, Polar: step by step"],["health","Apple Health","Save workouts and weigh-ins, read steps, sleep, heart rate"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
 const GOALS={lose:"Lose fat",maintain:"Maintain",gain:"Build muscle",perform:"Performance"};
 const ACT=[["1.2","Mostly sitting, little exercise"],["1.375","Light: 1–3 sessions a week"],["1.55","Moderate: 3–5 sessions a week"],["1.725","Very active: 6–7 sessions or a physical job"]];
 const initials=n=>String(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
@@ -3264,7 +3338,7 @@ function renderSettings(){const pg=S.setPage,me=activeProf(),pr=S.docs.profile||
       ${PROF.list.length>1?`<button class="btn" style="align-self:flex-start" data-act="setPage" data-v="users">Switch user</button>`:""}</section>
     <section class="panel" style="padding:2px 16px">${SET_PAGES.filter(x=>x[0]!=="health"||NATIVE).map(([k,l,d])=>`<button class="setrow" data-act="setPage" data-v="${k}"><span style="min-width:0"><b>${l}</b><span class="small muted" style="display:block">${k==="users"?PROF.list.length+" user"+(PROF.list.length===1?"":"s")+" on this phone":d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</section></div>`;
   const title=(SET_PAGES.find(x=>x[0]===pg)||[0,""])[1];
-  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="reminders"?setReminders():pg==="look"?lookPanel():pg==="health"?setHealth():pg==="data"?setData():setAbout();
+  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="reminders"?setReminders():pg==="look"?lookPanel():pg==="health"?setHealth():pg==="watch"?setWatch():pg==="data"?setData():setAbout();
   return `<header class="top"><div><button class="btn ghost back" data-act="setPage" data-v="">‹ Settings</button><h1>${title}</h1></div></header><div class="stack">${body}</div>`}
 function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??"");
   const sel=(id,opts,cur)=>`<select id="${id}">${opts.map(([val,l])=>`<option value="${val}" ${String(cur??"")===String(val)?"selected":""}>${l}</option>`).join("")}</select>`;
@@ -3519,9 +3593,11 @@ document.addEventListener("click",e=>{
     case "hqSave":{const h=S.healthDraft;if(HEALTH_Q.some(([k])=>!h[k])){toast("Answer each question with yes or no");break}if(!h.consent){toast("Tick the box to agree to your answers being stored");break}
       S.healthDraft=null;const rec=healthRecord(h);save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),health:rec});toast(rec.flagged?"Saved. Please check with your GP before increasing exercise":"Saved. All clear");break}
     case "hkConnect":hkConnect();break;
+    case "watchDev":S.watchDev=ds.v;render();break;
+    case "watchOff":lsSet("pf-watchoff:"+PROF.active,"1");render();toast("Hidden. Find the guide any time in Settings › Connect your watch");break;
     case "hkOff":{const st=clone(settings());st.health={...(st.health||{}),on:false};save("settings",st);toast("Apple Health turned off here");break}
     case "hkPull":hkPull(true).then(()=>toast("Updated from Apple Health"));break;
-    case "setPage":S.setPage=ds.v||null;S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
+    case "setPage":S.setPage=ds.v||null;if(ds.v&&S.tab!=="settings"){S.tab="settings"}S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
     case "lockCancel":S.lock=null;render();break;
     case "delUser":{if(S.confirmDel!==ds.id){S.confirmDel=ds.id;render();break}const u=PROF.list.find(x=>x.id===ds.id);PROF.list=PROF.list.filter(x=>x.id!==ds.id);
