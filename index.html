@@ -525,6 +525,10 @@ section.panel{border-radius:22px}
 .ahead{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin:2px 0}
 .flexplan{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}.fdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.fdays button{border:1.5px solid var(--line);background:transparent;color:var(--fg);border-radius:12px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:1px;font:inherit;cursor:pointer}.fdays button span{font-size:10.5px;color:var(--muted);font-weight:700}.fdays button b{font-size:15px}.fdays button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#000}.fdays button[aria-pressed=true] span{color:#000}
 .qchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.wp-head .wp-title{flex:1 1 auto}.wp-head .wp-title b{max-width:100%}
+.wp-hr{display:flex;align-items:center;gap:3px;height:36px;padding:0 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-weight:800;flex:none;font-variant-numeric:tabular-nums}.wp-hr .hrdot{color:var(--muted)}
+.hrsheet{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.hrzbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}.hrzbar span{border-radius:6px;padding:4px 0;text-align:center;font-size:12px;font-weight:800;color:#000}
 .flexsum{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px}
 
 /* iPhone feel: fixed tab bar, no bounce or sideways drift, safe areas, no input zoom */
@@ -962,6 +966,7 @@ function renderWoSummary(w){const prs=w.prs||[],fresh=S.woSumFresh;
   const parts=["warmup","cooldown"].map(p=>[p==="warmup"?"Warm-up":"Cool-down",(w[p]||[]).filter(x=>x.done)]).filter(([,l])=>l.length);
   return `<header class="top"><div><h1>${fresh?"Nice work":"Workout summary"}</h1><div class="sub">${esc(w.name||kindName(w.kind)+" session")} · ${fmtDay(w.date)}</div></div><button class="btn ghost" data-act="sumClose">${fresh?"Done":"‹ Back"}</button></header>
   <div class="stack"><section class="panel"><div class="spread"><h2>Summary</h2><span class="kbadge">${kindName(w.kind)}</span></div>${sumTiles(w,prs)}${kcalNote()}${hkOn()&&!w.hr&&w.date>=addDays(todayKey(),-2)?`<span class="small muted">Heart rate from your watch appears here once it syncs to Apple Health.</span>`:""}</section>
+  ${w.hrLog&&w.hrLog.length>2?`<section class="panel"><div class="spread"><h2>Heart rate</h2><span class="small muted">avg ${w.hr.avg} · max ${w.hr.max} bpm</span></div>${hrChart(w)}</section>`:""}
   <section class="panel"><h2>Personal bests</h2>${prs.length?prs.map(x=>`<div class="spread"><b>🏆 ${esc(x.name)}</b><span style="font-variant-numeric:tabular-nums">${esc(x.txt)}</span></div>`).join("")
     :`<p class="small muted" style="margin:0">No new PBs this time. Matching your numbers still counts: strength comes from showing up week after week.</p>`}</section>
   ${(w.exercises||[]).length?`<section class="panel"><h2>Exercises</h2><div class="hist">${w.exercises.map(e=>{const p=prevOf(e.name,w),v=vsLast(e.sets,p&&p.sets),pb=prs.some(x=>exKey(x.name)===exKey(e.name)),ev=Math.round(e.sets.reduce((a,s)=>a+(s.secs?0:(+s.kg||0)*(+s.reps||0)),0));
@@ -1156,7 +1161,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-05-6";
+const APP_VERSION="2026-11-05-7";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1168,6 +1173,63 @@ function NPlug(n){if(!NATIVE)return null;const C=window.Capacitor;if(C.Plugins&&
   return NPLUGS[n]||(NPLUGS[n]=new Proxy({},{get:(t,m)=>{if(m==="then"||typeof m!=="string")return undefined;
     if(m==="addListener")return (ev,cb)=>{let id=null;try{id=C.addListener(n,ev,cb)}catch(e){}return Promise.resolve({remove:async()=>{try{id!=null&&C.removeListener(n,id,ev,cb)}catch(e){}}})};
     return o=>{let p;try{p=C.nativePromise(n,m,o||{})}catch(e){p=Promise.reject(e)}p.catch(()=>{});return p}}}))}
+/* ---------- live heart rate over Bluetooth (iPhone app): a chest strap or a watch that broadcasts heart rate (Garmin: hold A › Broadcast Heart Rate) ----------
+   Uses @capacitor-community/bluetooth-le natively (Capacitor.Plugins.BluetoothLe through NPlug). One monitor at a time, remembered per person (you, or each client). */
+const HR_SVC="0000180d-0000-1000-8000-00805f9b34fb",HR_CHR="00002a37-0000-1000-8000-00805f9b34fb";
+const HRL={dev:null,bpm:null,at:0,state:"off",err:"",who:null,ls:[],subs:[]};
+const ZONES=[[0.5,"Warm-up","#9AA1A9"],[0.6,"Easy","#4EA8FF"],[0.7,"Aerobic","#3DDC84"],[0.8,"Threshold","#FFA238"],[0.9,"Max","#FF4D4D"]];
+const ageFromDob=d=>{if(!d)return null;const b=new Date(d+"T12:00"),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;return a>5&&a<100?a:null};
+// max heart rate: your own setting, else from age (Tanaka: 208 - 0.7 x age)
+function hrMaxFor(fc){let age=null,mx=null;if(fc){const c=S.docs[fc.id]||{};mx=+c.maxHR||null;age=+c.age||ageFromDob(c.dob)}else{const p=S.docs.profile||{};mx=+p.maxHR||null;age=+p.hrAge||ageFromDob(p.dob)}return mx||(age?Math.round(208-0.7*age):null)}
+const hrZone=(bpm,max)=>{if(!bpm||!max)return null;const f=bpm/max;let z=0;ZONES.forEach(([lo],i)=>{if(f>=lo)z=i+1});return z};
+const hrWho=()=>{const fc=S.draftWorkout&&S.draftWorkout.forClient;return fc?fc.id:"me"};
+const hrDevKey=w=>"pf-hrdev:"+PROF.active+":"+w;
+const hrParse=v=>{const h=String(v||"").replace(/[^0-9a-f]/gi,"");if(h.length<4)return null;const b=[];for(let i=0;i<h.length;i+=2)b.push(parseInt(h.substr(i,2),16));return b[0]&1?b[1]|(b[2]<<8):b[1]};
+function hrOnValue(ev){const bpm=hrParse(ev&&ev.value);if(!bpm||bpm<25||bpm>240)return;HRL.bpm=bpm;HRL.at=Date.now();HRL.state="on";const dw=S.draftWorkout;
+  if(dw&&HRL.who===hrWho()){dw.hrLog=dw.hrLog||[];const t=Math.round((Date.now()-(dw.started||Date.now()))/1000),L=dw.hrLog;if(!L.length||t-L[L.length-1][0]>=5)L.push([t,bpm])}
+  HRL.ls.push([Date.now(),bpm]);while(HRL.ls.length&&HRL.ls[0][0]<Date.now()-90000)HRL.ls.shift();hrPaint()}
+// update the numbers in place every beat, without re-rendering the whole screen
+function hrPaint(){const max=hrMaxFor(S.draftWorkout&&S.draftWorkout.forClient),z=hrZone(HRL.bpm,max),col=z?ZONES[z-1][2]:"var(--muted)";
+  document.querySelectorAll(".hrlive").forEach(el=>{el.textContent=HRL.state==="on"&&HRL.bpm?HRL.bpm:"--"});
+  document.querySelectorAll(".hrzone").forEach(el=>{el.textContent=z?"Zone "+z+" · "+ZONES[z-1][1]:HRL.state==="on"?"":"Not connected"});
+  document.querySelectorAll(".hrdot").forEach(el=>{el.style.color=HRL.state==="on"?col:"var(--muted)"});
+  const dn=document.getElementById("hrDown");if(dn){const d=hrDrop();dn.textContent=d!=null&&d>=5?`down ${d} since your set`:""}}
+const hrDrop=()=>{if(!S.rest||!HRL.bpm)return null;const pk=Math.max(0,...HRL.ls.filter(x=>x[0]>=(S.rest.t0||0)-30000&&x[0]<=(S.rest.t0||0)+8000).map(x=>x[1]));return pk?pk-HRL.bpm:null};
+async function hrStart(dev){const B=NPlug("BluetoothLe");if(!B){toast("Live heart rate needs the latest version of the app");return false}
+  if(HRL.dev)await hrStop(true);HRL.state="connecting";HRL.err="";HRL.who=hrWho();render();
+  try{await B.initialize({});if(!dev){dev=await B.requestDevice({services:S.hrAll?[]:[HR_SVC]});if(!dev||!dev.deviceId)throw new Error("No device chosen")}
+    else{try{await B.getDevices({deviceIds:[dev.deviceId]})}catch(e){}}
+    HRL.dev={deviceId:dev.deviceId,name:dev.name||"Heart-rate monitor"};
+    HRL.subs.push(B.addListener("disconnected|"+dev.deviceId,()=>{if(HRL.dev&&HRL.dev.deviceId===dev.deviceId&&HRL.state!=="off"){HRL.state="lost";hrPaint();render();setTimeout(()=>{if(HRL.state==="lost"&&S.draftWorkout)hrStart(HRL.dev)},3000)}}));
+    ["0000180d-0000-1000-8000-00805f9b34fb|00002a37-0000-1000-8000-00805f9b34fb","180d|2a37"].forEach(k=>HRL.subs.push(B.addListener("notification|"+dev.deviceId+"|"+k,hrOnValue)));
+    await B.connect({deviceId:dev.deviceId,timeout:15000});await B.startNotifications({deviceId:dev.deviceId,service:HR_SVC,characteristic:HR_CHR});
+    HRL.state="on";lsSet(hrDevKey(HRL.who),JSON.stringify(HRL.dev));render();toast("Connected to "+HRL.dev.name);return true}
+  catch(e){HRL.state="off";const m=(e&&e.message)||"";HRL.err=/cancel|No device/i.test(m)?"":/powered off|unauthori/i.test(m)?"Turn on Bluetooth and allow Project Fitness to use it (iPhone Settings › Project Fitness)":"Couldn't connect. Check it's broadcasting and close to your phone, then try again";render();return false}}
+async function hrStop(quiet){const B=NPlug("BluetoothLe"),d=HRL.dev;HRL.state="off";HRL.bpm=null;const subs=HRL.subs;HRL.subs=[];subs.forEach(p=>Promise.resolve(p).then(x=>x&&x.remove&&x.remove()).catch(()=>{}));if(B&&d){try{await B.stopNotifications({deviceId:d.deviceId,service:HR_SVC,characteristic:HR_CHR})}catch(e){}try{await B.disconnect({deviceId:d.deviceId})}catch(e){}}if(!quiet){HRL.dev=null;render()}}
+const hrSaved=w=>{try{return JSON.parse(lsGet(hrDevKey(w))||"null")}catch(e){return null}};
+// summary of a recorded session: average, max and seconds in each zone
+function hrSummary(log,max){if(!log||log.length<3)return null;const v=log.map(x=>x[1]),z=[0,0,0,0,0];for(let i=0;i<log.length;i++){const dt=i?Math.min(30,log[i][0]-log[i-1][0]):5,k=hrZone(log[i][1],max);if(k)z[k-1]+=dt}
+  return {avg:Math.round(v.reduce((a,b)=>a+b,0)/v.length),max:Math.max(...v),z,src:"live",maxHR:max||null}}
+const hrThin=log=>{if(!log)return[];if(log.length<=360)return log;const k=Math.ceil(log.length/360);return log.filter((_,i)=>i%k===0)};
+function hrChart(w){const L=w.hrLog;if(!L||L.length<3)return"";const W=320,H=110,t1=L[L.length-1][0]||1,mx=Math.max(...L.map(x=>x[1]))+5,mn=Math.max(40,Math.min(...L.map(x=>x[1]))-10),max=w.hr&&w.hr.maxHR;
+  const X=t=>Math.round(t/t1*W),Y=b=>Math.round(H-(b-mn)/(mx-mn)*H),pts=L.map(([t,b])=>X(t)+","+Y(b)).join(" ");
+  const bands=max?ZONES.map(([lo,,c],i)=>{const a=lo*max,b=(ZONES[i+1]?ZONES[i+1][0]:1.2)*max;if(b<mn||a>mx)return"";const y1=Y(Math.min(b,mx)),y2=Y(Math.max(a,mn));return `<rect x="0" y="${y1}" width="${W}" height="${Math.max(0,y2-y1)}" fill="${c}" opacity=".12"/>`}).join(""):"";
+  const z=w.hr&&w.hr.z,tot=z?z.reduce((a,b)=>a+b,0):0;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Heart rate during the session, average ${w.hr?w.hr.avg:""}, max ${w.hr?w.hr.max:""} bpm" preserveAspectRatio="none">${bands}<polyline points="${pts}" fill="none" stroke="#FF4D4D" stroke-width="2" stroke-linejoin="round"/></svg>
+    ${tot?`<div class="stack" style="gap:4px">${ZONES.map(([,l,c],i)=>z[i]?`<div class="spread small"><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${c};margin-right:6px"></i>Zone ${i+1} · ${l}</span><span class="muted">${z[i]<60?"under 1 min":fmtDur(Math.round(z[i]/60))} · ${Math.round(z[i]/tot*100)}%</span></div>`:"").join("")}</div>`:""}`}
+// the heart-rate panel inside the workout player
+function hrSheet(){const dw=S.draftWorkout,fc=dw&&dw.forClient,who=fc?esc(firstName(fc.name))+"'s":"Your",max=hrMaxFor(fc),saved=hrSaved(hrWho()),on=HRL.state==="on"&&HRL.who===hrWho();
+  return `<div class="hrsheet"><div class="spread"><b style="font-size:18px">${who} heart rate</b><button class="btn ghost" data-act="hrClose">Done</button></div>
+    ${on?`<div class="row" style="align-items:baseline;gap:10px"><span class="hrdot" style="font-size:30px">♥</span><b class="hrlive" style="font-family:var(--display);font-size:64px;line-height:1">${HRL.bpm||"--"}</b><span class="small muted">bpm</span></div><span class="small hrzone"></span>
+      <span class="small muted">Connected to ${esc(HRL.dev.name)}.</span><button class="btn" style="align-self:flex-start" data-act="hrOff">Disconnect</button>`
+    :HRL.state==="connecting"?`<span class="small"><span class="spin dark" aria-hidden="true"></span> Looking for the monitor…</span>`
+    :`${HRL.err?`<div class="hint small"><b>${esc(HRL.err)}</b></div>`:""}
+      <ol class="small" style="margin:0;padding-left:18px"><li><b>Garmin watch:</b> press and hold the top button (A), then choose Broadcast Heart Rate.</li><li><b>Chest strap:</b> wet the sensor pads and put it on. It wakes up by itself.</li><li>Keep it within a few metres of this phone.</li></ol>
+      <div class="row">${saved?`<button class="btn primary" data-act="hrGo" data-v="saved">Reconnect ${esc(saved.name||"monitor")}</button>`:""}<button class="btn ${saved?"":"primary"}" data-act="hrGo">${saved?"Another monitor":"Find a heart-rate monitor"}</button></div>
+      <label class="habit"><input type="checkbox" data-act="hrAll" ${S.hrAll?"checked":""}><span class="small">Can't see it? Show all Bluetooth devices</span></label>`}
+    <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="label">Zones${max?` · max ${max} bpm`:""}</span>
+      ${max?`<div class="hrzbar">${ZONES.map(([lo,l,c],i)=>`<span style="background:${c}" title="${l}">${Math.round(lo*max)}+</span>`).join("")}</div>`
+      :`<label class="field"><span class="label">${fc?esc(firstName(fc.name))+"'s age":"Your age"} (sets the zones)</span><input type="number" inputmode="numeric" id="hrAgeIn" placeholder="e.g. 24"></label><button class="btn" style="align-self:flex-start" data-act="hrAgeSave">Save age</button>`}</div></div>`}
 /* ---------- Apple Health (iPhone app only). Health plugin: reads steps, sleep, weight and saves weight. PFWorkout (ios/App/App/PFWorkoutPlugin.swift): saves workouts ---------- */
 const HK_BUNDLE="com.rizjr.projectfitness",HK_READ=["steps","sleep","weight","heartRate","restingHeartRate","heartRateVariability"];
 const hkOn=()=>NATIVE&&!!(settings().health&&settings().health.on);
@@ -1584,8 +1646,9 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
   const seg=steps.filter(x=>x.t!=="finish").map((x,i)=>`<i class="${i<S.wp.step?"on":i===S.wp.step?"cur":""}"></i>`).join("");
   const head=`<header class="wp-head"><button class="iconbtn" data-act="wpEnd" aria-label="End workout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="wp-title"><b>${dw.forClient?esc(firstName(dw.forClient.name))+" · ":""}${esc(dw.name||kindName(dw.kind)+" session")}</b><span id="wpClock">${elapsed()}</span></div>
+    ${NATIVE?`<button class="wp-hr" data-act="hrOpen" aria-label="Heart rate"><span class="hrdot">♥</span><b class="hrlive">${HRL.state==="on"&&HRL.who===hrWho()&&HRL.bpm?HRL.bpm:HRL.state==="connecting"?"…":"+"}</b></button>`:""}
     <div class="wp-view" role="group" aria-label="View"><button data-act="wpView" data-v="focus" aria-pressed="${S.wpView!=="list"}">Focus</button><button data-act="wpView" data-v="list" aria-pressed="${S.wpView==="list"}">List</button></div></header>
-    <div class="wp-seg" aria-label="Step ${S.wp.step+1} of ${steps.length}">${seg}</div>`;
+    <div class="wp-seg" aria-label="Step ${S.wp.step+1} of ${steps.length}">${seg}</div>${S.hrSheet?hrSheet():""}`;
   if(S.idlePrompt&&dw.lastAct){const t=new Date(dw.lastAct),hm=t.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),gone=Math.round(idleMins()),gh=gone>=60?Math.floor(gone/60)+" h "+(gone%60)+" min":gone+" min";
     return `<div class="player">${head}<div class="wp-body" style="justify-content:center"><span class="label">Welcome back</span><h1>Still training?</h1><p class="small" style="margin:0">This session has had no activity for <b>${gh}</b>. Your last change was at ${hm}.</p>
     <button class="wp-big" data-act="idleSave">Finish and save (ended ${hm})</button><button class="btn" style="height:52px" data-act="idleKeep">Keep going</button>
@@ -1604,6 +1667,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     return `<div class="player">${head}<div class="wp-body wp-rest">
       <div class="wp-ring" id="wpRing" style="--p:${R.fired?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}"><div><span class="label">${R.fired?"Rest over":"Rest"}</span><b id="wpRest">${R.fired?"Go!":mmss(left)}</b><span>of ${mmss(R.total)}</span></div></div>
       ${last?`<span class="small muted" style="text-align:center">Set ${ex.sets.indexOf(last)+1} logged · ${esc(val(last))}${last.rir!==""&&last.rir!=null?" · "+last.rir+" in reserve":""}</span>`:""}
+      ${HRL.state==="on"&&HRL.who===hrWho()?`<span class="small" style="text-align:center"><span class="hrdot">♥</span> <b class="hrlive">${HRL.bpm||"--"}</b> bpm · <span class="hrzone"></span> <span class="muted" id="hrDown"></span></span>`:""}
       <div class="wp-trio"><button class="btn" data-act="restAdj" data-d="-15">−15 s</button><button class="btn" data-act="restAdj" data-d="15">+15 s</button><button class="btn" data-act="restSkip">Skip</button></div>
       <section class="panel wp-next"><span class="label">Up next${st?" · set "+(si+1)+" of "+ex.sets.length:""}</span>
         ${st?`<div class="spread" style="align-items:baseline"><b class="wp-nx">${esc(ex.name||"Exercise")}</b><b class="wp-nx" id="wpNextVal">${esc(val(st))}</b></div>
@@ -2498,7 +2562,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:recoveryReport()}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:recoveryReport(),age:ageFromDob(pr.dob)||+pr.hrAge||null,maxHR:+pr.maxHR||null}}
 function liftsReport(){const o={};let n=0;for(const [k,L] of exIndex(0)){if(n++>=80)break;o[k]=L.slice(0,3).map(h=>({date:h.date,sets:(h.sets||[]).map(x=>x.secs!=null&&(x.reps==null||x.reps==="")?{kg:+x.kg||0,secs:+x.secs||0}:{kg:+x.kg||0,reps:+x.reps||0})}))}return o}
 function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
   const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
@@ -2801,16 +2865,16 @@ function tcBase(c,k,v,w,d){
     return x?{name:nm,kind:x.kind,exercises:x.exercises,progId:v,progWeek:+w,progDay:+d}:null}
   return null}
 function saveClientSession(w){const fc=w.forClient,c=S.docs[fc.id]||{},prs=findPRs(w),id="cses_"+Date.now().toString(36);
-  const doc={type:"csession",date:w.date,clientId:fc.id,clientUid:c.clientUid||"",name:w.name||kindName(w.kind)+" session",kind:w.kind,exercises:w.exercises,warmup:w.warmup,cooldown:w.cooldown,mins:w.mins||0,note:String(w.csNote||"").trim(),planPid:w.planPid||"",progId:w.progId||"",progWeek:w.progWeek||null,progDay:w.progDay??null,prs,coachName:activeProf().name,at:new Date().toISOString(),...(c.clientUid?{pending:true}:{})};
+  const doc={type:"csession",date:w.date,clientId:fc.id,clientUid:c.clientUid||"",name:w.name||kindName(w.kind)+" session",kind:w.kind,exercises:w.exercises,warmup:w.warmup,cooldown:w.cooldown,mins:w.mins||0,...(w.hr?{hr:w.hr,hrLog:w.hrLog}:{}),note:String(w.csNote||"").trim(),planPid:w.planPid||"",progId:w.progId||"",progWeek:w.progWeek||null,progDay:w.progDay??null,prs,coachName:activeProf().name,at:new Date().toISOString(),...(c.clientUid?{pending:true}:{})};
   S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();S.tab="you";S.youView="clients";S.progView=null;S.clientOpen=fc.id;S.tcOpen=null;save(id,doc);window.scrollTo(0,0);
   const first=firstName(fc.name),pb=prs.length?` · 🏆 ${prs.length} new PB${prs.length>1?"s":""}`:"";
   if(doc.clientUid)pushClientLog({...doc,id}).then(ok=>toast(ok?`Saved and sent to ${first}${pb}`:`Saved. It'll go to ${first}'s app when you're back online`));else toast(`Saved to ${first}'s history${pb}`)}
-const logPayload=d=>({type:"coachlog",on:d.date,name:d.name,kind:d.kind,exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],mins:d.mins||0,note:d.note||"",planPid:d.planPid||"",coachName:d.coachName||"",at:d.at||""});
+const logPayload=d=>({type:"coachlog",on:d.date,name:d.name,kind:d.kind,exercises:d.exercises,...(d.hr?{hr:d.hr,hrLog:d.hrLog||[]}:{}),warmup:d.warmup||[],cooldown:d.cooldown||[],mins:d.mins||0,note:d.note||"",planPid:d.planPid||"",coachName:d.coachName||"",at:d.at||""});
 async function pushClientLog(d){if(!d.clientUid||!CL.user)return false;const ok=await pushCoachRow(d.clientUid,"log_"+d.id,logPayload(d));if(ok){const cur=S.docs[d.id];if(cur&&cur.pending){const n={...cur};delete n.pending;save(d.id,n)}}return ok}
 function clientSessionsPanel(id,c){const L=csOf(id),first=esc(firstName(c.name)),all=S.csAll===id;
   return `<section class="panel"><div class="spread"><h2>Sessions with you</h2><span class="label">${L.length}</span></div>
     ${L.length?`<div class="hist">${L.slice(0,all?L.length:5).map(x=>`<div class="item"><div class="spread"><b>${esc(x.name)}</b><span class="small muted">${fmtDay(x.date)}</span></div>
-      <div class="small muted"><span class="kbadge">${kindName(x.kind)}</span> ${(x.exercises||[]).length} exercises${x.mins?" · "+fmtDur(x.mins):""}${x.prs&&x.prs.length?` · 🏆 ${x.prs.length} PB${x.prs.length>1?"s":""}`:""}${x.clientUid?(x.pending?" · not sent yet":" · in their app"):""}</div>
+      <div class="small muted"><span class="kbadge">${kindName(x.kind)}</span> ${(x.exercises||[]).length} exercises${x.mins?" · "+fmtDur(x.mins):""}${x.prs&&x.prs.length?` · 🏆 ${x.prs.length} PB${x.prs.length>1?"s":""}`:""}${x.hr?` · ♥ ${x.hr.avg} avg, ${x.hr.max} max`:""}${x.clientUid?(x.pending?" · not sent yet":" · in their app"):""}</div>${x.hrLog&&x.hrLog.length>2?`<details><summary class="small">Heart rate</summary>${hrChart(x)}</details>`:""}
       <div class="small">${(x.exercises||[]).map(e=>`${esc(e.name)} ${fmtSets(e.sets)}`).join("<br>")}</div>${x.note?`<div class="small">💬 ${esc(x.note)}</div>`:""}
       <div class="row" style="margin-top:2px"><button class="btn ghost" data-act="tcGo" data-id="${id}" data-k="repeat" data-v="${x.id}">Repeat</button><button class="btn ghost" style="color:var(--protein)" data-act="csDel" data-id="${x.id}">${S.csDelAsk===x.id?"Tap to confirm":"Delete"}</button></div></div>`).join("")}</div>
       ${L.length>5?`<button class="btn ghost" style="align-self:flex-start" data-act="csAll" data-id="${all?"":id}">${all?"Show fewer":"Show all "+L.length}</button>`:""}`
@@ -3040,7 +3104,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,recovery:j.recovery||null,_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,recovery:j.recovery||null,age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 /* ---------- coach-planned sessions ---------- */
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
@@ -3083,7 +3147,7 @@ async function fetchPlans(){const c=await sbClient();if(!c||!CL.user||!CL.links|
 // targets and habits your coach set: applied once per update, you can still change them yourself afterwards
 function applyCoachLogs(list){const logs=list.filter(r=>r.type==="coachlog"),seen=clone(S.docs.clseen||{type:"clseen",ids:{}}),added=[];let ch=false;
   logs.forEach(r=>{if(seen.ids[r.id]===r.at)return;seen.ids[r.id]=r.at;ch=true;const wid="wo_"+r.id,had=!!S.docs[wid];
-    const w={type:"workout",date:r.on||todayKey(),name:r.name||"Session",kind:r.kind||"gym",exercises:r.exercises||[],warmup:r.warmup||[],cooldown:r.cooldown||[],mins:+r.mins||0,coachLogged:true,coachName:r.coachName||"",coachLogId:r.id,coachId:r.coachId,...(r.note?{coachMsg:r.note}:{}),...(r.planPid?{planId:r.planPid}:{})};
+    const w={type:"workout",date:r.on||todayKey(),name:r.name||"Session",kind:r.kind||"gym",exercises:r.exercises||[],warmup:r.warmup||[],cooldown:r.cooldown||[],mins:+r.mins||0,coachLogged:true,coachName:r.coachName||"",coachLogId:r.id,coachId:r.coachId,...(r.hr?{hr:r.hr,hrLog:r.hrLog||[],hrAt:Date.now()}:{}),...(r.note?{coachMsg:r.note}:{}),...(r.planPid?{planId:r.planPid}:{})};
     if(r.at){w.ended=Date.parse(r.at)||undefined;if(w.ended&&w.mins)w.started=w.ended-w.mins*60000}
     if(!had){const prs=findPRs(w);if(prs.length)w.prs=prs;added.push(w)}else if(S.docs[wid].hk)w.hk=S.docs[wid].hk;save(wid,w);if(!had)hkSaveWorkout(wid)});
   const live=new Set(logs.map(r=>r.id)),linked=new Set((CL.links||[]).map(l=>l.coach_id));
@@ -3593,6 +3657,12 @@ document.addEventListener("click",e=>{
     case "hqSave":{const h=S.healthDraft;if(HEALTH_Q.some(([k])=>!h[k])){toast("Answer each question with yes or no");break}if(!h.consent){toast("Tick the box to agree to your answers being stored");break}
       S.healthDraft=null;const rec=healthRecord(h);save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),health:rec});toast(rec.flagged?"Saved. Please check with your GP before increasing exercise":"Saved. All clear");break}
     case "hkConnect":hkConnect();break;
+    case "hrOpen":S.hrSheet=!S.hrSheet;render();setTimeout(hrPaint,0);break;
+    case "hrClose":S.hrSheet=false;render();break;
+    case "hrGo":hrStart(ds.v==="saved"?hrSaved(hrWho()):null);break;
+    case "hrOff":hrStop();break;
+    case "hrAll":S.hrAll=!S.hrAll;break;
+    case "hrAgeSave":{const a=+(document.getElementById("hrAgeIn")||{}).value;if(!(a>=8&&a<=95)){toast("Enter an age between 8 and 95");break}const fc=S.draftWorkout&&S.draftWorkout.forClient;if(fc){const c=S.docs[fc.id];if(c)save(fc.id,{...c,age:a})}else save("profile",{...(S.docs.profile||{type:"profile"}),hrAge:a});toast("Zones set");break}
     case "watchDev":S.watchDev=ds.v;render();break;
     case "watchOff":lsSet("pf-watchoff:"+PROF.active,"1");render();toast("Hidden. Find the guide any time in Settings › Connect your watch");break;
     case "hkOff":{const st=clone(settings());st.health={...(st.health||{}),on:false};save("settings",st);toast("Apple Health turned off here");break}
@@ -3826,7 +3896,7 @@ document.addEventListener("click",e=>{
     case "wpBack":S.woList=false;if(!S.wp)S.wp={step:0};render();break;
     case "wpEnd":S.wpEnd=true;S.wpDiscard=false;render();break;
     case "wpEndNo":S.wpEnd=false;render();break;
-    case "wpDiscard":if(!S.wpDiscard){S.wpDiscard=true;render();break}S.wpEnd=false;S.wpDiscard=false;S.wu=null;S.draftWorkout=null;S.wp=null;stopRest();wakeOff();render();toast("Workout discarded");break;
+    case "wpDiscard":if(!S.wpDiscard){S.wpDiscard=true;render();break}if(HRL.state!=="off")hrStop();S.wpEnd=false;S.wpDiscard=false;S.wu=null;S.draftWorkout=null;S.wp=null;stopRest();wakeOff();render();toast("Workout discarded");break;
     case "wpSet":S.wp.si=+ds.i;render();break;
     case "wpAddSet":{const ex=S.draftWorkout.exercises[wpSteps(S.draftWorkout)[S.wp.step].ei],l=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:l.kg??"",reps:l.reps??"",secs:l.secs??""});S.wp.si=ex.sets.length-1;render();break}
     case "wpAdj":{const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=S.draftWorkout.exercises[cur.ei],si=wpCurSet(ex),st=ex.sets[si];if(!st)break;const old=st[ds.f],v=Math.max(0,r1((+st[ds.f]||0)+(+ds.d)));st[ds.f]=v;
@@ -3859,7 +3929,7 @@ document.addEventListener("click",e=>{
     case "cSave":{const d=S.cDraft;if(!(+d.mins>0)){toast("Add how many minutes");document.getElementById("c_mins")?.focus();break}
       {const cid="cardio_"+Date.now();save(cid,{type:"cardio",date:d.date||todayKey(),activity:d.activity,mins:+d.mins,km:+d.km||0,hr:+d.hr||0,rpe:d.rpe,notes:d.notes||""});hkSaveWorkout(cid)}S.cDraft={...d,mins:"",km:"",hr:"",notes:""};toast("Cardio saved");break}
     case "cDel":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Cardio deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
-    case "cancelWo":S.wu=null;S.draftWorkout=null;S.wp=null;stopRest();wakeOff();render();break;
+    case "cancelWo":if(HRL.state!=="off")hrStop();S.wu=null;S.draftWorkout=null;S.wp=null;stopRest();wakeOff();render();break;
     case "useLast":{const ex=S.draftWorkout.exercises[+ds.ei],h=exHistory(ex.name);if(h.length){ex.sets=h[0].sets.map(s=>({kg:s.kg,reps:s.reps,secs:s.secs}));render();toast("Copied. Add a rep or a little weight to progress")}break}
     case "openEx":S.openEx=S.openEx===ds.k?null:ds.k;render();break;
     case "addEx":S.draftWorkout.exercises.push({name:"",sets:[{kg:"",reps:""}]});render();break;
@@ -3875,7 +3945,7 @@ document.addEventListener("click",e=>{
       w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";if(+e.rest)o.rest=+e.rest;return o}).filter(e=>e.sets.length);
       ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:x.sel&&x.sel.length?x.sel.map(n=>n.split(",")[0]+" × "+drillTarget(x,n)).join(", "):(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
       if(!w.exercises.length&&!w.warmup.some(x=>x.done)&&!w.cooldown.some(x=>x.done)){toast("Nothing to save yet. Log a set, or tick off your warm-up");break}
-      if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;if(w.forClient){saveClientSession(w);break}const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
+      if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;{const sm=hrSummary(w.hrLog,hrMaxFor(w.forClient));if(sm){w.hr=sm;w.hrAt=Date.now();w.hrLog=hrThin(w.hrLog)}else delete w.hrLog}if(HRL.state!=="off")hrStop();if(w.forClient){saveClientSession(w);break}const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
       S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();S.woSum=id;S.woSumFresh=true;S.tab="train";save(id,w);window.scrollTo(0,0);setTimeout(()=>pushReports(true),2000);hkSaveWorkout(id);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
     case "woSum":S.woSum=ds.id;S.woSumFresh=false;S.tab="train";render();window.scrollTo(0,0);break;
     case "sumClose":S.woSum=null;S.woSumFresh=false;render();window.scrollTo(0,0);break;
