@@ -165,6 +165,21 @@ Privacy Policy URL: `https://rizjr.github.io/Project-Fitness/privacy.html`
 
 ---
 
+## Apple Health (HealthKit)
+
+The app code is already done. Before the next build, turn HealthKit on for the app with Apple, or the build will fail at code signing.
+
+1. Go to developer.apple.com/account, then **Certificates, IDs & Profiles**, then **Identifiers**, and click `com.rizjr.projectfitness`.
+2. In the Capabilities list, tick **HealthKit**. Leave "Clinical Health Records" and "Background Delivery" unticked. Click **Save**, then **Confirm**. Apple warns that profiles will need regenerating; that's expected.
+3. Go to **Profiles** and click `Project Fitness App Store` (it now says Invalid). Click **Edit**, check the certificate is still ticked, then **Save**. It's valid again.
+4. In Codemagic, open **Team settings** (or Personal account), then **codemagic.yaml settings**, then **Code signing identities**, then **iOS provisioning profiles**. Delete the old `pf_appstore`, click **Fetch profiles**, tick `Project Fitness App Store`, give it the reference name `pf_appstore` again, and click **Download selected**.
+5. Start a new build (Step 5). When it's in TestFlight, update the app, open **Settings › Apple Health › Connect Apple Health** and allow access on Apple's screen.
+
+**For App Review**, add this to the review notes:
+> Apple Health is optional (Settings › Apple Health). It saves finished workouts and weigh-ins to Health, reads steps to tick the user's steps habit, reads sleep to pre-fill the morning check-in, and reads weight to add weigh-ins from a smart scale. Health data is only used for these features, never for advertising.
+
+**App Privacy**: nothing new to tick. Health & Fitness › Health and Fitness are already declared.
+
 ## Updating the app later
 
 - Edit the app as usual and push to GitHub. The website updates straight away.

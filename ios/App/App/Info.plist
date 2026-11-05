@@ -57,6 +57,10 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Project Fitness reads your steps, sleep and weight to tick off your steps habit, fill in your morning check-in and add weigh-ins from your smart scale.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Project Fitness saves your finished workouts and weigh-ins to Apple Health so they count towards your Activity rings.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take progress photos and photos of food or labels to log them.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
