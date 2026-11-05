@@ -881,8 +881,8 @@ function renderStrength(){const wo=ofType("workout"),dw=S.draftWorkout;
   const hist=wo.slice(0,S.woAll?wo.length:15).map(w=>{const sets=w.exercises.reduce((s,e)=>s+e.sets.length,0);const vol=w.exercises.reduce((s,e)=>s+e.sets.reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0),0);
     const wu=(w.warmup||[]).length,cd=(w.cooldown||[]).length;
     return `<div class="item"><div class="spread"><b>${esc(w.name||"Session")}</b><span class="small muted">${fmtDay(w.date)}</span></div>
-    <div class="small muted" style="font-variant-numeric:tabular-nums"><span class="kbadge">${kindName(w.kind)}</span> ${w.exercises.length} exercises · ${sets} sets${vol?` · ${Math.round(vol).toLocaleString("en-GB")} kg volume`:""}${wu||cd?` · warm-up ${wu?"✓":"–"} · cool-down ${cd?"✓":"–"}`:""}${w.prs&&w.prs.length?` · 🏆 ${w.prs.length} PB${w.prs.length===1?"":"s"}`:""}</div>
-    <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${fmtSets(e.sets)}`).join("<br>")}</div>
+    <div class="small muted" style="font-variant-numeric:tabular-nums"><span class="kbadge">${kindName(w.kind)}</span>${w.coachLogged?` <span class="kbadge">With ${esc(firstName(w.coachName||"your coach"))}</span>`:""} ${w.exercises.length} exercises · ${sets} sets${vol?` · ${Math.round(vol).toLocaleString("en-GB")} kg volume`:""}${wu||cd?` · warm-up ${wu?"✓":"–"} · cool-down ${cd?"✓":"–"}`:""}${w.prs&&w.prs.length?` · 🏆 ${w.prs.length} PB${w.prs.length===1?"":"s"}`:""}</div>
+    <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${fmtSets(e.sets)}`).join("<br>")}</div>${w.coachMsg?`<div class="small">💬 ${esc(w.coachName||"Your coach")}: ${esc(w.coachMsg)}</div>`:""}
     <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="woSum" data-id="${w.id}">Summary</button><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="tplFromWo" data-id="${w.id}">Save as template</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`}).join("");
   return `${dw?"":`<div class="label" style="margin-bottom:6px">Start your own session</div><div class="row" style="margin-bottom:8px">${KINDS.map(([k,l])=>`<button class="btn${k==="gym"?" primary":""}" data-act="newWo" data-v="${k}">+ ${l}</button>`).join("")}</div>
     <button class="btn ghost" style="margin-bottom:14px;padding-left:0" data-act="progOpenTrain">📋 Programmes: plan several weeks for yourself</button>`}
@@ -1153,7 +1153,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-05-2";
+const APP_VERSION="2026-11-05-3";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1307,6 +1307,7 @@ function todayBody(){const I=heroInfo(),t=todayKey(),ws=weekStart(),G=myGoals()[
   return `${coachNote(I.cp)}${I.act}${gb}
     <div class="wkstats"><div><b>${done}${planned?"/"+planned:""}</b><span>Sessions this week</span></div>${NUM()?`<div><b>${pd}/${days}</b><span>Protein days</span></div>`:`<div><b>${(settings().habits||[]).filter(h=>(dayDoc(t).habits||{})[h]).length}/${(settings().habits||[]).length}</b><span>Habits today</span></div>`}<div><b>${planStreak().n?"🔥 "+planStreak().n:planStreak().best||0}</b><span>${planStreak().n?"In a row":"Best streak"}</span></div></div>
     ${!G?`<button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="goGoals">+ Set a goal</button>`:""}
+    ${isCoach()?trainClientRow():""}
     ${aheadInfo()?`<button class="duerow" data-tab="train"><span><b>You're ahead of schedule</b><span class="small muted" style="display:block">Bring your programme forward so it carries on from when you train</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}
     ${ciDue?`<button class="duerow" data-act="goCheckin"><span><b>Weekly check-in due Sunday</b><span class="small muted" style="display:block">Weight, photos and how the week felt · 2 min</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}`}
 /* ---------- programme status: missed sessions, streaks, finished programmes ---------- */
@@ -1465,7 +1466,7 @@ function wpDoneSet(){if(!wpEnsureName())return;const dw=S.draftWorkout,cur=wpSte
 function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp={step:0};if(S.wp.step>=steps.length)S.wp.step=steps.length-1;const cur=steps[S.wp.step];
   const seg=steps.filter(x=>x.t!=="finish").map((x,i)=>`<i class="${i<S.wp.step?"on":i===S.wp.step?"cur":""}"></i>`).join("");
   const head=`<header class="wp-head"><button class="iconbtn" data-act="wpEnd" aria-label="End workout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    <div class="wp-title"><b>${esc(dw.name||kindName(dw.kind)+" session")}</b><span id="wpClock">${elapsed()}</span></div>
+    <div class="wp-title"><b>${dw.forClient?esc(firstName(dw.forClient.name))+" · ":""}${esc(dw.name||kindName(dw.kind)+" session")}</b><span id="wpClock">${elapsed()}</span></div>
     <div class="wp-view" role="group" aria-label="View"><button data-act="wpView" data-v="focus" aria-pressed="${S.wpView!=="list"}">Focus</button><button data-act="wpView" data-v="list" aria-pressed="${S.wpView==="list"}">List</button></div></header>
     <div class="wp-seg" aria-label="Step ${S.wp.step+1} of ${steps.length}">${seg}</div>`;
   if(S.idlePrompt&&dw.lastAct){const t=new Date(dw.lastAct),hm=t.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),gone=Math.round(idleMins()),gh=gone>=60?Math.floor(gone/60)+" h "+(gone%60)+" min":gone+" min";
@@ -1512,10 +1513,10 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
       :coolBottom(dw,L)}</div>`}
   if(cur.t==="finish"){const done=dw.exercises.map(e=>({...e,sets:e.sets.filter(x=>x.done)})).filter(e=>e.sets.length),sets=done.reduce((a,e)=>a+e.sets.length,0),vol=done.reduce((a,e)=>a+e.sets.reduce((b,x)=>b+(+x.kg||0)*(+x.reps||0),0),0),prs=findPRs({exercises:done}),typed=sets?0:dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>exMode(e.name,e.mode)==="time"?+x.secs>0:x.reps!==""&&x.reps!=null&&+x.reps>0).length,0);
     return `<div class="player">${head}<div class="wp-body"><span class="label">Workout complete</span><h1>Nice work</h1>
-      ${sumTiles({kind:dw.kind,mins:dw.started?Math.max(1,Math.round((Date.now()-dw.started)/60000)):0,exercises:done,warmup:dw.warmup,cooldown:dw.cooldown},prs)}${kcalNote()}
+      ${sumTiles({kind:dw.kind,mins:dw.started?Math.max(1,Math.round((Date.now()-dw.started)/60000)):0,exercises:done,warmup:dw.warmup,cooldown:dw.cooldown},prs)}${dw.forClient?`<label class="field"><span class="label">Note for ${esc(firstName(dw.forClient.name))} (optional)</span><textarea data-act="csNote" rows="2" placeholder="e.g. Squat depth better, go up 2.5 kg next time">${esc(dw.csNote||"")}</textarea>${dw.forClient.uid?`<span class="small muted">They see the session and this note in their app.</span>`:""}</label>`:kcalNote()}
       ${prs.length?`<section class="panel"><span class="label">New personal bests</span>${prs.map(x=>`<div><b>${esc(x.name)}</b> <span class="muted">${esc(x.txt)}</span></div>`).join("")}</section>`:""}
       ${sets?"":typed?`<p class="small muted">No sets ticked as done, so the ${typed} set${typed>1?"s":""} you filled in will be saved. Next time, tap Done set as you go.</p>`:`<p class="small muted">No sets logged. You can still save it (your warm-up and cool-down count), or go back and tap Done set after each set.</p>`}</div>
-      <button class="wp-big" data-act="saveWo">Save workout</button><button class="btn ghost" data-act="wpGo" data-v="${Math.max(0,S.wp.step-1)}">Back</button></div>`}
+      <button class="wp-big" data-act="saveWo">${dw.forClient?(dw.forClient.uid?"Save and send to ":"Save to ")+esc(firstName(dw.forClient.name)):"Save workout"}</button><button class="btn ghost" data-act="wpGo" data-v="${Math.max(0,S.wp.step-1)}">Back</button></div>`}
   const ex=dw.exercises[cur.ei],mode=exMode(ex.name,ex.mode),bw=dw.kind!=="gym",si=wpCurSet(ex);if(si>=0)wpPrefill(ex,si,mode);const st=si>=0?ex.sets[si]:null;
   const h=exHistory(ex.name),last=h[0],kgStep=dw.kind==="gym"||dw.kind==="functional"?2.5:1,isLastEx=!dw.exercises[cur.ei+1];
   return `<div class="player">${head}<div class="wp-body">
@@ -1676,7 +1677,7 @@ function exMode(name,saved){if(saved)return saved;const k=String(name||"").trim(
 const exKey=n=>String(n||"").trim().toLowerCase();
 // every logged instance of an exercise, newest first (example data excluded once real data exists)
 const exIndex=memo(()=>{const m=new Map();ofTypeM("workout").forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&e.sets&&e.sets.length){if(!m.has(k))m.set(k,[]);m.get(k).push({id:w.id,date:w.date,session:w.name,sets:e.sets})}}));return m});
-function exHistory(name){const k=exKey(name);if(!k)return[];return (exIndex(0).get(k)||[]).slice()}
+function exHistory(name){const fc=S.draftWorkout&&S.draftWorkout.forClient;if(fc&&S.docs[fc.id])return clientHist(fc.id,name);const k=exKey(name);if(!k)return[];return (exIndex(0).get(k)||[]).slice()}
 const e1rm=s=>(+s.kg||0)*(1+(+s.reps||0)/30);
 // one comparable score per set: weighted sets by estimated 1RM, bodyweight sets by reps or seconds
 const setScore=s=>(+s.kg||0)>0?1000+(s.secs?(+s.kg)*(1+(+s.secs)/60):e1rm(s)):(+s.secs||+s.reps||0);
@@ -2380,7 +2381,8 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport()}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport()}}
+function liftsReport(){const o={};let n=0;for(const [k,L] of exIndex(0)){if(n++>=80)break;o[k]=L.slice(0,3).map(h=>({date:h.date,sets:(h.sets||[]).map(x=>x.secs!=null&&(x.reps==null||x.reps==="")?{kg:+x.kg||0,secs:+x.secs||0}:{kg:+x.kg||0,reps:+x.reps||0})}))}return o}
 function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
   const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
   return {lastFood:days.pop()||null,lastWorkout:(ofType("workout")[0]||{}).date||null,ready,lastCheckin:(ofType("checkin")[0]||{}).date||null,at:todayKey()}}
@@ -2396,7 +2398,7 @@ function coachSeg(){return `<div class="seg" role="tablist" aria-label="Check-in
 function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.kind!=="progress-report"||!Array.isArray(j.weeks))throw 0;
     const id="client_"+String(j.shareId||j.name).replace(/[^a-z0-9_-]/gi,""),old=S.docs[id]||{};
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
-    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
+    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],lifts:j.lifts||old.lifts||null,weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
 const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["readiness","Readiness"],["recovery","Recovery sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
@@ -2571,7 +2573,7 @@ function clientFlex(c){if(!c||!c.clientUid)return null;const L=ofType("cplan").f
   const pw=L[0].perWeek||3,ids=new Set(L.map(p=>p.pid)),ws=weekStart(),el=dDiff(todayKey(),ws)+1,pd=(c.planDone||[]).filter(x=>ids.has(x.id||x)),done=pd.filter(x=>x.date>=ws).length,dn=new Set(pd.map(x=>x.id||x));
   const order=L.slice().sort((a,b)=>(a.seq??0)-(b.seq??0)),next=order.find(p=>!dn.has(p.pid));
   return {pw,done,expect:Math.floor(pw*el/7),behind:done<Math.floor(pw*el/7),next,pos:next?order.indexOf(next)+1:order.length,total:order.length,doneIds:dn}}
-function clientFlags(c){const F=[],t=todayKey(),R=c.recent||{},done=new Set((c.planDone||[]).map(x=>x.id||x));
+function clientFlags(c){const F=[],t=todayKey(),R=c.recent||{},done=new Set((c.planDone||[]).map(x=>x.id||x));if(c.local){const L=csOf(c.id),d=L.length?daysSince(L[0].date):null;if(d!=null&&d>=14)F.push(["amber",`No session together for ${d} days`]);return F}
   if(c.health&&c.health.pain&&c.health.pain.length)F.push(["red",`Pain: ${c.health.pain.map(x=>x.area).join(", ")}`]);
   if(c.health&&c.health.flagged)F.push(["red","Health check needs GP clearance"]);
   const fx=clientFlex(c);if(fx&&fx.behind)F.push(["amber",`Flexible plan: ${fx.done} of ${fx.pw} sessions this week`]);
@@ -2593,23 +2595,25 @@ function renderClients(){if(S.progView)return renderProgrammes();if(CL.user&&(!C
   const list=ofType("client").map(c=>({c,F:clientFlags(c)})).sort((a,b)=>flagRank(b.F)-flagRank(a.F)||String(a.c.name).localeCompare(String(b.c.name))).map(x=>Object.assign(x.c,{_F:x.F}));const c=S.clientOpen&&S.docs[S.clientOpen];
   const need=list.filter(x=>x._F.some(f=>f[0]!=="grey")).length;
   const head="";
-  if(c)return head+clientDetail(S.clientOpen,c);
-  return head+`<div class="stack"><button class="btn" style="align-self:flex-start" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button>${list.length?`<section class="dashsum"><div><b>${list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>need you</span></div><div><b>${list.length-list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>!p.flex&&p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length+list.reduce((a,cl)=>a+((clientFlex(cl)||{}).pw||0),0)}</b><span>sessions planned this week</span></div></section>`:""}${list.length?(()=>{const row=cl=>{const F=cl._F||[],pc=clientWeekPct(cl),warn=F.find(f=>f[0]==="red"||f[0]==="amber"),gl=(cl.goals||[])[0],wk=cl.weeks[cl.weeks.length-1]||{};
-        return `<button class="setrow clientrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small ${warn?"":"muted"}" style="display:block;${warn?"color:var(--carb)":""}">${warn?esc(F.filter(f=>f[0]!=="grey").slice(0,2).map(f=>f[1]).join(" · ")):esc([wk.sessions!=null?wk.sessions+" session"+(wk.sessions===1?"":"s")+" this week":"",gl?gl.name+" "+gl.pct+"%":GOALS[cl.goal]||""].filter(Boolean).join(" · ")||"Report "+fmtDay(String(cl.received||cl.date).slice(0,10)))}</span></span></span><span class="rpct" style="color:${warn||(pc!=null&&pc<60)?"var(--carb)":"var(--accent)"}">${pc==null?"–":pc+"%"}</span></button>`};
+  if(c)return head+(c.local?localClientDetail(S.clientOpen,c):clientDetail(S.clientOpen,c));
+  return head+`<div class="stack"><div class="row" style="gap:6px"><button class="btn" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button><button class="btn" data-act="lcNew">+ Add client</button></div>${addClientForm()}${S.tcPicker&&list.length?`<section class="panel"><h2>Who are you training?</h2><div class="chips">${list.map(cl=>`<button class="qchip" data-act="tcOpen" data-id="${cl.id}">${esc(cl.name)}</button>`).join("")}</div></section>`:""}${list.length?`<section class="dashsum"><div><b>${list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>need you</span></div><div><b>${list.length-list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>!p.flex&&p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length+list.reduce((a,cl)=>a+((clientFlex(cl)||{}).pw||0),0)}</b><span>sessions planned this week</span></div></section>`:""}${list.length?(()=>{const row=cl=>{const F=cl._F||[],pc=clientWeekPct(cl),warn=F.find(f=>f[0]==="red"||f[0]==="amber"),gl=(cl.goals||[])[0],wk=cl.weeks[cl.weeks.length-1]||{};
+        return `<button class="setrow clientrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small ${warn?"":"muted"}" style="display:block;${warn?"color:var(--carb)":""}">${cl.local?esc(localSub(cl)):warn?esc(F.filter(f=>f[0]!=="grey").slice(0,2).map(f=>f[1]).join(" · ")):esc([wk.sessions!=null?wk.sessions+" session"+(wk.sessions===1?"":"s")+" this week":"",gl?gl.name+" "+gl.pct+"%":GOALS[cl.goal]||""].filter(Boolean).join(" · ")||"Report "+fmtDay(String(cl.received||cl.date).slice(0,10)))}</span></span></span><span class="rpct" style="color:${warn||(pc!=null&&pc<60)?"var(--carb)":"var(--accent)"}">${pc==null?"–":pc+"%"}</span></button>`};
       const needL=list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)),okL=list.filter(cl=>!needL.includes(cl));
       return `${needL.length?`<span class="rsec warn">Needs you</span><section class="panel" style="padding:4px 16px">${needL.map(row).join("")}</section>`:""}${okL.length?`<span class="rsec">On track</span><section class="panel" style="padding:4px 16px">${okL.map(row).join("")}</section>`:""}<span class="small muted">% = how much of this week's plan they've done so far: sessions, days on their food targets, and habits.</span>`})()
-    :`<section class="panel"><h2>No clients yet</h2><p class="small" style="margin:0">Ask your client to open <b>You → Check-in</b> in their own app and tap <b>Create and send report</b>. When they send you the file, tap <b>Import report</b> above and choose it.</p></section>`}
-    <section class="panel"><h2>How this protects your clients</h2><p class="small" style="margin:0">You only see what each client chooses to send: weekly summaries, never individual meals or their account. Reports are stored in your app on this phone only. Delete a client here when you stop working together.</p></section></div>`}
+    :`<section class="panel"><h2>No clients yet</h2><p class="small" style="margin:0">Clients who use Project Fitness link to you with your coach code (Settings → Cloud account), and their progress shows here. For someone who doesn't use the app, tap <b>+ Add client</b> and log their sessions on your phone.</p></section>`}
+    <section class="panel"><h2>How this protects your clients</h2><p class="small" style="margin:0">You only see what each client chooses to send: weekly summaries and their latest lifts, never individual meals or their account. Clients you add yourself are kept on this phone only. Delete a client here when you stop working together.</p></section></div>`}
 function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=>w.win||w.struggle||w.focus);
   const fv=(w,col)=>col[2]?col[2](w):(w[col[0]]==null||w[col[0]]===""?"—":col[0]==="volume"?Number(w[col[0]]).toLocaleString("en-GB"):fmtN(+w[col[0]]));
   return `<div class="stack"><section class="panel"><div class="spread"><button class="btn ghost" style="padding:4px 0" data-act="openClient" data-id="">‹ All clients</button><button class="btn ghost" style="color:var(--protein)" data-act="delClient" data-id="${id}">${S.confirmDelClient===id?"Tap to confirm":"Remove"}</button></div>
     <div class="who-row"><span class="avatar big">${esc(initials(c.name))}</span><div><b style="font-size:18px">${esc(c.name)}</b><div class="small muted">${esc(GOALS[c.goal]||"No goal set")} · targets ${t.kcal?Number(t.kcal).toLocaleString("en-GB")+" kcal, "+t.protein+"g protein":"not shared"}<br>${wk.length} weeks · last report ${fmtDay(String(c.received||c.date).slice(0,10))}</div></div></div></section>
+  ${trainPanel(id,c)}
   <section class="panel"><h2>Health check</h2>${c.health&&c.health.date?(c.health.flagged?`<div class="hint"><b>Answered yes to ${c.health.yes.length} question${c.health.yes.length===1?"":"s"}</b> (${fmtDay(c.health.date)}). Ask them to get GP clearance before increasing intensity.<ul class="small" style="margin:4px 0 0;padding-left:18px">${c.health.yes.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`:`<div class="small good"><b>All clear</b> (${fmtDay(c.health.date)})</div>`)
     :`<p class="small muted" style="margin:0">Not shared. Ask your client to complete the health check and tick "Share my health check and pain log with my coach" in their Settings.</p>`}${c.habitsOnly?`<div class="small">This client uses <b>habits-only mode</b> (calorie numbers hidden on their side).</div>`:""}
     ${c.health&&c.health.pain&&c.health.pain.length?`<div class="hint small"><b>Active pain reported</b>${c.health.pain.map(x=>`<span>${esc(x.area)}${x.side&&x.side!=="n/a"?" ("+esc(x.side)+")":""}: ${x.score}/10${x.kind?", "+esc(x.kind).toLowerCase():""}, since ${fmtDay(x.since)}${x.flags?", warning signs ticked":""}</span>`).join("")}</div>`:""}</section>
   ${(()=>{const F=clientFlags(c);return F.length?`<section class="panel"><h2>Needs attention</h2><div class="flags" style="display:flex;flex-wrap:wrap;gap:6px">${F.map(([k,t])=>`<i class="flag ${k}">${esc(t)}</i>`).join("")}</div></section>`:""})()}
   ${coachGoalsPanel(c)}
   ${plansSection(c)}
+  ${clientSessionsPanel(id,c)}
   ${coachSetPanel(c)}
   ${feedbackPanel(c)}
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
@@ -2625,6 +2629,86 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   ${hasNotes?`<section class="panel"><h2>Their check-in notes</h2><div class="hist">${wk.slice().reverse().filter(w=>w.win||w.struggle||w.focus).map(w=>`<div class="item"><b class="small">${fmtDay(w.week)}</b>
     ${w.win?`<div class="small"><b>Win:</b> ${esc(w.win)}</div>`:""}${w.struggle?`<div class="small"><b>Struggle:</b> ${esc(w.struggle)}</div>`:""}${w.focus?`<div class="small"><b>Focus:</b> ${esc(w.focus)}</div>`:""}</div>`).join("")}</div></section>`:""}
   <section class="panel"><h2>Your consultation notes</h2><textarea id="cnotes" data-act="clientNotes" data-id="${id}" rows="5" placeholder="Private to you, e.g. agreed changes, next review date">${esc(c.notes)}</textarea><span class="small muted">Saved automatically. Never sent to the client.</span></section></div>`}
+
+/* ---------- coach-led sessions: train a client in person and log it for them ---------- */
+const firstName=n=>String(n||"").trim().split(/\s+/)[0]||"them";
+const csOf=cid=>ofType("csession").filter(x=>x.clientId===cid).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:String(b.id).localeCompare(String(a.id)));
+// their history for one exercise, newest first: sessions you logged with them, plus what their own app shares
+function clientHist(cid,name){const k=exKey(name),c=S.docs[cid];if(!k||!c)return[];const out=[],seen=new Set(),sig=(d,sets)=>d+"|"+(sets||[]).map(x=>(+x.kg||0)+"x"+(x.reps??x.secs)).join(",");
+  const add=(id,date,session,sets)=>{if(!sets||!sets.length)return;const g=sig(date,sets);if(seen.has(g))return;seen.add(g);out.push({id,date,session,sets})};
+  csOf(cid).forEach(x=>(x.exercises||[]).forEach(e=>{if(exKey(e.name)===k)add(x.id,x.date,x.name,e.sets)}));
+  ((c.lifts||{})[k]||[]).forEach((h,i)=>add("lift_"+i,h.date,"",h.sets));
+  (c.planDone||[]).forEach(p=>(p.sets||[]).forEach(e=>{if(exKey(e.name)===k)add("pd_"+p.id,p.date,"",(e.sets||[]).map(a=>Array.isArray(a)?{kg:+a[0]||0,reps:+a[1]||0}:a))}));
+  return out.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0)}
+function localSub(c){const L=csOf(c.id);return L.length?`On your phone · last session ${fmtDay(L[0].date)}`:"On your phone · no sessions yet"}
+function trainClientRow(){const cl=ofType("client");const t=todayKey(),today=[...new Set(ofType("cplan").filter(p=>!p.flex&&p.date===t).map(p=>(cl.find(c=>c.clientUid===p.clientUid)||{}).name).filter(Boolean).map(firstName))];
+  return `<button class="duerow" data-act="tcPick"><span><b>Train a client</b><span class="small muted" style="display:block">${today.length?"Planned today: "+esc(today.join(", ")):"Log their sets, reps and weights as you train them"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
+function addClientForm(){if(!S.lcDraft)return"";return `<section class="panel"><h2>Add a client</h2><p class="small muted" style="margin:0">For someone who doesn't use the app. Their sessions are kept on your phone, and you can move them into their account if they join later.</p>
+  <form id="lcForm" class="stack" style="gap:10px"><label class="field"><span class="label">Name</span><input id="lc_name" autocomplete="off" placeholder="e.g. Sam Patel" required></label>
+  <label class="field"><span class="label">Goal (optional)</span><select id="lc_goal"><option value="">Not set</option>${Object.entries(GOALS).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("")}</select></label>
+  <div class="row"><button class="btn primary" type="submit">Add client</button><button class="btn" type="button" data-act="lcCancel">Cancel</button></div></form></section>`}
+// what you can start: their next planned session, the next day of a programme, a programme day, the last session again, or blank
+function trainPanel(id,c){const first=esc(firstName(c.name));
+  if(S.tcOpen!==id)return `<section class="panel"><div class="spread"><span style="min-width:0"><h2>Train ${first}</h2><span class="small muted">Log their sets as you train them in person${c.clientUid?". It goes straight into their app":""}.</span></span><button class="btn primary" data-act="tcOpen" data-id="${id}">${PLAY} Start</button></div></section>`;
+  const t=todayKey(),done=new Set((c.planDone||[]).map(x=>x.id||x)),logged=new Set(csOf(id).map(x=>x.planPid).filter(Boolean));
+  const plans=c.clientUid?ofType("cplan").filter(p=>p.clientUid===c.clientUid&&!done.has(p.pid)&&!logged.has(p.pid)&&(p.flex||p.date>=addDays(t,-7)&&p.date<=addDays(t,14))).sort((a,b)=>a.flex&&b.flex?(a.seq??0)-(b.seq??0):a.date<b.date?-1:1):[];
+  const flexNext=plans.filter(p=>p.flex).slice(0,1),fixed=plans.filter(p=>!p.flex).slice(0,3),planRows=[...flexNext,...fixed];
+  const last=csOf(id)[0],P=last&&last.progId&&S.docs[last.progId];let nextProg=null;
+  if(P&&last.progDay!=null){let d=+last.progDay+1,w=+last.progWeek||1;if(d>=P.days.length){d=0;w++}if(w<=P.weeks)nextProg={P,w,d}}
+  const progs=ofType("cprog"),TP=S.tcProg&&S.docs[S.tcProg.id]?S.tcProg:null,TPd=TP&&S.docs[TP.id];
+  const row=(label,name,sub,attrs,primary)=>`<div class="spread" style="padding:6px 0;border-top:1px solid var(--line)"><span style="min-width:0"><span class="label">${label}</span><b style="display:block">${esc(name)}</b>${sub?`<span class="small muted">${sub}</span>`:""}</span><button class="btn ${primary?"primary":""}" ${attrs}>${PLAY} Start</button></div>`;
+  return `<section class="panel"><div class="spread"><h2>Train ${first}</h2><button class="btn ghost" data-act="tcOpen" data-id="">Close</button></div>
+    ${planRows.map((p,i)=>row(p.flex?"Next in their plan":planDayLabel(p.date),p.name||"Session",`${(p.exercises||[]).length} exercises · ${kindName(p.kind)}`,`data-act="tcGo" data-id="${id}" data-k="plan" data-v="${p.id}"`,i===0)).join("")}
+    ${nextProg?row("Next in "+esc(nextProg.P.name),`${nextProg.P.days[nextProg.d].name||"Day "+(nextProg.d+1)} · Wk ${nextProg.w}`,"Carries on from your last session together",`data-act="tcGo" data-id="${id}" data-k="prog" data-v="${nextProg.P.id}" data-w="${nextProg.w}" data-d="${nextProg.d}"`,!planRows.length):""}
+    ${last?row("Repeat last session",last.name,fmtDay(last.date)+" · with the weights they lifted",`data-act="tcGo" data-id="${id}" data-k="repeat" data-v="${last.id}"`,!planRows.length&&!nextProg):""}
+    ${progs.length?`<div class="stack" style="gap:8px;padding-top:8px;border-top:1px solid var(--line)"><span class="label">From a programme</span>
+      <div class="row" style="flex-wrap:nowrap;gap:6px"><select data-act="tcProg" aria-label="Programme" style="flex:1;min-width:0"><option value="">Choose a programme</option>${progs.map(x=>`<option value="${x.id}" ${TP&&TP.id===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
+      ${TPd?`<select data-act="tcWeek" aria-label="Week" style="width:96px">${[...Array(TPd.weeks)].map((_,i)=>`<option value="${i+1}" ${TP.week===i+1?"selected":""}>Week ${i+1}</option>`).join("")}</select>`:""}</div>
+      ${TPd?`<div class="chips">${TPd.days.map((d,di)=>`<button class="qchip" data-act="tcGo" data-id="${id}" data-k="prog" data-v="${TPd.id}" data-w="${TP.week}" data-d="${di}">${PLAY} ${esc(d.name||"Day "+(di+1))}</button>`).join("")}</div>`:""}</div>`:""}
+    <div class="stack" style="gap:8px;padding-top:8px;border-top:1px solid var(--line)"><span class="label">Or start blank</span><div class="chips">${KINDS.map(([k,l])=>`<button class="qchip" data-act="tcGo" data-id="${id}" data-k="blank" data-v="${k}">+ ${l}</button>`).join("")}</div></div></section>`}
+function startClientSession(cid,b){const c=S.docs[cid];if(!c||!b)return;const kind=b.kind||"gym",cp=L=>(L||[]).map(x=>({name:x.name,detail:x.detail||"",done:false}));
+  S.draftWorkout={type:"workout",date:todayKey(),name:b.name||"",kind,forClient:{id:cid,uid:c.clientUid||"",name:c.name||"Client"},planPid:b.planPid||"",progId:b.progId||"",progWeek:b.progWeek||null,progDay:b.progDay??null,
+    warmup:b.warmup&&b.warmup.length?cp(b.warmup):presetList(WARM_PRESET,kind),cooldown:b.cooldown&&b.cooldown.length?cp(b.cooldown):presetList(COOL_PRESET,kind),exercises:[]};
+  if(b.blank){S.draftWorkout.exercises=[{name:"",sets:[{kg:"",reps:""}]}];S.draftWorkout._auto=true}
+  else S.draftWorkout.exercises=(b.exercises||[]).map(e=>{const last=(exHistory(e.name)[0]||{}).sets||[];return {name:e.name,mode:e.mode,note:e.note||"",why:e.why||"",rx:e.rx||null,...(e.rx&&e.rx.rest!==""&&e.rx.rest!=null&&!isNaN(+e.rx.rest)?{rest:+e.rx.rest}:+e.rest?{rest:+e.rest}:{}),
+    sets:(e.sets||[]).map((st,i)=>{const ls=last[i]||last[last.length-1]||{};return {kg:+st.kg>0?st.kg:(ls.kg!=null&&ls.kg!==""?ls.kg:(st.kg??"")),reps:st.reps??"",secs:st.secs??"",rir:st.rir??""}})}});
+  S.tcOpen=null;S.tcPicker=false;S.tab="train";wpStart();render();window.scrollTo(0,0);toast(`Training ${firstName(c.name)}. Their last weights show on each exercise`)}
+function tcBase(c,k,v,w,d){
+  if(k==="blank")return {kind:v,blank:true};
+  if(k==="plan"){const p=S.docs[v];return p?{name:p.name,kind:p.kind,exercises:p.exercises,warmup:p.warmup,cooldown:p.cooldown,planPid:p.pid,progId:p.progId||"",progWeek:p.week||null}:null}
+  if(k==="repeat"){const x=S.docs[v];return x?{name:x.name,kind:x.kind,progId:x.progId||"",progWeek:x.progWeek||null,progDay:x.progDay??null,exercises:(x.exercises||[]).map(e=>({name:e.name,mode:e.mode,...(e.rest?{rest:e.rest}:{}),sets:e.sets.map(z=>({kg:z.kg,reps:z.reps??"",secs:z.secs??""}))}))}:null}
+  if(k==="prog"){const P=S.docs[v];if(!P)return null;const day=P.days[+d];if(!day)return null;const nm=`${day.name||"Day "+(+d+1)} · Wk ${+w}`,x=progSessions(P,{flex:true,start:todayKey(),perWeek:3,progId:v}).find(z=>z.name===nm&&z.week===+w);
+    return x?{name:nm,kind:x.kind,exercises:x.exercises,progId:v,progWeek:+w,progDay:+d}:null}
+  return null}
+function saveClientSession(w){const fc=w.forClient,c=S.docs[fc.id]||{},prs=findPRs(w),id="cses_"+Date.now().toString(36);
+  const doc={type:"csession",date:w.date,clientId:fc.id,clientUid:c.clientUid||"",name:w.name||kindName(w.kind)+" session",kind:w.kind,exercises:w.exercises,warmup:w.warmup,cooldown:w.cooldown,mins:w.mins||0,note:String(w.csNote||"").trim(),planPid:w.planPid||"",progId:w.progId||"",progWeek:w.progWeek||null,progDay:w.progDay??null,prs,coachName:activeProf().name,at:new Date().toISOString(),...(c.clientUid?{pending:true}:{})};
+  S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();S.tab="you";S.youView="clients";S.progView=null;S.clientOpen=fc.id;S.tcOpen=null;save(id,doc);window.scrollTo(0,0);
+  const first=firstName(fc.name),pb=prs.length?` · 🏆 ${prs.length} new PB${prs.length>1?"s":""}`:"";
+  if(doc.clientUid)pushClientLog({...doc,id}).then(ok=>toast(ok?`Saved and sent to ${first}${pb}`:`Saved. It'll go to ${first}'s app when you're back online`));else toast(`Saved to ${first}'s history${pb}`)}
+const logPayload=d=>({type:"coachlog",on:d.date,name:d.name,kind:d.kind,exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],mins:d.mins||0,note:d.note||"",planPid:d.planPid||"",coachName:d.coachName||"",at:d.at||""});
+async function pushClientLog(d){if(!d.clientUid||!CL.user)return false;const ok=await pushCoachRow(d.clientUid,"log_"+d.id,logPayload(d));if(ok){const cur=S.docs[d.id];if(cur&&cur.pending){const n={...cur};delete n.pending;save(d.id,n)}}return ok}
+function clientSessionsPanel(id,c){const L=csOf(id),first=esc(firstName(c.name)),all=S.csAll===id;
+  return `<section class="panel"><div class="spread"><h2>Sessions with you</h2><span class="label">${L.length}</span></div>
+    ${L.length?`<div class="hist">${L.slice(0,all?L.length:5).map(x=>`<div class="item"><div class="spread"><b>${esc(x.name)}</b><span class="small muted">${fmtDay(x.date)}</span></div>
+      <div class="small muted"><span class="kbadge">${kindName(x.kind)}</span> ${(x.exercises||[]).length} exercises${x.mins?" · "+fmtDur(x.mins):""}${x.prs&&x.prs.length?` · 🏆 ${x.prs.length} PB${x.prs.length>1?"s":""}`:""}${x.clientUid?(x.pending?" · not sent yet":" · in their app"):""}</div>
+      <div class="small">${(x.exercises||[]).map(e=>`${esc(e.name)} ${fmtSets(e.sets)}`).join("<br>")}</div>${x.note?`<div class="small">💬 ${esc(x.note)}</div>`:""}
+      <div class="row" style="margin-top:2px"><button class="btn ghost" data-act="tcGo" data-id="${id}" data-k="repeat" data-v="${x.id}">Repeat</button><button class="btn ghost" style="color:var(--protein)" data-act="csDel" data-id="${x.id}">${S.csDelAsk===x.id?"Tap to confirm":"Delete"}</button></div></div>`).join("")}</div>
+      ${L.length>5?`<button class="btn ghost" style="align-self:flex-start" data-act="csAll" data-id="${all?"":id}">${all?"Show fewer":"Show all "+L.length}</button>`:""}`
+    :`<p class="small muted" style="margin:0">Sessions you log while training ${first} show here${c.clientUid?" and in their app":""}.</p>`}</section>`}
+// their latest weight on each exercise, from sessions together
+function liftsPanel(id){const m=new Map();csOf(id).forEach(x=>(x.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!m.has(k)&&e.sets&&e.sets.length)m.set(k,{name:e.name,date:x.date,sets:e.sets})}));if(!m.size)return"";
+  return `<section class="panel"><h2>Latest weights</h2><div class="hist">${[...m.values()].slice(0,S.liftAll===id?99:10).map(r=>`<div class="spread small" style="padding:3px 0"><b style="min-width:0">${esc(r.name)}</b><span class="muted" style="text-align:right">${fmtSets(r.sets)} · ${fmtDay(r.date)}</span></div>`).join("")}</div>${m.size>10?`<button class="btn ghost" style="align-self:flex-start" data-act="liftAll" data-id="${S.liftAll===id?"":id}">${S.liftAll===id?"Show fewer":"Show all "+m.size}</button>`:""}</section>`}
+function localClientDetail(id,c){const L=csOf(id),linked=ofType("client").filter(x=>x.clientUid&&!x.local);
+  return `<div class="stack"><section class="panel"><div class="spread"><button class="btn ghost" style="padding:4px 0" data-act="openClient" data-id="">‹ All clients</button><button class="btn ghost" style="color:var(--protein)" data-act="delClient" data-id="${id}">${S.confirmDelClient===id?"Tap to confirm":"Remove"}</button></div>
+    <div class="who-row"><span class="avatar big">${esc(initials(c.name))}</span><div><b style="font-size:18px">${esc(c.name)}</b><div class="small muted">${esc(GOALS[c.goal]||"No goal set")} · ${L.length} session${L.length===1?"":"s"} together<br>Kept on your phone only</div></div></div></section>
+  ${trainPanel(id,c)}
+  ${clientSessionsPanel(id,c)}
+  ${liftsPanel(id)}
+  ${measPanel(id,c)}
+  <section class="panel"><h2>Moving to the app</h2>${linked.length?`<p class="small" style="margin:0">If ${esc(firstName(c.name))} has joined and linked to you, move this history into their account. Their sessions appear in their app, and your notes and measurements move with them.</p>
+    <div class="chips">${linked.map(x=>`<button class="qchip" data-act="csMerge" data-id="${id}" data-v="${x.id}">${S.mergeAsk===x.id?"Tap to confirm: ":""}Move to ${esc(x.name)}</button>`).join("")}</div>`
+    :`<p class="small muted" style="margin:0">If ${esc(firstName(c.name))} joins Project Fitness and links to you with your coach code, you can move this history into their account from here.</p>`}</section>
+  <section class="panel"><h2>Your consultation notes</h2><textarea id="cnotes" data-act="clientNotes" data-id="${id}" rows="5" placeholder="e.g. injuries, agreed goals, next review date">${esc(c.notes)}</textarea><span class="small muted">Saved automatically.</span></section></div>`}
 
 // measurements a coach takes in person; stored in the coach's own data, never in the client's app
 function measPanel(id,c){const L=(c.measures||[]).slice().sort((a,b)=>a.date<b.date?1:-1),d=S.mDraft&&S.mDraft.id===id?S.mDraft:null;
@@ -2836,7 +2920,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 /* ---------- coach-planned sessions ---------- */
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
@@ -2874,9 +2958,17 @@ const coachMsgs=t=>coachRows().filter(p=>p.type===t);
 async function fetchPlans(){const c=await sbClient();if(!c||!CL.user||!CL.links||!CL.links.length){if(CL.links&&!CL.links.length&&myPlans().length){CL.plans=[];lsSet(plansKey(),"[]")}return}
   const {data,error}=await c.from("plans").select("id,coach_id,data,updated_at").eq("client_id",CL.user.id);if(error)return;
   const list=data.map(r=>({...r.data,id:r.id,coachId:r.coach_id})),before=JSON.stringify(coachRows());CL.plans=list;lsSet(plansKey(),JSON.stringify(list));
-  applyCoachSettings();
+  applyCoachSettings();applyCoachLogs(list);
   if(before!==JSON.stringify(list)&&!S.draftWorkout&&["today","train","you"].includes(S.tab))render()}
 // targets and habits your coach set: applied once per update, you can still change them yourself afterwards
+function applyCoachLogs(list){const logs=list.filter(r=>r.type==="coachlog"),seen=clone(S.docs.clseen||{type:"clseen",ids:{}}),added=[];let ch=false;
+  logs.forEach(r=>{if(seen.ids[r.id]===r.at)return;seen.ids[r.id]=r.at;ch=true;const wid="wo_"+r.id,had=!!S.docs[wid];
+    const w={type:"workout",date:r.on||todayKey(),name:r.name||"Session",kind:r.kind||"gym",exercises:r.exercises||[],warmup:r.warmup||[],cooldown:r.cooldown||[],mins:+r.mins||0,coachLogged:true,coachName:r.coachName||"",coachLogId:r.id,coachId:r.coachId,...(r.note?{coachMsg:r.note}:{}),...(r.planPid?{planId:r.planPid}:{})};
+    if(!had){const prs=findPRs(w);if(prs.length)w.prs=prs;added.push(w)}save(wid,w)});
+  const live=new Set(logs.map(r=>r.id)),linked=new Set((CL.links||[]).map(l=>l.coach_id));
+  ofType("workout").filter(w=>w.coachLogId&&!live.has(w.coachLogId)&&linked.has(w.coachId)).forEach(w=>{remove(w.id);delete seen.ids[w.coachLogId];ch=true});
+  if(ch)save("clseen",seen);
+  if(added.length){toast(`${added[0].coachName||"Your coach"} logged your session: ${added[0].name}${added.length>1?` (+${added.length-1} more)`:""}`);setTimeout(()=>pushReports(true),1500)}}
 function applyCoachSettings(){const cs=coachMsgs("coachSettings").sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0];if(!cs)return;const st=clone(settings());if(st.coachAppliedAt===cs.at)return;
   const pr=S.docs.profile||{},parts=[];if(cs.targets&&!pr.habitsOnly&&!pr.minor){st.targets={kcal:+cs.targets.kcal||0,protein:+cs.targets.protein||0,carbs:+cs.targets.carbs||0,fat:+cs.targets.fat||0};parts.push("targets")}
   if(Array.isArray(cs.habits)&&cs.habits.length){st.habits=cs.habits.slice(0,12);parts.push("habits")}
@@ -2919,7 +3011,7 @@ async function pushPlan(doc){const c=await sbClient();if(!c||!CL.user)return fal
   const {error}=await c.from("plans").upsert({coach_id:CL.user.id,client_id:clientUid,id:doc.pid,data:planPayload(doc)},{onConflict:"coach_id,client_id,id"});
   if(error){if(isPlanTableMissing(error))toast("Planning needs a one-off database update. Run supabase-update-2.sql in Supabase");else toast("Couldn't send the plan yet. It'll retry next sync");return false}return true}
 const planPayload=d=>({type:"plan",...(d.flex?{flex:true,seq:d.seq,perWeek:d.perWeek||3}:{}),date:d.date,name:d.name,kind:d.kind,note:d.note||"",coachName:d.coachName||"",progName:d.progName||"",week:d.week||null,weeks:d.weeks||null,progWhy:d.progWhy||"",exercises:d.exercises,warmup:d.warmup||[],cooldown:d.cooldown||[],updated:new Date().toISOString()});
-async function pushPendingPlans(){if(!CL.user)return;for(const d of ofType("cplan").filter(x=>x.pending)){if(await pushPlan(d)){const cur=S.docs[d.id];if(cur){delete cur.pending;save(d.id,cur)}}}}
+async function pushPendingPlans(){if(!CL.user)return;for(const d of ofType("csession").filter(x=>x.pending&&x.clientUid))await pushClientLog(d);for(const d of ofType("cplan").filter(x=>x.pending)){if(await pushPlan(d)){const cur=S.docs[d.id];if(cur){delete cur.pending;save(d.id,cur)}}}}
 const pdelKey=()=>"pf-pdel:"+(CL.user?CL.user.id:"");
 function queuePlanDel(rows){let q=[];try{q=JSON.parse(lsGet(pdelKey())||"[]")}catch(e){}rows.forEach(r=>{if(!q.some(x=>x[0]===r[0]&&x[1]===r[1]))q.push(r)});lsSet(pdelKey(),JSON.stringify(q))}
 async function deletePlansRemote(rows){if(!rows.length)return true;const c=await sbClient();if(!c||!CL.user){queuePlanDel(rows);return false}
@@ -3089,7 +3181,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
         <div class="row"><button class="btn primary" type="submit">Sign in</button><button class="btn" type="button" data-act="forgotPw">Reset password</button></div></div>`:""}
       <label class="habit"><input type="checkbox" id="au_consent" ${CL.consent?"checked":""} data-act="auConsent"><span class="small">New accounts: I've read the <a href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">privacy notice</a> and agree to my data being stored in my account.</span></label>
       <div class="row"><button class="btn primary" type="submit" ${CL.busy?"disabled":""}>Sign in</button><button class="btn" type="button" data-act="signUp" ${CL.busy?"disabled":""}>Create account</button><button class="btn ghost" type="button" data-act="forgotPw">Forgot password?</button></div></form></section>
-    <section class="panel"><h2>Privacy</h2><p class="small" style="margin:0">Only you can read your account's data. If you link a coach, they receive weekly summaries only, never individual meals, photos or your contact details. Progress photos never leave this phone.</p></section>`;
+    <section class="panel"><h2>Privacy</h2><p class="small" style="margin:0">Only you can read your account's data. If you link a coach, they receive weekly summaries and your latest lifts, never individual meals, photos or your contact details. Progress photos never leave this phone.</p></section>`;
   return `<section class="panel"><h2>Signed in</h2><div class="small"><b>${esc(CL.user.email||"")}</b></div>
     <div class="small ${CL.status==="error"?"":"muted"}" style="${CL.status==="error"?"color:var(--protein)":""}">${CL.status==="syncing"?"Syncing…":CL.status==="error"?"Sync problem: "+esc(CL.err):CL.status==="offline"?"Offline. Changes will sync when you're back online.":ago==null?"Up to date":ago<1?"Synced just now":"Synced "+ago+" min ago"}</div>
     <div class="row"><button class="btn" data-act="syncNow">Sync now</button><button class="btn ghost" data-act="signOut">Sign out</button></div></section>
@@ -3099,7 +3191,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
     ${CL.links&&CL.links.length?`<div class="hist">${CL.links.map(l=>`<div class="item"><div class="spread"><b>${esc(l.coach_name||"Coach")}</b><button class="btn ghost" style="color:var(--protein)" data-act="unlinkCoach" data-id="${l.coach_id}">Stop sharing</button></div>
       <label class="habit"><input type="checkbox" data-act="linkNotes" data-id="${l.coach_id}" ${l.include_notes?"checked":""}><span class="small">Include my check-in notes</span></label></div>`).join("")}</div>`:""}
     <form id="linkForm" class="row" style="flex-wrap:nowrap"><input id="lk_code" placeholder="Coach code, e.g. K7P2QX" autocomplete="off" autocapitalize="characters" maxlength="8"><button class="btn" type="submit">Link</button></form>
-    <span class="small muted">Your coach gets weekly summaries (weight, nutrition averages, habits, training, check-in scores), updated as you log. Never individual meals, photos or contact details. Stop sharing any time.</span></section>
+    <span class="small muted">Your coach gets weekly summaries (weight, nutrition averages, habits, training and your latest weights per exercise, check-in scores), updated as you log. If they train you in person, they can log the session into your history. Never individual meals, photos or contact details. Stop sharing any time.</span></section>
   <section class="panel"><h2>Delete my account</h2><p class="small" style="margin:0">Permanently deletes your account and everything stored in it online, including any coach links and shared reports. This can't be undone. <a href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">Privacy notice</a></p>
     <label class="habit"><input type="checkbox" id="delLocal" ${CL.delLocal?"checked":""} data-act="delLocal"><span class="small">Also delete everything on this phone</span></label>
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="deleteAccount">${CL.confirmDel?"Tap again to delete for good":"Delete my account"}</button></section>`}
@@ -3332,8 +3424,21 @@ document.addEventListener("click",e=>{
     case "youView":S.youView=ds.v;S.clientOpen=null;render();window.scrollTo(0,0);break;
     case "shareReport":shareReport();break;
     case "importReport":document.getElementById("reportIn").click();break;
-    case "openClient":S.clientOpen=ds.id||null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
-    case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}{const prev=clone(S.docs[ds.id]);S.confirmDelClient=null;S.clientOpen=null;if(prev.clientUid){unlinkClient(prev.clientUid);remove(ds.id);toast("Client removed and sharing stopped")}else{remove(ds.id);toast("Client removed",{undo:()=>restoreDoc(ds.id,prev)})}}break;
+    case "tcPick":S.tab="you";S.youView="clients";S.progView=null;S.clientOpen=null;S.tcPicker=true;render();window.scrollTo(0,0);break;
+    case "tcOpen":S.tcOpen=ds.id||null;S.tcPicker=false;if(ds.id&&S.clientOpen!==ds.id){S.clientOpen=ds.id;render();window.scrollTo(0,0)}else render();break;
+    case "tcGo":{const c=S.docs[ds.id];if(!c)break;if(S.draftWorkout){toast("Finish or discard the session that's open first");break}const b=tcBase(c,ds.k,ds.v,ds.w,ds.d);if(!b){toast("That session isn't available any more");break}startClientSession(ds.id,b);break}
+    case "csDel":{if(S.csDelAsk!==ds.id){S.csDelAsk=ds.id;render();break}S.csDelAsk=null;const x=S.docs[ds.id];if(!x)break;remove(ds.id);if(x.clientUid&&!x.pending)deletePlansRemote([[x.clientUid,"log_"+ds.id]]);toast(x.clientUid?"Session deleted. It's removed from their app too":"Session deleted");break}
+    case "csAll":S.csAll=ds.id||null;render();break;
+    case "liftAll":S.liftAll=ds.id||null;render();break;
+    case "lcNew":S.lcDraft=true;render();setTimeout(()=>{const el=document.getElementById("lc_name");el&&el.focus()},50);break;
+    case "lcCancel":S.lcDraft=false;render();break;
+    case "csMerge":{if(S.mergeAsk!==ds.v){S.mergeAsk=ds.v;render();break}S.mergeAsk=null;const from=S.docs[ds.id],to=S.docs[ds.v];if(!from||!to||!to.clientUid)break;const L=csOf(ds.id);
+      L.forEach(x=>{const d={...S.docs[x.id],clientId:ds.v,clientUid:to.clientUid,pending:true};delete d.id;save(x.id,d)});
+      const ms=[...(to.measures||[])];(from.measures||[]).forEach(m=>{if(!ms.some(y=>y.date===m.date))ms.push(m)});
+      save(ds.v,{...to,measures:ms,notes:[to.notes,from.notes].filter(Boolean).join("\n\n")});remove(ds.id);S.clientOpen=ds.v;render();window.scrollTo(0,0);
+      pushPendingPlans();toast(`Moved ${L.length} session${L.length===1?"":"s"} to ${firstName(to.name)}'s account`);break}
+    case "openClient":S.clientOpen=ds.id||null;S.tcOpen=null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
+    case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}{const prev=clone(S.docs[ds.id]);S.confirmDelClient=null;S.clientOpen=null;if(prev.clientUid){unlinkClient(prev.clientUid);remove(ds.id);toast("Client removed and sharing stopped")}else{const ses=csOf(ds.id).map(x=>[x.id,clone(S.docs[x.id])]);ses.forEach(([k])=>remove(k));remove(ds.id);toast("Client removed",{undo:()=>{ses.forEach(([k,v])=>restoreDoc(k,v));restoreDoc(ds.id,prev)}})}}break;
     case "clientCsv":clientCsv(ds.id);break;
     case "obPick":S.onboard.d[ds.k]=ds.v;if(ds.k==="goal"||ds.k==="activity")S.onboard.d.targets=null;render();break;
     case "obBack":S.onboard.step=Math.max(0,S.onboard.step-1);render();window.scrollTo(0,0);break;
@@ -3644,8 +3749,8 @@ document.addEventListener("click",e=>{
       w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";if(+e.rest)o.rest=+e.rest;return o}).filter(e=>e.sets.length);
       ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:x.sel&&x.sel.length?x.sel.map(n=>n.split(",")[0]+" × "+drillTarget(x,n)).join(", "):(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
       if(!w.exercises.length&&!w.warmup.some(x=>x.done)&&!w.cooldown.some(x=>x.done)){toast("Nothing to save yet. Log a set, or tick off your warm-up");break}
-      if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
-      S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();S.woSum=id;S.woSumFresh=true;S.tab="train";save(id,w);window.scrollTo(0,0);if(w.planId)setTimeout(()=>pushReports(true),2000);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
+      if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;if(w.forClient){saveClientSession(w);break}const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
+      S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();S.woSum=id;S.woSumFresh=true;S.tab="train";save(id,w);window.scrollTo(0,0);setTimeout(()=>pushReports(true),2000);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
     case "woSum":S.woSum=ds.id;S.woSumFresh=false;S.tab="train";render();window.scrollTo(0,0);break;
     case "sumClose":S.woSum=null;S.woSumFresh=false;render();window.scrollTo(0,0);break;
     case "goProgress":S.woSum=null;S.woSumFresh=false;S.tab="you";S.youView="progress";render();window.scrollTo(0,0);break;
@@ -3659,6 +3764,8 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
+  if(ds.act==="tcProg"){S.tcProg=t.value?{id:t.value,week:1}:null;render();return}
+  if(ds.act==="tcWeek"&&S.tcProg){S.tcProg.week=+t.value||1;render();return}
   if(S.progDraft&&["pgF","pgDayF","pgRx","pgEx"].includes(ds.act)){const D=S.progDraft,d=D.days[S.progDay];if(ds.act==="pgF")D[ds.k]=t.value;else if(ds.act==="pgDayF")d[ds.k]=t.value;else if(ds.act==="pgRx")d.exercises[+ds.i].rx[ds.k]=t.value;else d.exercises[+ds.i][ds.k]=t.value;
     if(t.tagName==="SELECT"||ds.k==="name"||ds.k==="weeks")render()}
   if(ds.act==="pgDeload"&&S.progDraft){S.progDraft.deload=t.checked;render()}
@@ -3708,6 +3815,7 @@ document.addEventListener("focusin",e=>{if(e.target.classList&&e.target.classLis
 document.addEventListener("beforeinput",e=>{if(e.target.classList&&e.target.classList.contains("wp-num"))e.target._typed=true});
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList&&e.target.classList.contains("wp-num")){e.preventDefault();e.target.blur()}});
 document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
+  if(ds.act==="csNote"&&S.draftWorkout){S.draftWorkout.csNote=t.value;return}
   if(S.csDraft&&ds.act==="csF"){S.csDraft.targets[ds.k]=t.value;const T=S.csDraft.targets,el=document.getElementById("csSum");if(el)el.textContent=Math.round((+T.protein||0)*4+(+T.carbs||0)*4+(+T.fat||0)*9).toLocaleString("en-GB");return}
   if(S.csDraft&&ds.act==="csHab"){S.csDraft.habits=t.value.split("\n");return}
   if(S.fbDraft&&ds.act==="fbF"){S.fbDraft[ds.k]=t.value;if(ds.k==="week")render();return}
@@ -3779,6 +3887,7 @@ document.addEventListener("submit",e=>{e.preventDefault();
     S.draftWorkout.cooldown.push({name,detail,done:false,custom:true});S.draftWorkout._auto=false;
     const st=clone(settings());st.myCool=[[name,detail],...(st.myCool||[]).filter(x=>x[0].toLowerCase()!==name.toLowerCase())].slice(0,12);save("settings",st);
     setTimeout(()=>document.getElementById("cdNew")?.focus(),50)}}
+  if(e.target.id==="lcForm"){const nm=document.getElementById("lc_name").value.trim();if(!nm){toast("Enter their name");return}const id="client_l"+Date.now().toString(36);S.lcDraft=false;save(id,{type:"client",local:true,date:todayKey(),name:nm,goal:document.getElementById("lc_goal").value||"",goals:[],weeks:[],notes:"",measures:[]});S.clientOpen=id;S.tcOpen=id;render();window.scrollTo(0,0);toast(`Added ${nm}`);return}
   if(e.target.id==="wuForm"){const v=document.getElementById("wuNew").value.trim();if(v&&S.draftWorkout){const m=v.match(/^(.*?)[,·-]\s*(.+)$/);S.draftWorkout.warmup.push({name:(m?m[1]:v).trim(),detail:m?m[2].trim():"",done:false,custom:true});S.draftWorkout._auto=false;render();setTimeout(()=>document.getElementById("wuNew")?.focus(),50)}}
   if(e.target.id==="searchForm"){const q=document.getElementById("q").value.trim();if(q){S.meal=/^\d{8,14}$/.test(q.replace(/\s/g,""))?null:estimateMeal(q);runSearch(q)}}
   if(e.target.id==="bodyForm"){const date=document.getElementById("bDate").value||todayKey();const x={type:"body",date};let any=false;
