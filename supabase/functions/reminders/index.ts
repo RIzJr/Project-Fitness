@@ -7,7 +7,22 @@ import webpush from "npm:web-push@3.6.7";
 
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "access-control-allow-methods": "GET, POST, OPTIONS" };
 const CONTACT = "mailto:rizalitojrmangilit@yahoo.com";
-export const DEF = { food: { on: false, time: "19:00" }, ready: { on: false, time: "09:00" }, plan: { on: false, time: "17:00" }, idle: { on: true, mins: 45 } };
+export const DEF = { food: { on: false, time: "19:00" }, ready: { on: false, time: "09:00" }, plan: { on: false, time: "17:00" }, gym: { on: false, time: "08:00", days: null as number[] | null }, idle: { on: true, mins: 45 } };
+// the kind training nudge: same wording as the app (GYM_LINES in index.html), picked by date
+const GYM_LINES = [
+  ["{hi}, {n}! 💪", "{s} is ready for you. Future you is already grateful."],
+  ["You've got this, {n} 🙌", "You don't need to feel ready, you just need to start. {s} is set up and waiting."],
+  ["Gym time? 🏋️", "Showing up is the hardest part, and you're good at it. {s} is ready when you are."],
+  ["{hi}, {n} ☀️", "Every session counts, even a short one. {s} is lined up for you."],
+  ["Small steps, big change 💚", "One more session closer to your goal. Press Start and everything's set up."],
+  ["Proud of you for showing up 💪", "Consistency beats perfection. {s} is waiting, see you there?"],
+  ["Let's make today count, {n} ⚡", "Your body's ready for {s}. Warm-up, then one set at a time."]];
+export function gymMsg(date: string, name: string, sess: string, time: string) {
+  const n = String(name || "").trim().split(/\s+/)[0] || "you", h = +String(time).split(":")[0], hi = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+  const [t, b] = GYM_LINES[(+date.replace(/-/g, "")) % GYM_LINES.length];
+  const f = (x: string) => x.replace("{hi}", hi).replace("{n}", n === "Me" ? "you" : n).replace("{s}", sess || "Today's session");
+  return { title: f(t), body: f(b) };
+}
 
 export function localParts(tz: string, now: Date) {
   let f: Intl.DateTimeFormat;
@@ -19,7 +34,7 @@ export function localParts(tz: string, now: Date) {
 const toMins = (t: string) => { const [h, m] = String(t || "").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
 
 // Which reminders are due for one person right now (pure, so it can be tested)
-export function decide(o: { cfg: any; tz: string; now: Date; day: any; ready: any; plansToday: any[]; doneIds: Set<string>; active: any; sent: Set<string> }) {
+export function decide(o: { cfg: any; tz: string; now: Date; day: any; ready: any; plansToday: any[]; doneIds: Set<string>; active: any; sent: Set<string>; trainedToday?: boolean; usualDays?: number[]; name?: string }) {
   const L = localParts(o.tz, o.now), R = { ...DEF, ...(o.cfg || {}) }, out: any[] = [];
   const due = (c: any) => c && c.on && L.mins >= toMins(c.time) && L.mins < toMins(c.time) + 60;
   if (due(R.food) && !(o.day && o.day.foods && o.day.foods.length) && !o.sent.has("food|" + L.date))
@@ -27,7 +42,13 @@ export function decide(o: { cfg: any; tz: string; now: Date; day: any; ready: an
   if (due(R.ready) && !o.ready && !o.sent.has("ready|" + L.date))
     out.push({ kind: "ready", key: L.date, title: "Morning check-in ⚡", body: "30 seconds: how did you sleep and how do you feel? Your readiness sets today's plan.", url: "./?go=ready" });
   const p = (o.plansToday || []).find(x => !o.doneIds.has(x.id));
-  if (due(R.plan) && p && !o.sent.has("plan|" + L.date))
+  const G = { ...DEF.gym, ...(R.gym || {}) }, dow = new Date(L.date + "T12:00:00Z").getUTCDay();
+  const days = Array.isArray(G.days) && G.days.length ? G.days : (o.usualDays && o.usualDays.length ? o.usualDays : [1, 3, 5]);
+  if (G.on && due(G) && !o.trainedToday && (p || days.includes(dow)) && !o.sent.has("gym|" + L.date)) {
+    const m = gymMsg(L.date, o.name || "", p ? p.name : "", G.time);
+    out.push({ kind: "gym", key: L.date, title: m.title, body: m.body, url: "./?go=train" });
+  }
+  if (!G.on && due(R.plan) && p && !o.sent.has("plan|" + L.date))
     out.push({ kind: "plan", key: L.date, title: "Today's session is ready 💪", body: `${p.name || "Your coach's session"} is waiting. Press Start and everything is set up.`, url: "./?go=train" });
   if (R.idle && R.idle.on && o.active && o.active.last && o.now.getTime() - o.active.last > (+R.idle.mins || 45) * 60000 && !o.sent.has("idle|" + o.active.started))
     out.push({ kind: "idle", key: String(o.active.started), title: "Still training?", body: `Your workout has had no activity for ${Math.round((o.now.getTime() - o.active.last) / 60000)} min. Tap to finish and save it, or keep going.`, url: "./?go=train" });
@@ -65,7 +86,18 @@ export async function run(sb: any, push: any, now = new Date()) {
     const { data: logs } = await sb.from("push_log").select("kind,key").eq("user_id", uid);
     const sent = new Set<string>((logs || []).map((x: any) => x.kind + "|" + x.key));
     const settings = get("settings") || {};
-    const due = decide({ cfg: settings.reminders, tz, now, day: get("day_" + L.date), ready: get("ready_" + L.date), plansToday, doneIds, active: get("active"), sent });
+    // for the training nudge: did they train today, and which weekdays do they usually train (last 4 weeks, 2+ times)
+    let trainedToday = false, usualDays: number[] = [];
+    if (settings.reminders && settings.reminders.gym && settings.reminders.gym.on) {
+      const from = new Date(new Date(L.date + "T12:00:00Z").getTime() - 28 * 864e5).toISOString().slice(0, 10);
+      const { data: wd } = await sb.from("docs").select("data->>date").eq("user_id", uid).like("id", "wo_%").gte("data->>date", from).limit(200);
+      const dates = (wd || []).map((x: any) => x.date).filter(Boolean), cnt: Record<number, number> = {};
+      trainedToday = dates.includes(L.date);
+      dates.forEach((d: string) => { const k = new Date(d + "T12:00:00Z").getUTCDay(); cnt[k] = (cnt[k] || 0) + 1; });
+      usualDays = Object.keys(cnt).filter(k => cnt[+k] >= 2).map(Number);
+    }
+    const { data: prof } = await sb.from("docs").select("data").eq("user_id", uid).eq("id", "profile").maybeSingle();
+    const due = decide({ cfg: settings.reminders, tz, now, day: get("day_" + L.date), ready: get("ready_" + L.date), plansToday, doneIds, active: get("active"), sent, trainedToday, usualDays, name: prof && prof.data ? prof.data.name : "" });
     for (const d of due) {
       for (const s of list) {
         try { await push.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title: d.title, body: d.body, tag: d.kind, url: d.url }), { TTL: 3600 }); sentCount++; }

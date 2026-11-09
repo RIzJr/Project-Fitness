@@ -529,6 +529,7 @@ section.panel{border-radius:22px}
 .wp-hr{display:flex;align-items:center;gap:3px;height:36px;padding:0 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-weight:800;flex:none;font-variant-numeric:tabular-nums}.wp-hr .hrdot{color:var(--muted)}
 .hrsheet{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
 .hrzbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}.hrzbar span{border-radius:6px;padding:4px 0;text-align:center;font-size:12px;font-weight:800;color:#000}
+.swaprow{display:flex!important;justify-content:space-between;align-items:center;gap:10px;text-align:left!important}.swaprow>span:first-child{min-width:0;flex:1}
 .flexsum{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px}
 
 /* iPhone feel: fixed tab bar, no bounce or sideways drift, safe areas, no input zoom */
@@ -1161,7 +1162,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-05-7";
+const APP_VERSION="2026-11-09-1";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1343,23 +1344,24 @@ const appUrl=()=>NATIVE?WEB_URL:location.origin+location.pathname;
 let nPerm=null;
 async function nativePermCheck(){const L=NPlug("LocalNotifications");if(!L)return null;try{nPerm=(await L.checkPermissions()).display}catch(e){}return nPerm}
 async function nativePermAsk(){const L=NPlug("LocalNotifications");if(!L)return "unsupported";try{nPerm=(await L.requestPermissions()).display;if(nPerm==="granted"){nativeDaily();return "on"}return "denied"}catch(e){return "error"}}
-const N_ID={rest:9001,idle:9002,food:1000,ready:1100,plan:1200};
+const N_ID={rest:9001,idle:9002,food:1000,ready:1100,plan:1200,gym:1300};
 async function nCancel(ids){const L=NPlug("LocalNotifications");if(!L||!ids.length)return;try{await L.cancel({notifications:ids.map(id=>({id}))})}catch(e){}}
 async function nSchedule(list){const L=NPlug("LocalNotifications");if(!L||nPerm!=="granted"||!list.length)return;
-  try{await L.schedule({notifications:list.map(n=>({id:n.id,title:n.title,body:n.body,schedule:{at:new Date(n.at),allowWhileIdle:true},extra:{go:n.go||""}}))})}catch(e){}}
+  try{await L.schedule({notifications:list.map(n=>({id:n.id,title:n.title,body:n.body,schedule:{at:new Date(n.at),allowWhileIdle:true},...(n.sound?{sound:n.sound}:{}),extra:{go:n.go||""}}))})}catch(e){}}
 // rest-over and "still training?" alerts: scheduled only while the app is in the background, so there's no double alert while you're looking at it
 async function nativeBgSync(){if(!NATIVE)return;await nCancel([N_ID.rest,N_ID.idle]);if(!document.hidden||S.lock)return;const L=[],R=S.rest,c=restCfg(),dw=S.draftWorkout,rc=remCfg();
-  if(R&&!R.fired&&c.notify&&R.end>Date.now()+1000)L.push({id:N_ID.rest,title:"Rest over 💪",body:"Time for your next set.",at:R.end,go:"train"});
+  if(R&&!R.fired&&c.notify&&R.end>Date.now()+1000)L.push({id:N_ID.rest,title:"Rest over 💪",body:"Time for your next set.",at:R.end,go:"train",...(c.sound&&c.tone!=="beep"?{sound:"bell.wav"}:{})});
   if(rc.idle.on&&dw&&dw.lastAct)L.push({id:N_ID.idle,title:"Still training?",body:"Your workout has had no activity for a while. Tap to finish and save it, or keep going.",at:Math.max(Date.now()+60000,dw.lastAct+rc.idle.mins*60000),go:"train"});
   await nSchedule(L)}
 // daily reminders for the next 7 days, re-planned whenever something changes (food logged, check-in done, session finished)
 async function nativeDaily(){if(!NATIVE||nPerm!=="granted"||S.lock||S.example)return;const R=remCfg(),now=Date.now(),t=todayKey(),ids=[],L=[];
   const at=(day,tm)=>{const [h,m]=String(tm).split(":").map(Number),d=new Date(day+"T12:00:00");d.setHours(h||0,m||0,0,0);return d.getTime()};
   const ups=upcomingPlans(),trained=ofType("workout").some(w=>w.date===t);
-  for(let i=0;i<7;i++){const day=addDays(t,i);ids.push(N_ID.food+i,N_ID.ready+i,N_ID.plan+i);
+  for(let i=0;i<7;i++){const day=addDays(t,i);ids.push(N_ID.food+i,N_ID.ready+i,N_ID.plan+i,N_ID.gym+i);
     if(R.food.on){const d=S.docs["day_"+day];if(!(d&&d.foods&&d.foods.length)&&at(day,R.food.time)>now)L.push({id:N_ID.food+i,title:"Log today's food 🍽️",body:"Nothing logged yet today. A quick log keeps you on track.",at:at(day,R.food.time),go:"food"})}
     if(R.ready.on&&!S.docs["ready_"+day]&&at(day,R.ready.time)>now)L.push({id:N_ID.ready+i,title:"Morning check-in ⚡",body:"30 seconds: how did you sleep and how do you feel?",at:at(day,R.ready.time),go:"ready"});
-    if(R.plan.on){const p=ups.find(x=>x.date===day&&!x.anyDay);if(p&&!(i===0&&(trained||S.draftWorkout))&&at(day,R.plan.time)>now)L.push({id:N_ID.plan+i,title:"Today's session is ready 💪",body:(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.",at:at(day,R.plan.time),go:"train"})}}
+    if(R.gym.on){const p=ups.find(x=>x.date===day&&!x.anyDay),dow=new Date(day+"T12:00").getDay();if((p||gymDays().includes(dow))&&!(i===0&&(trained||S.draftWorkout))&&at(day,R.gym.time)>now){const m=gymMsg(day,p&&p.name,R.gym.time);L.push({id:N_ID.gym+i,title:m.title,body:m.body,at:at(day,R.gym.time),go:"train"})}}
+    else if(R.plan.on){const p=ups.find(x=>x.date===day&&!x.anyDay);if(p&&!(i===0&&(trained||S.draftWorkout))&&at(day,R.plan.time)>now)L.push({id:N_ID.plan+i,title:"Today's session is ready 💪",body:(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.",at:at(day,R.plan.time),go:"train"})}}
   await nCancel(ids);await nSchedule(L)}
 {const kbIn=t=>t&&(t.tagName==="TEXTAREA"||t.tagName==="SELECT"||(t.tagName==="INPUT"&&!/^(checkbox|radio|range|button|submit|file|color)$/i.test(t.type)));let kbT=null;
   document.addEventListener("focusin",e=>{if(kbIn(e.target)&&matchMedia("(pointer:coarse)").matches){clearTimeout(kbT);document.documentElement.classList.add("kb")}});
@@ -1702,10 +1704,10 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
   const h=exHistory(ex.name),last=h[0],kgStep=dw.kind==="gym"||dw.kind==="functional"?2.5:1,isLastEx=!dw.exercises[cur.ei+1];
   return `<div class="player">${head}<div class="wp-body">
     <span class="label">Exercise ${cur.ei+1} of ${dw.exercises.length}${ex.name&&LIB_GROUP[exKey(ex.name)]?" · "+LIB_GROUP[exKey(ex.name)]:""}</span>
-    ${ex.name&&S.wpRename!==cur.ei?`<button class="wp-exbtn" data-act="wpRename" aria-label="Change exercise: ${esc(ex.name)}"><h1 class="wp-ex">${esc(ex.name)}</h1><span class="wp-change"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Change</span></button>`
+    ${ex.name&&S.wpRename!==cur.ei?`<button class="wp-exbtn" data-act="wpRename" aria-label="Change exercise: ${esc(ex.name)}"><h1 class="wp-ex">${esc(ex.name)}</h1><span class="wp-change">${ex.swapFrom?`<span class="small muted" style="margin-right:6px">instead of ${esc(ex.swapFrom)}</span>`:""}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Change</span></button>`
       :wpPicker(dw,ex)}
     <span class="small muted">${last?"Last time: "+fmtSets(last.sets):ex.name?"First time: today sets your baseline":""}</span>
-    ${ex.rx?`<div class="coachrx"><span class="label">Coach's plan</span><b>${esc(rxText(ex))}</b>${ex.note?`<span class="small">${esc(ex.note)}</span>`:""}${ex.rx.tempo?`<span class="small muted">Tempo ${esc(ex.rx.tempo)} = seconds down · pause at the bottom · up · pause at the top</span>`:""}${ex.why?`<details><summary class="small">Why this exercise</summary><span class="small">${esc(ex.why)}</span></details>`:""}</div>`:""}
+    ${ex.rx?`<div class="coachrx"><span class="label">${ex.swapFrom?"Planned: "+esc(ex.swapFrom):"Coach's plan"}</span><b>${esc(rxText(ex))}</b>${ex.note?`<span class="small">${esc(ex.note)}</span>`:""}${ex.rx.tempo?`<span class="small muted">Tempo ${esc(ex.rx.tempo)} = seconds down · pause at the bottom · up · pause at the top</span>`:""}${ex.why?`<details><summary class="small">Why this exercise</summary><span class="small">${esc(ex.why)}</span></details>`:""}</div>`:""}
     ${ex.name&&S.wpRename!==cur.ei&&anyDemoKey(ex.name)?(()=>{const open=S.demoOpen!=null?S.demoOpen===ex.name:!last;return open
       ?`<section class="exdemo"><div class="demo-wrap">${demoSVG(ex.name,150)}</div><div class="exdemo-txt"><span class="label">Works</span><b>${esc(demoMuscles(ex.name))}</b><span class="small muted">${esc(demoTip(ex.name))}</span>
         <span class="row" style="gap:10px"><a class="vidlink" href="${videoLink(ex.name)}" target="_blank" rel="noopener">▶ Video</a><button class="btn ghost" data-act="demoToggle" data-v="${esc(ex.name)}">Hide</button></span></div></section>`
@@ -1737,7 +1739,7 @@ function wuGoStage(){const W=S.wu;stopRestQuiet();if(W.idx>=W.stages.length){con
 function stopRestQuiet(){clearInterval(startRest._i);if(S.rest&&!S.rest.fired)restServer(null);S.rest=null;const el=document.getElementById("restbar");if(el){el.hidden=true;el.innerHTML=""}}
 setInterval(()=>{const W=S.wu;if(!W||!playerOn())return;const st=W.stages[W.idx];if(!st||st.t!=="cardio"||!W.timer||W.timer.paused!=null)return;
   const T=W.timer,left=(T.end-Date.now())/1000,c=document.getElementById("wuClock"),r=document.getElementById("wuRing");
-  if(left<=0&&!T.fired){T.fired=true;const cfg=restCfg();if(cfg.sound)beep();if(cfg.vibrate&&navigator.vibrate)navigator.vibrate([300,150,300]);render();return}
+  if(left<=0&&!T.fired){T.fired=true;const cfg=restCfg();restSound();if(cfg.vibrate&&navigator.vibrate)navigator.vibrate([300,150,300]);render();return}
   if(c&&!T.fired){c.textContent=mmss(left);r&&r.style.setProperty("--p",Math.min(100,(1-left/T.total)*100).toFixed(1))}},500);
 function warmRun(dw,head){const W=S.wu,st=W.stages[W.idx],it=dw.warmup[st.i],step=`Warm-up ${W.idx+1} of ${W.stages.length}`;
   const exit=`<button class="btn ghost" data-act="wuExit">Warm-up list</button>`;
@@ -1775,7 +1777,7 @@ function stylePool(kind){return KIND_LIB[kind]||KIND_LIB.gym}
 function recentFor(kind,skip){const out=[],seen=new Set([exKey(skip)]);
   ofType("workout").filter(w=>(w.kind||"gym")===kind).forEach(w=>(w.exercises||[]).forEach(e=>{const k=exKey(e.name);if(k&&!seen.has(k)){seen.add(k);out.push(e.name.trim())}}));return out.slice(0,10)}
 function pickResults(dw,ex){const P=S.pick||{},q=exKey(P.q),pool=stylePool(dw.kind),cur=exKey(ex.name);
-  const row=(n,g,tag)=>`<button class="pick-row" data-act="wpSwap" data-v="${esc(n)}"><span class="pick-l">${demoSVG(n,40,1)||'<i class="pick-ph"></i>'}<b>${esc(n)}</b></span><span>${esc(g||"")}${tag?` · ${tag}`:""}</span></button>`;
+  const row=(n,g,tag)=>`<button class="pick-row swaprow" data-act="wpSwap" data-v="${esc(n)}"><span class="pick-l">${demoSVG(n,40,1)||'<i class="pick-ph"></i>'}<b>${esc(n)}</b></span><span>${esc(g||"")}${tag?` · ${tag}`:""}</span></button>`;
   if(q){const mine=recentFor(dw.kind,"").filter(n=>!LIB_GROUP[exKey(n)]);
     const inStyle=pool.filter(([n])=>exKey(n).includes(q)),others=Object.entries(KIND_LIB).filter(([k])=>k!==dw.kind).flatMap(([k,l])=>l.map(([n,g])=>[n,g,kindName(k)])).filter(([n])=>exKey(n).includes(q)&&!pool.some(([m])=>exKey(m)===exKey(n)));
     const seen=new Set(),uniq=l=>l.filter(([n])=>{const k=exKey(n);if(seen.has(k))return false;seen.add(k);return true});
@@ -1786,11 +1788,62 @@ function pickResults(dw,ex){const P=S.pick||{},q=exKey(P.q),pool=stylePool(dw.ki
   const tab=P.g;
   if(tab==="recent")return recentFor(dw.kind,ex.name).map(n=>row(n,LIB_GROUP[exKey(n)]||"Your exercise")).join("")||`<p class="small muted" style="margin:0">Nothing logged in ${esc(kindName(dw.kind).toLowerCase())} sessions yet.</p>`;
   return pool.filter(([n,g])=>g===tab&&exKey(n)!==cur).map(([n,g])=>row(n,g)).join("")}
+/* ---------- swaps: variations of the same movement, with a starting weight converted from what was planned ----------
+   ratio = rough working weight relative to the first exercise (dumbbells per hand); 0 = bodyweight; null = no conversion, use their own history */
+const SWAP_FAM=[
+  [["Barbell bench press",1],["Dumbbell bench press",.38],["Smith machine bench press",.9],["Machine chest press",.9],["Dumbbell floor press",.35],["Decline bench press",1.05],["Push-up",0],["Dips (chest)",0]],
+  [["Incline barbell bench press",1],["Incline dumbbell press",.4],["Smith machine incline press",.9],["Incline machine press",.9],["Landmine press",null],["Incline push-up",0]],
+  [["Close-grip bench press",1],["Barbell bench press",1.15],["Dumbbell bench press",.42],["Dips (triceps)",0],["Diamond push-up",0]],
+  [["Cable fly",null],["Dumbbell fly",null],["Pec deck",null],["Low-to-high cable fly",null]],
+  [["Overhead press",1],["Seated dumbbell shoulder press",.38],["Arnold press",.32],["Machine shoulder press",.9],["Landmine press",null],["Pike push-up",0]],
+  [["Dumbbell lateral raise",null],["Cable lateral raise",null],["Machine lateral raise",null],["Upright row",null]],
+  [["Face pull",null],["Rear delt fly",null],["Reverse pec deck",null],["Cable rear delt fly",null]],
+  [["Barbell row",1],["Pendlay row",1],["Dumbbell row",.45],["Single-arm dumbbell row",.45],["Chest-supported row",null],["T-bar row",null],["Seated cable row",null],["Single-arm cable row",null],["Machine row",null],["Landmine row",null],["Australian row",0]],
+  [["Lat pulldown",1],["Close-grip lat pulldown",1],["Neutral-grip lat pulldown",1],["Pull-up",0],["Chin-up",0],["Assisted pull-up machine",null],["Straight-arm pulldown",null]],
+  [["Back squat",1],["Front squat",.8],["Smith machine squat",.9],["Hack squat",null],["Leg press",null],["Belt squat",null],["Goblet squat",.3]],
+  [["Bulgarian split squat",1],["Split squat",1.1],["Reverse lunge",1.1],["Walking lunge",1],["Step-up",.9],["Lateral lunge",.8]],
+  [["Romanian deadlift",1],["Stiff-leg deadlift",1],["Dumbbell Romanian deadlift",.4],["Single-leg Romanian deadlift",.25],["Good morning",.5],["Cable pull-through",null],["Kettlebell swing",null],["Back extension",null]],
+  [["Deadlift",1],["Trap bar deadlift",1.05],["Sumo deadlift",1],["Rack pull",1.1],["Romanian deadlift",.7]],
+  [["Hip thrust",1],["Smith machine hip thrust",1],["Hip thrust machine",null],["Glute bridge",.8],["Single-leg glute bridge",0],["Cable kickback",null]],
+  [["Lying leg curl",1],["Seated leg curl",1.1],["Stability ball leg curl",0],["Nordic curl",0]],
+  [["Leg extension",null],["Sissy squat",0],["Goblet squat",null]],
+  [["Standing calf raise",1],["Smith machine calf raise",1],["Seated calf raise",.7],["Leg press calf raise",null],["Single-leg calf raise",0]],
+  [["Barbell curl",1],["EZ-bar curl",1],["Dumbbell curl",.45],["Hammer curl",.5],["Incline dumbbell curl",.4],["Cable curl",null],["Bayesian cable curl",null],["Preacher curl",null],["Concentration curl",.4]],
+  [["Triceps pushdown",1],["Rope pushdown",.85],["Overhead cable extension",.8],["Skull crusher",null],["Dumbbell skull crusher",null],["Overhead dumbbell extension",null],["Dips (triceps)",0],["Bench dip",0]],
+  [["Barbell shrug",1],["Dumbbell shrug",.45],["Farmer's carry",null]],
+  [["Hanging leg raise",0],["Cable crunch",null],["Reverse crunch",0],["Decline sit-up",0],["Ab wheel rollout",0]],
+  [["Plank",0],["Dead bug",0],["Ab wheel rollout",0],["Hollow hold",0],["Bird dog",0]],
+  [["Pallof press",null],["Woodchop",null],["Russian twist",0]],
+  [["Hip abduction machine",null],["Cable hip abduction",null],["Lateral lunge",null]],
+  [["Rowing machine",null],["Assault bike",null],["SkiErg",null],["Treadmill incline walk",null],["Stair climber",null]]];
+const isDbName=n=>/dumbbell|goblet|single-arm|kettlebell|lunge|split squat|step-up/i.test(n);
+const roundKg=(kg,n)=>{if(!(kg>0))return "";const st=isDbName(n)?2:2.5;return Math.max(st,Math.round(kg/st)*st)};
+// variations of an exercise: [{name, ratio, from ratio}] from every family it belongs to (most similar first)
+function swapsFor(name){const k=exKey(name),out=[],seen=new Set([k]);SWAP_FAM.forEach(F=>{const me=F.find(([n])=>exKey(n)===k);if(!me)return;F.forEach(([n,r])=>{const kk=exKey(n);if(seen.has(kk))return;seen.add(kk);out.push({name:n,r,fr:me[1]})})});
+  const fav=(settings().swaps||{})[k];if(fav){const i=out.findIndex(x=>exKey(x.name)===exKey(fav));if(i>0)out.unshift(out.splice(i,1)[0]);if(i>=0)out[0].fav=true}return out}
+// a starting weight for the swap: their own last time on it, else converted from the planned weight
+function swapKg(ex,to){const own=(exHistory(to.name)[0]||{}).sets||[],top=own.reduce((a,x)=>Math.max(a,+x.kg||0),0);if(top>0)return {kg:top,why:"your last"};
+  if(to.r===0)return {kg:0,why:"bodyweight"};
+  const src=Math.max(0,...(ex.sets||[]).map(x=>+x.kg||0));if(src>0&&to.r!=null&&to.fr){const kg=roundKg(src*to.r/to.fr,to.name);if(kg)return {kg,why:`from ${fmtN(src)} kg planned`}}
+  return {kg:"",why:""}}
+function swapPanel(dw,ex){if(!ex.name||S.pick&&S.pick.q)return"";const L=swapsFor(ex.swapFrom||ex.name).filter(x=>exKey(x.name)!==exKey(ex.name));if(!L.length)return"";
+  const base=ex.swapFrom&&exKey(ex.swapFrom)!==exKey(ex.name)?`<button class="pick-row swaprow" data-act="wpSwap" data-v="${esc(ex.swapFrom)}"><span><b>${esc(ex.swapFrom)}</b><span class="small muted" style="display:block">Back to what was planned</span></span><span class="small">↩</span></button>`:"";
+  return `<div class="stack" style="gap:6px"><span class="label">Swap for a variation of ${esc(ex.swapFrom||ex.name)}</span><div class="pick-list">${base}${L.slice(0,8).map(x=>{const w=swapKg({...ex,sets:ex.sets},x);
+    return `<button class="pick-row swaprow" data-act="wpSwap" data-v="${esc(x.name)}"><span><b>${esc(x.name)}</b>${x.fav?` <span class="kbadge">Your usual</span>`:""}<span class="small muted" style="display:block">${w.kg===0?"Bodyweight":w.kg?`Start at ${fmtN(w.kg)} kg${isDbName(x.name)?" each":""} · ${w.why}`:LIB_GROUP[exKey(x.name)]==="Conditioning"?"Same time and effort as planned":"Pick a weight you can lift for the planned reps with 2 to spare"}</span></span><span class="small" style="color:var(--accent)">Swap</span></button>`}).join("")}</div>
+    <span class="label" style="margin-top:4px">Or any exercise</span></div>`}
+function wpSwap(name){const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei];if(!ex||!name)return;const orig=ex.swapFrom||ex.name,back=exKey(name)===exKey(orig);
+  const to=back?null:swapsFor(orig).find(x=>exKey(x.name)===exKey(name)),plan=ex.planSets||ex.sets.map(x=>({kg:x.kg,reps:x.reps,secs:x.secs}));if(!ex.planSets)ex.planSets=plan;
+  const w=to?swapKg({sets:plan},to):{kg:""},wasT=exMode(orig)==="time",isT=exMode(name)==="time";
+  ex.sets.forEach((x,i)=>{if(x.done)return;const p=plan[i]||plan[plan.length-1]||{};x.kg=back?p.kg:w.kg===0?0:w.kg!==""?w.kg:"";if(wasT!==isT){x.reps="";x.secs=""}else{x.reps=p.reps??"";x.secs=p.secs??""}delete x.rir});
+  delete ex.mode;ex.rampDone=false;ex.wu=[];ex.name=name;if(back){delete ex.swapFrom;delete ex.planSets}else ex.swapFrom=orig;
+  if(!back){const st=clone(settings());st.swaps={...(st.swaps||{}),[exKey(orig)]:name};save("settings",st)}
+  S.wpRename=null;S.pick=null;S.wp.si=null;render();toast(back?"Back to "+name:`Swapped to ${name}${w.kg?` · ${fmtN(w.kg)} kg${isDbName(name)?" each":""} to start`:""}`)}
 function wpPicker(dw,ex){const pool=stylePool(dw.kind),groups=[...new Set(pool.map(x=>x[1]))],recent=recentFor(dw.kind,ex.name);
   S.pick=S.pick||{q:"",g:null};if(!S.pick.g||(S.pick.g!=="recent"&&!groups.includes(S.pick.g)))S.pick.g=(ex.name&&groups.includes(LIB_GROUP[exKey(ex.name)]))?LIB_GROUP[exKey(ex.name)]:recent.length?"recent":groups[0];
   const tabs=[...(recent.length?[["recent","Recent"]]:[]),...groups.map(g=>[g,g])];
   return `<div class="picker">
     <div class="spread"><span class="label">${ex.name?"Change exercise":"Choose an exercise"} · ${esc(kindName(dw.kind))}</span>${ex.name?`<button class="btn ghost" data-act="wpRenameNo">Cancel</button>`:""}</div>
+    ${swapPanel(dw,ex)}
     <form id="wpPickForm" class="row" style="flex-wrap:nowrap"><input id="wpPickQ" class="pick-q" placeholder="Search, or type your own" autocomplete="off" enterkeyhint="done" value="${esc(S.pick.q)}"></form>
     <div class="chiprow pick-tabs" ${S.pick.q?"hidden":""}>${tabs.map(([k,l])=>`<button class="qchip" data-act="pickTab" data-v="${esc(k)}" aria-pressed="${S.pick.g===k}">${esc(l)}</button>`).join("")}</div>
     <div class="pick-list" id="pickList">${pickResults(dw,ex)}</div>
@@ -1832,16 +1885,16 @@ function renderCardio(){const all=ofType("cardio"),ws=weekStart(),wk=all.filter(
 
 /* ---------- exercise library + per-exercise history ---------- */
 const EX_LIB={
-  "Chest":["Barbell bench press","Incline barbell bench press","Decline bench press","Dumbbell bench press","Incline dumbbell press","Dumbbell fly","Cable fly","Low-to-high cable fly","Pec deck","Machine chest press","Push-up","Dips (chest)"],
-  "Back":["Deadlift","Barbell row","Pendlay row","Dumbbell row","Chest-supported row","T-bar row","Seated cable row","Lat pulldown","Close-grip lat pulldown","Pull-up","Chin-up","Straight-arm pulldown","Machine row","Rack pull","Back extension"],
-  "Shoulders":["Overhead press","Seated dumbbell shoulder press","Arnold press","Machine shoulder press","Dumbbell lateral raise","Cable lateral raise","Front raise","Rear delt fly","Reverse pec deck","Face pull","Upright row","Barbell shrug","Dumbbell shrug"],
-  "Biceps":["Barbell curl","EZ-bar curl","Dumbbell curl","Hammer curl","Incline dumbbell curl","Preacher curl","Cable curl","Concentration curl"],
-  "Triceps":["Close-grip bench press","Triceps pushdown","Rope pushdown","Overhead cable extension","Skull crusher","Overhead dumbbell extension","Dips (triceps)","Bench dip"],
-  "Quads":["Back squat","Front squat","Goblet squat","Hack squat","Leg press","Bulgarian split squat","Walking lunge","Reverse lunge","Step-up","Leg extension","Smith machine squat"],
-  "Hamstrings & glutes":["Romanian deadlift","Stiff-leg deadlift","Lying leg curl","Seated leg curl","Nordic curl","Good morning","Hip thrust","Glute bridge","Cable kickback","Hip abduction machine","Kettlebell swing"],
-  "Calves":["Standing calf raise","Seated calf raise","Leg press calf raise"],
-  "Core":["Plank","Side plank","Hanging leg raise","Cable crunch","Ab wheel rollout","Dead bug","Pallof press","Russian twist","Decline sit-up"],
-  "Conditioning":["Farmer's carry","Sled push","Rowing machine","Assault bike","Treadmill incline walk","Battle ropes","Burpees"]
+  "Chest":["Barbell bench press","Incline barbell bench press","Decline bench press","Dumbbell bench press","Incline dumbbell press","Dumbbell fly","Cable fly","Low-to-high cable fly","Pec deck","Machine chest press","Smith machine bench press","Dumbbell floor press","Incline machine press","Smith machine incline press","Push-up","Dips (chest)"],
+  "Back":["Deadlift","Barbell row","Pendlay row","Dumbbell row","Chest-supported row","T-bar row","Seated cable row","Lat pulldown","Close-grip lat pulldown","Pull-up","Chin-up","Straight-arm pulldown","Machine row","Single-arm cable row","Neutral-grip lat pulldown","Assisted pull-up machine","Single-arm dumbbell row","Rack pull","Back extension"],
+  "Shoulders":["Overhead press","Seated dumbbell shoulder press","Arnold press","Machine shoulder press","Dumbbell lateral raise","Cable lateral raise","Machine lateral raise","Front raise","Rear delt fly","Cable rear delt fly","Reverse pec deck","Face pull","Upright row","Barbell shrug","Dumbbell shrug"],
+  "Biceps":["Barbell curl","EZ-bar curl","Dumbbell curl","Hammer curl","Incline dumbbell curl","Preacher curl","Cable curl","Bayesian cable curl","Concentration curl"],
+  "Triceps":["Close-grip bench press","Triceps pushdown","Rope pushdown","Overhead cable extension","Skull crusher","Dumbbell skull crusher","Overhead dumbbell extension","Dips (triceps)","Bench dip"],
+  "Quads":["Back squat","Front squat","Goblet squat","Hack squat","Leg press","Bulgarian split squat","Walking lunge","Reverse lunge","Step-up","Split squat","Leg extension","Sissy squat","Smith machine squat","Belt squat"],
+  "Hamstrings & glutes":["Romanian deadlift","Dumbbell Romanian deadlift","Single-leg Romanian deadlift","Stiff-leg deadlift","Trap bar deadlift","Sumo deadlift","Lying leg curl","Seated leg curl","Stability ball leg curl","Nordic curl","Good morning","Cable pull-through","Hip thrust","Hip thrust machine","Smith machine hip thrust","Glute bridge","Cable kickback","Hip abduction machine","Cable hip abduction","Kettlebell swing"],
+  "Calves":["Standing calf raise","Smith machine calf raise","Seated calf raise","Leg press calf raise","Single-leg calf raise"],
+  "Core":["Plank","Side plank","Hanging leg raise","Cable crunch","Ab wheel rollout","Dead bug","Pallof press","Russian twist","Decline sit-up","Reverse crunch"],
+  "Conditioning":["Farmer's carry","Sled push","Rowing machine","Assault bike","Treadmill incline walk","Stair climber","SkiErg","Battle ropes","Burpees"]
 };
 // [name, muscle group, "t" if it's a timed hold]
 const EX_MORE={
@@ -2336,8 +2389,22 @@ function loadPhoto(file){const img=new Image(),url=URL.createObjectURL(file);
 
 /* ---------- rest timer ---------- */
 /* ---------- reminders: on this phone (while the app is open or in the background) and, once set up, real push notifications ---------- */
-const REM_DEF={food:{on:false,time:"19:00"},ready:{on:false,time:"09:00"},plan:{on:false,time:"17:00"},idle:{on:true,mins:45}};
-const remCfg=()=>{const r=settings().reminders||{};return {food:{...REM_DEF.food,...r.food},ready:{...REM_DEF.ready,...r.ready},plan:{...REM_DEF.plan,...r.plan},idle:{...REM_DEF.idle,...r.idle}}};
+const REM_DEF={food:{on:false,time:"19:00"},ready:{on:false,time:"09:00"},plan:{on:false,time:"17:00"},gym:{on:false,time:"08:00",days:null},idle:{on:true,mins:45}};
+const remCfg=()=>{const r=settings().reminders||{};return {food:{...REM_DEF.food,...r.food},ready:{...REM_DEF.ready,...r.ready},plan:{...REM_DEF.plan,...r.plan},gym:{...REM_DEF.gym,...r.gym},idle:{...REM_DEF.idle,...r.idle}}}
+// training days for the gym nudge: the days you picked, else days with a planned session, else the weekdays you usually train (last 4 weeks), else Mon/Wed/Fri
+function gymDays(){const g=remCfg().gym;if(Array.isArray(g.days)&&g.days.length)return g.days;const c={};ofType("workout").filter(w=>w.date>=addDays(todayKey(),-28)).forEach(w=>{const d=new Date(w.date+"T12:00").getDay();c[d]=(c[d]||0)+1});
+  const u=Object.keys(c).filter(d=>c[d]>=2).map(Number);return u.length?u:[1,3,5]}
+// kind, varied wording, picked by date so it changes day to day
+const GYM_LINES=[
+  ["{hi}, {n}! 💪","{s} is ready for you. Future you is already grateful."],
+  ["You've got this, {n} 🙌","You don't need to feel ready, you just need to start. {s} is set up and waiting."],
+  ["Gym time? 🏋️","Showing up is the hardest part, and you're good at it. {s} is ready when you are."],
+  ["{hi}, {n} ☀️","Every session counts, even a short one. {s} is lined up for you."],
+  ["Small steps, big change 💚","One more session closer to your goal. Press Start and everything's set up."],
+  ["Proud of you for showing up 💪","Consistency beats perfection. {s} is waiting, see you there?"],
+  ["Let's make today count, {n} ⚡","Your body's ready for {s}. Warm-up, then one set at a time."]];
+function gymMsg(day,sess,tm){const n=firstName(activeProf().name||"")||"you",h=+String(tm).split(":")[0],hi=h<12?"Morning":h<17?"Afternoon":"Evening",i=(+day.replace(/-/g,""))%GYM_LINES.length,[t,b]=GYM_LINES[i];
+  const f=x=>x.replace("{hi}",hi).replace("{n}",n==="Me"?"you":n).replace("{s}",sess||"Today's session");return {title:f(t),body:f(b)}};
 const FN_URL=()=>CLOUD_URL?CLOUD_URL+"/functions/v1/reminders":"";
 async function showNote(title,body,tag,url){if(!("Notification" in window)||Notification.permission!=="granted"){if(!document.hidden)toast(title+" "+body);return}
   const opt={body,tag,renotify:true,icon:"icon-192.png",badge:"icon-192.png",data:{url:url||"./"}};
@@ -2381,10 +2448,14 @@ function setReminders(){const R=remCfg(),perm=NATIVE?(nPerm==="granted"?"granted
     ${row("food","Log food","If nothing's logged by",`<input type="time" data-act="remTime" data-k="food" value="${R.food.time}">`)}
     ${row("ready","Morning readiness check","If not done by",`<input type="time" data-act="remTime" data-k="ready" value="${R.ready.time}">`)}
     <div class="remrow"><label class="habit" style="flex:1"><input type="checkbox" data-act="rdPopTgl" ${lsGet(rdPopOffKey())==="1"?"":"checked"}><span><b>Check-in pop-up</b><span class="small muted" style="display:block">Ask for readiness the first time you open the app each day</span></span></label></div>
-    ${row("plan","Coach's planned session","On days with a session, if not started by",`<input type="time" data-act="remTime" data-k="plan" value="${R.plan.time}">`)}
+    ${row("gym","Training reminder","A kind nudge on your training days, unless you've already trained",`<input type="time" data-act="remTime" data-k="gym" value="${R.gym.time}">`)}
+    ${R.gym.on?`<div class="stack" style="gap:8px;padding:0 0 6px 34px"><div class="row" style="gap:6px">${[["08:00","8 am"],["15:00","3 pm"]].map(([v,l])=>`<button class="qchip" data-act="gymTime" data-v="${v}" aria-pressed="${R.gym.time===v}">${l}</button>`).join("")}</div>
+      <span class="label">Days</span><div class="row" style="gap:4px">${[1,2,3,4,5,6,0].map(d=>`<button class="qchip" data-act="gymDay" data-v="${d}" aria-pressed="${gymDays().includes(d)}" style="min-width:42px">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d]}</button>`).join("")}</div>
+      <span class="small muted">${Array.isArray(R.gym.days)&&R.gym.days.length?"Your chosen days, plus any day with a planned session.":"Picked from your planned sessions and the days you usually train. Tap to choose your own."} Example: “${esc(gymMsg(todayKey(),(upcomingPlans()[0]||{}).name,R.gym.time).title)} ${esc(gymMsg(todayKey(),(upcomingPlans()[0]||{}).name,R.gym.time).body)}”</span></div>`:""}
+    ${R.gym.on?"":row("plan","Coach's planned session","On days with a session, if not started by",`<input type="time" data-act="remTime" data-k="plan" value="${R.plan.time}">`)}
     ${row("idle","Workout left running","If a session has no activity for",`<select data-act="remMins">${[20,30,45,60,90].map(n=>`<option value="${n}" ${R.idle.mins===n?"selected":""}>${n} min</option>`).join("")}</select>`)}
     <span class="small muted">You only get a reminder when it's needed: nothing logged yet, check not done, or the session not started. One per day each. If you leave a workout running, the app also asks when you come back whether to save it at the time you stopped.</span></section>`}
-const REST_DEF={secs:90,sound:true,vibrate:true,notify:true};
+const REST_DEF={secs:90,sound:true,tone:"bell",vibrate:true,notify:true};
 const restCfg=()=>({...REST_DEF,...(settings().rest||{})});
 // rest between sets: the exercise's own setting, else a default for the training style (gym uses the Settings value)
 const REST_KIND={bodyweight:60,functional:60,calisthenics:90};
@@ -2474,6 +2545,12 @@ function coolBottom(dw,L){return L.some(x=>!x.done)?`<button class="wp-big" data
   :`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Finish workout</button>`}
 let actx=null;
 function unlockAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume()}catch(e){}}
+// boxing-ring bell: ding-ding-ding, three strikes of a brass bell (inharmonic partials, each decaying) plus a short strike click. Same recipe as ios/App/App/bell.wav
+function bell(){if(!actx)return;try{const f0=760,P=[[.5,.22,2.2],[1,1,1.5],[2,.32,.9],[2.76,.48,.8],[4.07,.28,.5],[5.4,.2,.35],[6.8,.1,.25]],out=actx.createGain();out.gain.value=.32;out.connect(actx.destination);
+  [0,.36,.72].forEach(t=>{const st=actx.currentTime+.02+t;P.forEach(([r,a,d])=>[-1.2,1.2].forEach(det=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f0*r+det;o.connect(g);g.connect(out);
+      g.gain.setValueAtTime(.0001,st);g.gain.exponentialRampToValueAtTime(a*.5,st+.003);g.gain.exponentialRampToValueAtTime(.0001,st+d*4.5);o.start(st);o.stop(st+d*4.6)}));
+    const n=actx.createBufferSource(),b=actx.createBuffer(1,Math.round(actx.sampleRate*.03),actx.sampleRate),ch=b.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=(Math.random()*2-1)*Math.exp(-i/(actx.sampleRate*.004))*.35;n.buffer=b;n.connect(out);n.start(st)})}catch(e){}}
+const restSound=()=>{const c=restCfg();if(!c.sound)return;c.tone==="beep"?beep():bell()};
 function beep(){if(!actx)return;try{[0,0.32,0.64].forEach(t=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=t>0.6?1175:880;o.connect(g);g.connect(actx.destination);
   const st=actx.currentTime+t;g.gain.setValueAtTime(0.0001,st);g.gain.exponentialRampToValueAtTime(0.35,st+0.02);g.gain.exponentialRampToValueAtTime(0.0001,st+0.25);o.start(st);o.stop(st+0.27)})}catch(e){}}
 /* workout list view: the whole session on one screen, set table for the open exercise */
@@ -2506,10 +2583,10 @@ const mmss=t=>{t=Math.max(0,Math.ceil(t));return Math.floor(t/60)+":"+String(t%6
 function tickRest(){const R=S.rest,el=document.getElementById("restbar");if(!R){el.hidden=true;return}
   if(S.lock){el.hidden=true;return}
   if(playerOn()){el.hidden=true;const left=(R.end-Date.now())/1000,t=document.getElementById("wpRest"),ring=document.getElementById("wpRing");
-    if(left<=0&&!R.fired){R.fired=true;const c=restCfg();if(c.sound)beep();if(c.vibrate)haptic();restServer(null);notifyRestOver();render();setTimeout(()=>{if(S.rest===R){stopRest();render()}},2500);return}
+    if(left<=0&&!R.fired){R.fired=true;const c=restCfg();restSound();if(c.vibrate)haptic();restServer(null);notifyRestOver();render();setTimeout(()=>{if(S.rest===R){stopRest();render()}},2500);return}
     if(t&&!R.fired){t.textContent=mmss(left);ring&&ring.style.setProperty("--p",Math.min(100,(1-left/R.total)*100).toFixed(1))}else if(!t&&!R.fired)render();return}
   const left=(R.end-Date.now())/1000,over=left<=0;
-  if(over&&!R.fired){R.fired=true;const c=restCfg();if(c.sound)beep();if(c.vibrate)haptic();restServer(null);notifyRestOver();setTimeout(()=>{if(S.rest===R)stopRest()},4000)}
+  if(over&&!R.fired){R.fired=true;const c=restCfg();restSound();if(c.vibrate)haptic();restServer(null);notifyRestOver();setTimeout(()=>{if(S.rest===R)stopRest()},4000)}
   const html=`<div style="flex:1;min-width:0"><div class="lbl">${over?"Rest over":"Rest"}</div><div class="t" id="restTime">${over?"Go!":mmss(left)}</div><div class="prog"><i style="width:${over?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}%"></i></div></div>
     ${over?`<button data-act="restSkip">Close</button>`:`<button data-act="restAdj" data-d="-15" aria-label="15 seconds less">−15</button><button data-act="restAdj" data-d="15" aria-label="15 seconds more">+15</button><button data-act="restSkip">Skip</button>`}`;
   const key=(over?"o":"r")+"|"+Math.ceil(left);if(el._k!==key){el._k=key;el.innerHTML=html}
@@ -2522,7 +2599,8 @@ function setRest(){const c=restCfg(),perm=NATIVE?(nPerm==="granted"?"granted":nP
       <div class="steppers" style="grid-column:auto"><button data-act="restDef" data-d="-15" aria-label="15 seconds less">−</button><button class="add" style="--c:var(--accent)" data-act="restDef" data-d="15" aria-label="15 seconds more">+</button></div></div>
     <div class="row">${[60,90,120,180].map(v=>`<button class="btn${c.secs===v?" primary":""}" data-act="restSet" data-v="${v}">${mmss(v)}</button>`).join("")}</div></section>
   <section class="panel"><h2>When rest ends</h2>
-    <label class="habit"><input type="checkbox" data-act="restOpt" data-k="sound" ${c.sound?"checked":""}><span>Beep</span></label>
+    <label class="habit"><input type="checkbox" data-act="restOpt" data-k="sound" ${c.sound?"checked":""}><span>Sound</span></label>
+    ${c.sound?`<div class="row" style="gap:6px;padding-left:34px"><button class="qchip" data-act="restTone" data-v="bell" aria-pressed="${c.tone!=="beep"}">🔔 Boxing bell</button><button class="qchip" data-act="restTone" data-v="beep" aria-pressed="${c.tone==="beep"}">Beep</button><button class="btn ghost" data-act="restTest">▶ Play</button></div>`:""}
     <label class="habit"><input type="checkbox" data-act="restOpt" data-k="vibrate" ${c.vibrate?"checked":""}><span>Vibrate${NATIVE?"":` <span class="small muted">(Android phones)</span>`}</span></label>
     <label class="habit"><input type="checkbox" data-act="restOpt" data-k="notify" ${c.notify&&perm==="granted"?"checked":""} ${perm==="unsupported"||perm==="denied"?"disabled":""}><span>Notification</span></label>
     <span class="small muted">${perm==="denied"?"Notifications are blocked for this app. Turn them on in your phone's settings for this site or app, then come back."
@@ -2562,7 +2640,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:recoveryReport(),age:ageFromDob(pr.dob)||+pr.hrAge||null,maxHR:+pr.maxHR||null}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,...(e.swapFrom?{from:e.swapFrom}:{}),sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:recoveryReport(),age:ageFromDob(pr.dob)||+pr.hrAge||null,maxHR:+pr.maxHR||null}}
 function liftsReport(){const o={};let n=0;for(const [k,L] of exIndex(0)){if(n++>=80)break;o[k]=L.slice(0,3).map(h=>({date:h.date,sets:(h.sets||[]).map(x=>x.secs!=null&&(x.reps==null||x.reps==="")?{kg:+x.kg||0,secs:+x.secs||0}:{kg:+x.kg||0,reps:+x.reps||0})}))}return o}
 function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
   const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
@@ -3272,8 +3350,8 @@ function plansSection(c){if(!c.clientUid)return `<section class="panel"><h2>Plan
     ${mine.length?`<div class="hist">${mineShow.map(p=>{const dd=((c.planDone||[]).find(y=>(y.id||y)===p.pid)||{}).date;const st=done.has(p.pid)?`<span class="small good">✓ Done${p.flex&&dd?" "+fmtDay(dd):""}</span>`:p.flex?(fx&&fx.next&&fx.next.pid===p.pid?`<span class="small" style="color:var(--accent)">Up next</span>`:""):p.date<t?`<span class="small" style="color:var(--protein)">Missed</span>`:p.date===t?`<span class="small" style="color:var(--accent)">Today</span>`:"";
       const did=(c.planDone||[]).find(x=>(x.id||x)===p.pid&&x.sets);
       return `<div class="item"><div class="spread"><span><b>${p.flex?"Session "+((p.seq??0)+1):fmtDay(p.date)}</b> · ${esc(p.name||"Session")} <span class="small muted">${(p.exercises||[]).length} ex · ${kindName(p.kind)}</span>${p.pending?` <span class="small muted">(not sent yet)</span>`:""}</span>${st}</div>
-        ${did?`<details><summary class="small">Planned vs what they did</summary><div class="pva">${(p.exercises||[]).map(e=>{const a=did.sets.find(x=>exKey(x.name)===exKey(e.name)),tot=a?a.sets.length:0,hit=a?a.sets.filter((x,i)=>{const pl=(e.sets||[])[i]||{};return (+x[1]||0)>=(+pl.reps||+pl.secs||0)}).length:0;
-          return `<div class="small"><b>${esc(e.name)}</b><span class="muted"> plan ${esc(rxText(e))}</span><br>${a?`${a.sets.map(x=>`${fmtN(+x[0]||0)}×${x[1]}`).join(", ")} <span class="${hit>=(e.sets||[]).length?"good":"muted"}">${hit>=(e.sets||[]).length&&tot?"✓ all reps hit. Ready to progress":`${tot} of ${(e.sets||[]).length} sets`}</span>`:`<span style="color:var(--protein)">Skipped</span>`}</div>`}).join("")}
+        ${did?`<details><summary class="small">Planned vs what they did</summary><div class="pva">${(p.exercises||[]).map(e=>{const a=did.sets.find(x=>exKey(x.name)===exKey(e.name))||did.sets.find(x=>x.from&&exKey(x.from)===exKey(e.name)),tot=a?a.sets.length:0,hit=a?a.sets.filter((x,i)=>{const pl=(e.sets||[])[i]||{};return (+x[1]||0)>=(+pl.reps||+pl.secs||0)}).length:0;
+          return `<div class="small"><b>${esc(e.name)}</b><span class="muted"> plan ${esc(rxText(e))}</span><br>${a?`${a.from?`<span class="kbadge">Swapped to ${esc(a.name)}</span> `:""}${a.sets.map(x=>`${fmtN(+x[0]||0)}×${x[1]}`).join(", ")} <span class="${hit>=(e.sets||[]).length?"good":"muted"}">${hit>=(e.sets||[]).length&&tot?"✓ all reps hit. Ready to progress":`${tot} of ${(e.sets||[]).length} sets`}</span>`:`<span style="color:var(--protein)">Skipped</span>`}</div>`}).join("")}
           ${did.sets.filter(x=>!(p.exercises||[]).some(e=>exKey(e.name)===exKey(x.name))).map(x=>`<div class="small"><b>${esc(x.name)}</b> <span class="muted">(added: ${x.sets.map(y=>`${fmtN(+y[0]||0)}×${y[1]}`).join(", ")})</span></div>`).join("")}</div></details>`:""}
         <div class="row" style="gap:4px"><button class="btn ghost" data-act="plEdit" data-id="${p.id}">Edit</button><button class="btn ghost" data-act="plCopy" data-id="${p.id}">Copy</button><button class="btn ghost" style="color:var(--protein)" data-act="plRemove" data-id="${p.id}">${S.confirmPlanDel===p.id?"Tap to delete":"Delete"}</button></div></div>`}).join("")}</div>`:open?"":`<p class="small muted" style="margin:0">Nothing planned yet. Plan a session and it appears in their app with a Start button, sets and weights ready.</p>`}
     ${(()=>{const groups=[...new Set(mine.filter(p=>planProg(p)&&p.date>=t).map(p=>planProg(p)+"|"+(p.progName||"Programme")))];return groups.map(g=>{const [gid,gn]=g.split("|");return `<button class="btn ghost" style="color:var(--protein);align-self:flex-start" data-act="plDropProg" data-id="${gid}" data-c="${c.clientUid}">${S.confirmDrop===gid?"Tap to remove all upcoming sessions":"Remove upcoming sessions from “"+esc(gn)+"”"}</button>`}).join("")})()}
@@ -3657,6 +3735,10 @@ document.addEventListener("click",e=>{
     case "hqSave":{const h=S.healthDraft;if(HEALTH_Q.some(([k])=>!h[k])){toast("Answer each question with yes or no");break}if(!h.consent){toast("Tick the box to agree to your answers being stored");break}
       S.healthDraft=null;const rec=healthRecord(h);save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),health:rec});toast(rec.flagged?"Saved. Please check with your GP before increasing exercise":"Saved. All clear");break}
     case "hkConnect":hkConnect();break;
+    case "restTone":{const st=clone(settings());st.rest={...REST_DEF,...(st.rest||{}),tone:ds.v};save("settings",st);unlockAudio();setTimeout(restSound,30);break}
+    case "restTest":unlockAudio();setTimeout(restSound,30);break;
+    case "gymTime":case "gymDay":{const st=clone(settings()),R=remCfg();if(ds.act==="gymTime")R.gym.time=ds.v;else{const d=+ds.v,cur=gymDays();R.gym.days=cur.includes(d)?cur.filter(x=>x!==d):[...cur,d]}
+      R.plan={...R.plan,on:R.gym.on,time:R.gym.time};st.reminders=R;save("settings",st);nativeDaily();break}
     case "hrOpen":S.hrSheet=!S.hrSheet;render();setTimeout(hrPaint,0);break;
     case "hrClose":S.hrSheet=false;render();break;
     case "hrGo":hrStart(ds.v==="saved"?hrSaved(hrWho()):null);break;
@@ -3721,6 +3803,7 @@ document.addEventListener("click",e=>{
     case "wuSetBack":{const st=S.wu.stages[S.wu.idx];stopRestQuiet();st.pos=Math.max(0,st.pos-1);render();break}
     case "wpRename":S.wpRename=wpSteps(S.draftWorkout)[S.wp.step].ei;S.pick=null;render();break;
     case "wpRenameNo":S.wpRename=null;S.pick=null;render();break;
+    case "wpSwap":wpSwap(ds.v);break;
     case "demoToggle":{const nm=ds.v,dw=S.draftWorkout,cur=dw&&S.wp?wpSteps(dw)[S.wp.step]:null,ex=cur&&dw.exercises[cur.ei],had=ex&&exHistory(ex.name)[0];const openNow=S.demoOpen!=null?S.demoOpen===nm:!had;S.demoOpen=openNow?"":nm;render();break}
     case "srcTab":{S.searchSrc=ds.v;const q=document.getElementById("q")?.value.trim();render();if(q){if(document.getElementById("q"))document.getElementById("q").value=q;runSearch(q)}else document.getElementById("q")?.focus();break}
     case "pushOn":S.pushStatus="busy";enablePush().then(r=>{S.pushStatus=r;if(r==="on")toast("Notifications on. Reminders will reach you even when the app is closed");else if(r==="local"||r==="noserver")toast("Notifications on for while the app is open");render()});break;
@@ -3942,10 +4025,10 @@ document.addEventListener("click",e=>{
     case "restTest":unlockAudio();startRest(3);break;
     case "delSet":S.draftWorkout.exercises[+ds.ei].sets.splice(+ds.si,1);render();break;
     case "saveWo":{const w=S.draftWorkout;if(w&&w.started&&w.exercises.some(e=>e.sets.some(x=>x.done)))w.exercises.forEach(e=>{e.sets=e.sets.filter(x=>x.done)});
-      w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";if(+e.rest)o.rest=+e.rest;return o}).filter(e=>e.sets.length);
+      w.exercises=w.exercises.map((e,i)=>({...e,name:String(e.name||"").trim()||(e.sets.some(x=>x.done||+x.reps>0||+x.secs>0)?"Exercise "+(i+1):"")})).filter(e=>e.name).map(e=>{const mode=exMode(e.name,e.mode),o={name:e.name.trim(),sets:e.sets.filter(st=>mode==="time"?(+st.secs>0):(st.reps!==""&&st.reps!=null)).map(st=>{const x={kg:+st.kg||0};if(mode==="time")x.secs=+st.secs||0;else x.reps=+st.reps||0;if(st.rir!==""&&st.rir!=null)x.rir=+st.rir;return x})};if(mode==="time")o.mode="time";if(+e.rest)o.rest=+e.rest;if(e.swapFrom&&exKey(e.swapFrom)!==exKey(o.name))o.swapFrom=e.swapFrom;return o}).filter(e=>e.sets.length);
       ["warmup","cooldown"].forEach(p=>w[p]=(w[p]||[]).filter(x=>String(x.name||"").trim()).map(x=>({name:x.name.trim(),detail:x.pick?`${x.pick} · ${x.mins||5} min`:x.sel&&x.sel.length?x.sel.map(n=>n.split(",")[0]+" × "+drillTarget(x,n)).join(", "):(x.detail||""),done:!!x.done||!!(x.sub&&x.sub.length),...(x.log&&x.log.length?{log:x.log}:{})})));
       if(!w.exercises.length&&!w.warmup.some(x=>x.done)&&!w.cooldown.some(x=>x.done)){toast("Nothing to save yet. Log a set, or tick off your warm-up");break}
-      if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;{const sm=hrSummary(w.hrLog,hrMaxFor(w.forClient));if(sm){w.hr=sm;w.hrAt=Date.now();w.hrLog=hrThin(w.hrLog)}else delete w.hrLog}if(HRL.state!=="off")hrStop();if(w.forClient){saveClientSession(w);break}const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
+      if(w.started){w.mins=Math.max(1,Math.round(((w.ended||Date.now())-w.started)/60000))}delete w.lastAct;delete w._auto;delete w._repeat;(w.exercises||[]).forEach(e=>{delete e.planSets});{const sm=hrSummary(w.hrLog,hrMaxFor(w.forClient));if(sm){w.hr=sm;w.hrAt=Date.now();w.hrLog=hrThin(w.hrLog)}else delete w.hrLog}if(HRL.state!=="off")hrStop();if(w.forClient){saveClientSession(w);break}const id="wo_"+Date.now(),prs=typeof findPRs==="function"?findPRs(w):[];if(prs.length)w.prs=prs;
       S.draftWorkout=null;S.wp=null;S.wpEnd=false;stopRest();wakeOff();S.woSum=id;S.woSumFresh=true;S.tab="train";save(id,w);window.scrollTo(0,0);setTimeout(()=>pushReports(true),2000);hkSaveWorkout(id);toast(prs.length?`🏆 New personal best${prs.length>1?"s":""}: ${prs.map(x=>x.name).join(", ")}`:"Session saved");break}
     case "woSum":S.woSum=ds.id;S.woSumFresh=false;S.tab="train";render();window.scrollTo(0,0);break;
     case "sumClose":S.woSum=null;S.woSumFresh=false;render();window.scrollTo(0,0);break;
@@ -3992,7 +4075,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
   if(ds.act==="clientNotes"){const c=S.docs[ds.id];if(c)save(ds.id,{...c,notes:t.value})}
-  if(ds.act==="remOn"||ds.act==="remTime"||ds.act==="remMins"){const st=clone(settings()),R=remCfg();if(ds.act==="remOn")R[ds.k].on=t.checked;else if(ds.act==="remTime")R[ds.k].time=t.value||R[ds.k].time;else R.idle.mins=+t.value;st.reminders=R;save("settings",st);
+  if(ds.act==="remOn"||ds.act==="remTime"||ds.act==="remMins"){const st=clone(settings()),R=remCfg();if(ds.act==="remOn")R[ds.k].on=t.checked;else if(ds.act==="remTime")R[ds.k].time=t.value||R[ds.k].time;else R.idle.mins=+t.value;if(ds.k==="gym")R.plan={...R.plan,on:R.gym.on,time:R.gym.time};st.reminders=R;save("settings",st);
     if(ds.act==="remOn"&&t.checked&&"Notification" in window&&Notification.permission==="default"){enablePush().then(r=>{S.pushStatus=r;render()})}}
   if(ds.act==="restOpt"){const st=clone(settings()),c={...REST_DEF,...(st.rest||{})};
     if(ds.k==="notify"&&t.checked&&NATIVE&&nPerm!=="granted"){nativePermAsk().then(r=>{const s2=clone(settings());s2.rest={...REST_DEF,...(s2.rest||{}),notify:r==="on"};save("settings",s2);if(r!=="on")toast("Notifications weren't allowed. Turn them on in Settings › Project Fitness")});return}
