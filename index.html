@@ -1162,7 +1162,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-09-3";
+const APP_VERSION="2026-11-09-4";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -3429,11 +3429,11 @@ function renderGate(){
     <button class="gate-link gate-local" data-act="gateLocal">Continue without an account</button>
     <span class="small muted" style="text-align:center;display:block">Without an account, everything stays on this phone only. You can sign in later in Settings → Cloud account.</span></div>`}
 /* auth */
-const authMsg=e=>{const m=(e&&e.message)||"";return /Invalid login/i.test(m)?"Email or password is wrong":/not confirmed/i.test(m)?"Confirm your email first (check your inbox), then sign in":/already registered/i.test(m)?"There's already an account with that email. Sign in instead":/Password should be/i.test(m)?"Password must be at least 8 characters":m||"Something went wrong. Try again"};
+const authMsg=e=>{const m=(e&&e.message)||"";return /Invalid login/i.test(m)?"Email or password is wrong":/not confirmed/i.test(m)?"Confirm your email first (check your inbox), then sign in":/already registered/i.test(m)?"There's already an account with that email. Sign in instead":/Password should be/i.test(m)?"Password must be at least 8 characters":/rate limit|too many|security purposes/i.test(m)?"Too many emails sent in the last hour. Wait a while, then try again":/sending|smtp|not authori[sz]ed|recovery email|confirmation email/i.test(m)?"We couldn't send the email right now. Ask your coach to check the email settings, then try again":m||"Something went wrong. Try again"};
 async function doAuth(kind){const c=await sbClient();if(!c){toast("Can't reach the account service. Check your connection");return}
   const email=(document.getElementById("au_email")||{}).value?.trim(),pw=(document.getElementById("au_pw")||{}).value||"";
   if(!email||!/@/.test(email)){toast("Enter your email");return}
-  if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:appUrl()});CL.authHint=null;cloudRender();toast(error?authMsg(error):"Password reset email sent to "+email);return}
+  if(kind==="forgot"){const {error}=await c.auth.resetPasswordForEmail(email,{redirectTo:appUrl()});CL.authHint=null;cloudRender();toast(error?authMsg(error):"Reset email sent to "+email+". It can take a few minutes, so check your spam folder too");return}
   if(pw.length<8){toast("Password must be at least 8 characters");return}
   if(kind==="up"&&!(document.getElementById("au_consent")||{}).checked){CL.authHint=CL.authHint||{email,pw};CL.authHint.email=email;CL.authHint.pw=pw;toast("Tick the box to agree to the privacy notice first");document.getElementById("au_consent")?.focus();return}
   CL.busy=true;cloudRender();
