@@ -1162,7 +1162,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-09-1";
+const APP_VERSION="2026-11-09-2";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1367,6 +1367,7 @@ async function nativeDaily(){if(!NATIVE||nPerm!=="granted"||S.lock||S.example)re
   document.addEventListener("focusin",e=>{if(kbIn(e.target)&&matchMedia("(pointer:coarse)").matches){clearTimeout(kbT);document.documentElement.classList.add("kb")}});
   document.addEventListener("focusout",e=>{if(kbIn(e.target)){clearTimeout(kbT);kbT=setTimeout(()=>{if(!kbIn(document.activeElement))document.documentElement.classList.remove("kb")},120)}})}
 if(NATIVE){document.documentElement.classList.add("native");nativeSafeArea();setTimeout(()=>hkPull(),2500);try{document.querySelector('meta[name="viewport"]').setAttribute("content","width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover")}catch(e){}document.addEventListener("visibilitychange",()=>{nativeBgSync();if(!document.hidden){nativeDaily();hkPull()}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)restDisarm();else if(S.rest&&!S.rest.fired){unlockAudio();restTimers();setTimeout(restArm,80)}});
   nativePermCheck().then(()=>nativeDaily());
   try{NPlug("LocalNotifications")?.addListener("localNotificationActionPerformed",e=>{const g=e&&e.notification&&e.notification.extra&&e.notification.extra.go;if(g)setTimeout(()=>goTo(g),300)})}catch(e){}
   try{NPlug("StatusBar")?.setOverlaysWebView({overlay:true})}catch(e){}}
@@ -2546,13 +2547,22 @@ function coolBottom(dw,L){return L.some(x=>!x.done)?`<button class="wp-big" data
 let actx=null;
 function unlockAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume()}catch(e){}}
 // boxing-ring bell: ding-ding-ding, three strikes of a brass bell (inharmonic partials, each decaying) plus a short strike click. Same recipe as ios/App/App/bell.wav
-function bell(){if(!actx)return;try{const f0=760,P=[[.5,.22,2.2],[1,1,1.5],[2,.32,.9],[2.76,.48,.8],[4.07,.28,.5],[5.4,.2,.35],[6.8,.1,.25]],out=actx.createGain();out.gain.value=.32;out.connect(actx.destination);
-  [0,.36,.72].forEach(t=>{const st=actx.currentTime+.02+t;P.forEach(([r,a,d])=>[-1.2,1.2].forEach(det=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f0*r+det;o.connect(g);g.connect(out);
+function bell(delay){if(!actx)return null;try{const f0=760,P=[[.5,.22,2.2],[1,1,1.5],[2,.32,.9],[2.76,.48,.8],[4.07,.28,.5],[5.4,.2,.35],[6.8,.1,.25]],out=actx.createGain();out.gain.value=.32;out.connect(actx.destination);
+  [0,.36,.72].forEach(t=>{const st=actx.currentTime+Math.max(0,delay||0)+t;P.forEach(([r,a,d])=>[-1.2,1.2].forEach(det=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f0*r+det;o.connect(g);g.connect(out);
       g.gain.setValueAtTime(.0001,st);g.gain.exponentialRampToValueAtTime(a*.5,st+.003);g.gain.exponentialRampToValueAtTime(.0001,st+d*4.5);o.start(st);o.stop(st+d*4.6)}));
-    const n=actx.createBufferSource(),b=actx.createBuffer(1,Math.round(actx.sampleRate*.03),actx.sampleRate),ch=b.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=(Math.random()*2-1)*Math.exp(-i/(actx.sampleRate*.004))*.35;n.buffer=b;n.connect(out);n.start(st)})}catch(e){}}
-const restSound=()=>{const c=restCfg();if(!c.sound)return;c.tone==="beep"?beep():bell()};
-function beep(){if(!actx)return;try{[0,0.32,0.64].forEach(t=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=t>0.6?1175:880;o.connect(g);g.connect(actx.destination);
-  const st=actx.currentTime+t;g.gain.setValueAtTime(0.0001,st);g.gain.exponentialRampToValueAtTime(0.35,st+0.02);g.gain.exponentialRampToValueAtTime(0.0001,st+0.25);o.start(st);o.stop(st+0.27)})}catch(e){}}
+    const n=actx.createBufferSource(),b=actx.createBuffer(1,Math.round(actx.sampleRate*.03),actx.sampleRate),ch=b.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=(Math.random()*2-1)*Math.exp(-i/(actx.sampleRate*.004))*.35;n.buffer=b;n.connect(out);n.start(st)});return out}catch(e){return null}}
+const restSound=d=>{const c=restCfg();if(!c.sound)return null;return c.tone==="beep"?beep(d):bell(d)};
+/* rest end on time: the sound is booked on the audio clock as soon as rest starts (no wake-up delay at the end), an exact timer fires the vibration,
+   and the audio engine is woken 1.5 s early. Changing the rest re-books it; leaving the app cancels it (the notification takes over). */
+let restArmed=null;
+function restDisarm(){if(restArmed&&restArmed.out){try{restArmed.out.disconnect()}catch(e){}}restArmed=null}
+function restArm(){restDisarm();const R=S.rest;if(!R||R.fired||document.hidden||!actx||actx.state!=="running")return;const d=(R.end-Date.now())/1000;if(d<.05)return;const out=restSound(d);if(out)restArmed={out,end:R.end}}
+function restTimers(){clearTimeout(restTimers._f);clearTimeout(restTimers._w);const R=S.rest;if(!R||R.fired)return;const ms=R.end-Date.now();
+  restTimers._w=setTimeout(()=>{unlockAudio();setTimeout(()=>{if(S.rest===R&&!(restArmed&&restArmed.end===R.end))restArm()},60)},Math.max(0,ms-1500));
+  restTimers._f=setTimeout(tickRest,Math.max(0,ms))}
+function restFire(R){const c=restCfg();if(c.vibrate)haptic();if(!(restArmed&&restArmed.end===R.end))restSound();restArmed=null}
+function beep(delay){if(!actx)return null;try{const out=actx.createGain();out.connect(actx.destination);[0,0.32,0.64].forEach(t=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=t>0.6?1175:880;o.connect(g);g.connect(out);
+  const st=actx.currentTime+Math.max(0,delay||0)+t;g.gain.setValueAtTime(0.0001,st);g.gain.exponentialRampToValueAtTime(0.35,st+0.005);g.gain.exponentialRampToValueAtTime(0.0001,st+0.25);o.start(st);o.stop(st+0.27)});return out}catch(e){return null}}
 /* workout list view: the whole session on one screen, set table for the open exercise */
 function wpListView(dw,head,steps,cur){const R=S.rest,openEi=S.wlOpen!=null?S.wlOpen:(cur.t==="ex"?cur.ei:Math.max(0,dw.exercises.findIndex(e=>e.sets.some(x=>!x.done))));
   const tot=dw.exercises.reduce((a,e)=>a+e.sets.length,0),dn=dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>x.done).length,0);
@@ -2569,7 +2579,7 @@ function wpListView(dw,head,steps,cur){const R=S.rest,openEi=S.wlOpen!=null?S.wl
 // buzz when rest ends: vibration where supported (Android); on iPhone Safari a hidden switch gives a light haptic tap where the phone allows it
 // short taps: a light native haptic in the iPhone app, a tiny vibration on Android
 function buzz(ms){const H=NPlug("Haptics");if(H){try{ms>=100?H.impact({style:"MEDIUM"}):H.impact({style:"LIGHT"})}catch(e){}return}try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
-function haptic(){const H=NPlug("Haptics");if(H){try{H.vibrate({duration:350});setTimeout(()=>H.vibrate({duration:350}),500)}catch(e){}return}try{if(navigator.vibrate&&navigator.vibrate([300,150,300]))return;let l=document.getElementById("hapt");if(!l){l=document.createElement("label");l.id="hapt";l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click();setTimeout(()=>l.click(),200)}catch(e){}}
+function haptic(){const H=NPlug("Haptics");if(H){try{H.impact({style:"HEAVY"});H.vibrate({duration:350});setTimeout(()=>H.vibrate({duration:350}),500)}catch(e){}return}try{if(navigator.vibrate&&navigator.vibrate([300,150,300]))return;let l=document.getElementById("hapt");if(!l){l=document.createElement("label");l.id="hapt";l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click();setTimeout(()=>l.click(),200)}catch(e){}}
 // tell the server when rest ends, so a push notification arrives even if the phone is locked (needs supabase-update-4.sql)
 async function restServer(endMs){if(NATIVE)return;if(!CL.user||lsGet("pf-push:"+PROF.active)!=="on")return;try{const c=await sbClient();if(!c)return;
   if(endMs)await c.from("rest_timers").upsert({user_id:CL.user.id,ends_at:new Date(endMs).toISOString()});else await c.from("rest_timers").delete().eq("user_id",CL.user.id)}catch(e){}}
@@ -2577,16 +2587,16 @@ async function notifyRestOver(){const c=restCfg();if(!c.notify||document.visibil
   const opt={body:"Time for your next set.",tag:"rest",renotify:true,icon:"icon-192.png",badge:"icon-192.png",vibrate:[300,150,300]};
   try{if(navigator.serviceWorker&&navigator.serviceWorker.controller){const r=await navigator.serviceWorker.ready;return r.showNotification("Rest over 💪",opt)}new Notification("Rest over 💪",opt)}catch(e){}}
 function startRest(secs){const c=restCfg();if(secs===0){stopRestQuiet&&stopRestQuiet();return}secs=secs||c.secs;unlockAudio();S.rest={end:Date.now()+secs*1000,total:secs,fired:false,t0:Date.now()};restServer(S.rest.end);tickRest();
-  clearInterval(startRest._i);startRest._i=setInterval(tickRest,250)}
-function stopRest(){clearInterval(startRest._i);if(S.rest&&!S.rest.fired)restServer(null);S.rest=null;const el=document.getElementById("restbar");el.hidden=true;el.innerHTML="";if(playerOn())render()}
+  clearInterval(startRest._i);startRest._i=setInterval(tickRest,250);restTimers();setTimeout(restArm,30)}
+function stopRest(){clearInterval(startRest._i);clearTimeout(restTimers._f);clearTimeout(restTimers._w);restDisarm();if(S.rest&&!S.rest.fired)restServer(null);S.rest=null;const el=document.getElementById("restbar");el.hidden=true;el.innerHTML="";if(playerOn())render()}
 const mmss=t=>{t=Math.max(0,Math.ceil(t));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")};
 function tickRest(){const R=S.rest,el=document.getElementById("restbar");if(!R){el.hidden=true;return}
   if(S.lock){el.hidden=true;return}
   if(playerOn()){el.hidden=true;const left=(R.end-Date.now())/1000,t=document.getElementById("wpRest"),ring=document.getElementById("wpRing");
-    if(left<=0&&!R.fired){R.fired=true;const c=restCfg();restSound();if(c.vibrate)haptic();restServer(null);notifyRestOver();render();setTimeout(()=>{if(S.rest===R){stopRest();render()}},2500);return}
+    if(left<=0&&!R.fired){R.fired=true;restFire(R);restServer(null);notifyRestOver();render();setTimeout(()=>{if(S.rest===R){stopRest();render()}},2500);return}
     if(t&&!R.fired){t.textContent=mmss(left);ring&&ring.style.setProperty("--p",Math.min(100,(1-left/R.total)*100).toFixed(1))}else if(!t&&!R.fired)render();return}
   const left=(R.end-Date.now())/1000,over=left<=0;
-  if(over&&!R.fired){R.fired=true;const c=restCfg();restSound();if(c.vibrate)haptic();restServer(null);notifyRestOver();setTimeout(()=>{if(S.rest===R)stopRest()},4000)}
+  if(over&&!R.fired){R.fired=true;restFire(R);restServer(null);notifyRestOver();setTimeout(()=>{if(S.rest===R)stopRest()},4000)}
   const html=`<div style="flex:1;min-width:0"><div class="lbl">${over?"Rest over":"Rest"}</div><div class="t" id="restTime">${over?"Go!":mmss(left)}</div><div class="prog"><i style="width:${over?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}%"></i></div></div>
     ${over?`<button data-act="restSkip">Close</button>`:`<button data-act="restAdj" data-d="-15" aria-label="15 seconds less">−15</button><button data-act="restAdj" data-d="15" aria-label="15 seconds more">+15</button><button data-act="restSkip">Skip</button>`}`;
   const key=(over?"o":"r")+"|"+Math.ceil(left);if(el._k!==key){el._k=key;el.innerHTML=html}
@@ -4019,7 +4029,7 @@ document.addEventListener("click",e=>{
     case "delEx":S.draftWorkout.exercises.splice(+ds.ei,1);render();break;
     case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??"",secs:last.secs??""});render();break}
     case "setDone":{const ex=S.draftWorkout.exercises[+ds.ei],st=ex.sets[+ds.si];st.done=!st.done;render();if(st.done)startRest(restFor(S.draftWorkout,ex));break}
-    case "restAdj":if(S.rest&&!S.rest.fired){S.rest.end+=(+ds.d)*1000;S.rest.total=Math.max(5,S.rest.total+(+ds.d));if(S.rest.end<Date.now())S.rest.end=Date.now();restServer(S.rest.end);tickRest()}break;
+    case "restAdj":if(S.rest&&!S.rest.fired){S.rest.end+=(+ds.d)*1000;S.rest.total=Math.max(5,S.rest.total+(+ds.d));if(S.rest.end<Date.now())S.rest.end=Date.now();restServer(S.rest.end);restDisarm();restTimers();restArm();tickRest()}break;
     case "restSkip":if(S.rest&&Date.now()-(S.rest.t0||0)<900)break;stopRest();break;
     case "restDef":case "restSet":{const st=clone(settings());const c={...REST_DEF,...(st.rest||{})};c.secs=a==="restSet"?+ds.v:Math.min(600,Math.max(15,c.secs+(+ds.d)));st.rest=c;save("settings",st);break}
     case "restTest":unlockAudio();startRest(3);break;
