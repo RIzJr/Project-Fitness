@@ -1173,7 +1173,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-10-2";
+const APP_VERSION="2026-11-10-3";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1247,16 +1247,22 @@ function hrSheet(){const dw=S.draftWorkout,fc=dw&&dw.forClient,who=fc?esc(firstN
 /* ---------- Apple Health (iPhone app only). Health plugin: reads steps, sleep, weight and saves weight. PFWorkout (ios/App/App/PFWorkoutPlugin.swift): saves workouts ---------- */
 const HK_BUNDLE="com.rizjr.projectfitness",HK_READ=["steps","sleep","weight","heartRate","restingHeartRate","heartRateVariability","respiratoryRate","oxygenSaturation","vo2Max","appleSleepingWristTemperature"],HK_V=3;
 // wrist temperature needs iOS 16, and asking for it on older iPhones fails the whole request, so it retries without it
-async function hkAuth(H){try{await H.requestAuthorization({read:HK_READ,write:["weight"]})}catch(e){await H.requestAuthorization({read:HK_READ.filter(x=>x!=="appleSleepingWristTemperature"),write:["weight"]})}}
-const hkOn=()=>NATIVE&&!!(settings().health&&settings().health.on);
+// if Apple rejects the newer measures, fall back to the original six so connecting never fails because of them
+const HK_BASE=["steps","sleep","weight","heartRate","restingHeartRate","heartRateVariability"];
+async function hkAuth(H){const tries=[HK_READ,HK_READ.filter(x=>x!=="appleSleepingWristTemperature"),HK_BASE];let err;
+  for(const read of tries){try{await H.requestAuthorization({read,write:["weight"]});return}catch(e){err=e}}throw err}
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error("timed out")),ms))]);
+const hkKey=()=>"pf-hk:"+PROF.active;
+const hkOn=()=>{if(!NATIVE)return false;const f=lsGet(hkKey());return f==="1"||(f!=="0"&&!!(settings().health&&settings().health.on))};
 const hkType=(w)=>{if(w.type==="cardio"){const a=String(w.activity||"").toLowerCase();return /run|jog/.test(a)?"run":/walk/.test(a)?"walk":/cycl|bike/.test(a)?"cycle":/row/.test(a)?"row":/swim/.test(a)?"swim":/cross/.test(a)?"elliptical":/stair/.test(a)?"stairs":/hiit|interval/.test(a)?"hiit":/sport|other/.test(a)?"other":"cardio"}return w.kind==="gym"?"strength":"functional"};
 const HK_MET={run:9.8,walk:3.8,cycle:7.5,row:7,swim:7,elliptical:5,stairs:8,hiit:8,other:6,cardio:6};
 async function hkConnect(){const H=NPlug("Health"),W=NPlug("PFWorkout");if(!H||!W){toast("Apple Health needs the latest version of the app. Update it from TestFlight or the App Store");return}
-  if(S.hkBusy)return;S.hkBusy=true;render();let ok=false;
-  try{const a=await H.isAvailable();if(!a||!a.available){toast("Apple Health isn't available on this phone");return}
-    await hkAuth(H);await W.requestAuthorization();
-    const st=clone(settings());st.health={...(st.health||{}),on:true,v:HK_V,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);ok=true}
-  catch(e){toast("Couldn't connect to Apple Health: "+((e&&e.message)||"try again"))}
+  if(S.hkBusy)return;S.hkBusy=true;S.hkErr=null;render();let ok=false;
+  try{const a=await withTimeout(H.isAvailable(),10000);if(!a||!a.available){S.hkErr="Apple Health isn't available on this phone.";toast(S.hkErr);return}
+    await withTimeout(hkAuth(H),120000);
+    lsSet(hkKey(),"1");const st=clone(settings());st.health={...(st.health||{}),on:true,v:HK_V,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);ok=true;
+    try{await withTimeout(W.requestAuthorization(),60000)}catch(e){S.hkErr="Connected, but saving workouts to Apple Health wasn't allowed ("+((e&&e.message)||"no answer")+"). Reading your watch data still works."}}
+  catch(e){S.hkErr="Couldn't connect to Apple Health: "+((e&&e.message)||"try again");toast(S.hkErr)}
   finally{S.hkBusy=false}
   render();if(ok){toast("Apple Health connected ✓");hkPull(true)}}
 // is data actually arriving? The newest heart-rate reading in Apple Health (the iPhone records steps itself, so steps can't tell).
@@ -1502,7 +1508,7 @@ function setWatch(){const k=S.watchDev||"apple",W=WATCH_STEPS[k],n0=W.app.length
     <div class="hint small" style="margin-top:6px"><b>What you'll get</b><span>${W.gets}</span></div>
     <span class="small muted">Steps counted twice? In the Health app open Steps › Data Sources & Access › Edit and drag your watch to the top.</span></section>`}
 function setHealth(){const on=hkOn();
-  return `${on?`<section class="panel">${hkStatus(true)}</section>`:""}<section class="panel"><h2>What it does</h2>
+  return `${S.hkErr?`<div class="hint small"><b>${esc(S.hkErr)}</b><span>If it keeps happening, open the Health app › your picture › Apps › Project Fitness, turn everything on, then come back and tap Connect again.</span></div>`:""}${on?`<section class="panel">${hkStatus(true)}</section>`:""}<section class="panel"><h2>What it does</h2>
     <p class="small" style="margin:0">${on?"Project Fitness will":"Connect Apple Health and Project Fitness will"}:</p>
     <ul class="small" style="margin:0;padding-left:18px"><li><b>Save your workouts</b> (and sessions your coach logs for you) so they count towards your Activity rings</li><li><b>Save your weigh-ins</b></li><li><b>Read your steps</b> and tick off your steps habit when you hit it</li><li><b>Read last night's sleep</b> to fill in your morning check-in</li><li><b>Read heart rate, resting heart rate, HRV, breathing rate, blood oxygen, wrist temperature and VO₂ max</b> for your workout heart rate, daily strain, recovery score and health monitor</li><li><b>Add weigh-ins</b> from a smart scale or another app</li></ul>
     ${on?`<div class="grid2"><div class="tile"><span class="label">Steps today</span><b>${S.hkSteps!=null?S.hkSteps.toLocaleString("en-GB"):"—"}</b></div><div class="tile"><span class="label">Sleep last night</span><b>${S.hkSleep!=null?fmtN(S.hkSleep)+" h":"—"}</b></div></div>
@@ -4045,7 +4051,7 @@ document.addEventListener("click",e=>{
     case "hrAgeSave":{const a=+(document.getElementById("hrAgeIn")||{}).value;if(!(a>=8&&a<=95)){toast("Enter an age between 8 and 95");break}const fc=S.draftWorkout&&S.draftWorkout.forClient;if(fc){const c=S.docs[fc.id];if(c)save(fc.id,{...c,age:a})}else save("profile",{...(S.docs.profile||{type:"profile"}),hrAge:a});toast("Zones set");break}
     case "watchDev":S.watchDev=ds.v;render();break;
     case "watchOff":lsSet("pf-watchoff:"+PROF.active,"1");render();toast("Hidden. Find the guide any time in Settings › Connect your watch");break;
-    case "hkOff":{const st=clone(settings());st.health={...(st.health||{}),on:false};save("settings",st);toast("Apple Health turned off here");break}
+    case "hkOff":{lsSet(hkKey(),"0");const st=clone(settings());st.health={...(st.health||{}),on:false};save("settings",st);toast("Apple Health turned off here");break}
     case "hkPull":hkPull(true).then(()=>toast("Updated from Apple Health"));break;
     case "hkCheck":S.hkSeen=0;hkCheckNow().then(()=>{render();const F=hkFreshState();toast(F.k==="live"?"Data is coming in live ✓":F.k==="recent"?"Up to date. Latest data "+ago(Date.now()-hkFreshGet().at):"No new data yet. Open your watch's app so it syncs")});break;
     case "setPage":S.setPage=ds.v||null;if(ds.v&&S.tab!=="settings"){S.tab="settings"}S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
