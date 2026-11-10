@@ -60,7 +60,7 @@
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Project Fitness connects to your heart-rate monitor or a watch that broadcasts heart rate, to show your live heart rate during workouts.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Project Fitness reads your steps, sleep, weight and heart rate to tick off your steps habit, fill in your morning check-in, add weigh-ins from your smart scale, show your heart rate for each workout and give you a daily recovery score.</string>
+	<string>Project Fitness reads your steps, sleep, weight, heart rate, HRV, breathing rate, blood oxygen, wrist temperature and VO₂ max to tick off your steps habit, fill in your morning check-in, add weigh-ins from your smart scale, show your heart rate for each workout, and give you a daily strain, recovery score and health monitor.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Project Fitness saves your finished workouts and weigh-ins to Apple Health so they count towards your Activity rings.</string>
 	<key>NSCameraUsageDescription</key>

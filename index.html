@@ -528,6 +528,14 @@ section.panel{border-radius:22px}
 .wp-head .wp-title{flex:1 1 auto}.wp-head .wp-title b{max-width:100%}
 .wp-hr{display:flex;align-items:center;gap:3px;height:36px;padding:0 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-weight:800;flex:none;font-variant-numeric:tabular-nums}.wp-hr .hrdot{color:var(--muted)}
 .hrsheet{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}.trio>div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.ring{position:relative;width:88px;height:88px}.ring svg{display:block}.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.stagebar{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px}.stagebar span{display:block;min-width:3px}
+.sdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.week7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center;font-variant-numeric:tabular-nums}.week7>div{display:flex;flex-direction:column;gap:3px;font-size:13px;padding:6px 0;border-radius:10px;background:var(--sunk)}.week7 b{font-size:15px}
+.hctiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.hctiles .tile{padding:10px}.hctiles .tile b{font-size:20px}.hctiles .delta{font-size:12px;font-weight:700}
+.zbar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--line)}.zbar span{display:block}
+.tpoint{border-left:3px solid var(--accent);padding:4px 0 4px 10px}.tpoint.amber{border-color:var(--carb)}.tpoint.low{border-color:var(--protein)}
 .hrzbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}.hrzbar span{border-radius:6px;padding:4px 0;text-align:center;font-size:12px;font-weight:800;color:#000}
 .swaprow{display:flex!important;justify-content:space-between;align-items:center;gap:10px;text-align:left!important}.swaprow>span:first-child{min-width:0;flex:1}
 .flexsum{display:flex;flex-direction:column;gap:2px;border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px}
@@ -1162,7 +1170,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-09-4";
+const APP_VERSION="2026-11-10-1";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1232,14 +1240,16 @@ function hrSheet(){const dw=S.draftWorkout,fc=dw&&dw.forClient,who=fc?esc(firstN
       ${max?`<div class="hrzbar">${ZONES.map(([lo,l,c],i)=>`<span style="background:${c}" title="${l}">${Math.round(lo*max)}+</span>`).join("")}</div>`
       :`<label class="field"><span class="label">${fc?esc(firstName(fc.name))+"'s age":"Your age"} (sets the zones)</span><input type="number" inputmode="numeric" id="hrAgeIn" placeholder="e.g. 24"></label><button class="btn" style="align-self:flex-start" data-act="hrAgeSave">Save age</button>`}</div></div>`}
 /* ---------- Apple Health (iPhone app only). Health plugin: reads steps, sleep, weight and saves weight. PFWorkout (ios/App/App/PFWorkoutPlugin.swift): saves workouts ---------- */
-const HK_BUNDLE="com.rizjr.projectfitness",HK_READ=["steps","sleep","weight","heartRate","restingHeartRate","heartRateVariability"];
+const HK_BUNDLE="com.rizjr.projectfitness",HK_READ=["steps","sleep","weight","heartRate","restingHeartRate","heartRateVariability","respiratoryRate","oxygenSaturation","vo2Max","appleSleepingWristTemperature"],HK_V=3;
+// wrist temperature needs iOS 16, and asking for it on older iPhones fails the whole request, so it retries without it
+async function hkAuth(H){try{await H.requestAuthorization({read:HK_READ,write:["weight"]})}catch(e){await H.requestAuthorization({read:HK_READ.filter(x=>x!=="appleSleepingWristTemperature"),write:["weight"]})}}
 const hkOn=()=>NATIVE&&!!(settings().health&&settings().health.on);
 const hkType=(w)=>{if(w.type==="cardio"){const a=String(w.activity||"").toLowerCase();return /run|jog/.test(a)?"run":/walk/.test(a)?"walk":/cycl|bike/.test(a)?"cycle":/row/.test(a)?"row":/swim/.test(a)?"swim":/cross/.test(a)?"elliptical":/stair/.test(a)?"stairs":/hiit|interval/.test(a)?"hiit":/sport|other/.test(a)?"other":"cardio"}return w.kind==="gym"?"strength":"functional"};
 const HK_MET={run:9.8,walk:3.8,cycle:7.5,row:7,swim:7,elliptical:5,stairs:8,hiit:8,other:6,cardio:6};
 async function hkConnect(){const H=NPlug("Health"),W=NPlug("PFWorkout");if(!H||!W){toast("Apple Health needs the latest version of the app. Update it from TestFlight or the App Store");return}
   try{const a=await H.isAvailable();if(!a||!a.available){toast("Apple Health isn't available on this phone");return}
-    await H.requestAuthorization({read:HK_READ,write:["weight"]});await W.requestAuthorization();
-    const st=clone(settings());st.health={...(st.health||{}),on:true,v:2,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);toast("Apple Health connected");hkPull(true)}
+    await hkAuth(H);await W.requestAuthorization();
+    const st=clone(settings());st.health={...(st.health||{}),on:true,v:HK_V,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);toast("Apple Health connected");hkPull(true)}
   catch(e){toast("Couldn't connect to Apple Health: "+((e&&e.message)||"try again"))}}
 async function hkSaveWorkout(id){if(!hkOn())return;const W=NPlug("PFWorkout"),w=S.docs[id];if(!W||!w||w.hk)return;
   try{const mins=Math.max(1,+w.mins||1),end=w.ended?new Date(w.ended):w.started?new Date(+w.started+mins*60000):(w.date===todayKey()?new Date():new Date(w.date+"T18:00:00")),start=w.started&&w.ended?new Date(w.started):new Date(end-mins*60000);
@@ -1249,7 +1259,7 @@ async function hkSaveWeight(b){if(!hkOn())return;const H=NPlug("Health");if(!H)r
 const hkLocalDate=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 // steps today (ticks a steps habit), last night's sleep (morning check-in) and weigh-ins from other apps or a smart scale
 async function hkPull(force){if(!hkOn())return;const H=NPlug("Health");if(!H)return;if(!force&&S.hkAt&&Date.now()-S.hkAt<10*60000)return;S.hkAt=Date.now();
-  if((settings().health||{}).v!==2){try{await H.requestAuthorization({read:HK_READ,write:["weight"]})}catch(e){}const st=clone(settings());st.health={...(st.health||{}),v:2};save("settings",st)}
+  if((settings().health||{}).v!==HK_V){try{await hkAuth(H)}catch(e){}const st=clone(settings());st.health={...(st.health||{}),v:HK_V};save("settings",st)}
   const now=new Date(),mid=new Date(now.getFullYear(),now.getMonth(),now.getDate()),t=todayKey();
   try{const r=await H.queryAggregated({dataType:"steps",startDate:mid.toISOString(),endDate:now.toISOString(),bucket:"day",aggregation:"sum"});
     S.hkSteps=Math.round(((r&&r.samples)||[]).reduce((a,x)=>a+(+x.value||0),0));
@@ -1264,24 +1274,74 @@ async function hkPull(force){if(!hkOn())return;const H=NPlug("Health");if(!H)ret
     if(n)toast(`Added ${n} weigh-in${n>1?"s":""} from Apple Health`)}catch(e){}
   await hkDays(H);await hkWorkoutsHR(H);
   if(S.setPage==="health"||S.tab==="recover"||S.tab==="today"||S.woSum)render()}
-// last 15 days of sleep, resting heart rate (or the day's lowest heart rate when the watch doesn't send one) and HRV, for the recovery score
-async function hkDays(H){const now=new Date(),from=new Date(now.getFullYear(),now.getMonth(),now.getDate()-15),o={...((S.docs.hkdays||{}).days||{})},put=(d,k,v)=>{if(v==null||isNaN(v))return;(o[d]=o[d]||{})[k]=v};
+// daily watch summary for the last 30 days (the hkdays doc): sleep with stages and bed/wake times, resting or lowest heart rate, HRV,
+// breathing rate, blood oxygen, wrist temperature, VO2 max, steps and strain. Re-reads 30 days once a day, otherwise the last 4.
+// The plugin can only aggregate steps and heart rate, so HRV, breathing rate and blood oxygen are averaged here from samples.
+const HK_DAYS=30;
+const hkRead=async(H,dataType,from,to,limit)=>{try{const r=await H.readSamples({dataType,startDate:new Date(from).toISOString(),endDate:new Date(to).toISOString(),limit:limit||3000,ascending:false});return (r&&r.samples)||[]}catch(e){return[]}};
+const nightOf=t=>hkLocalDate(new Date(Date.parse(t)+6*3600000)); // a night belongs to the morning you wake up
+const isNightT=t=>{const h=new Date(t).getHours();return h>=20||h<11};
+const dayMid=d=>new Date(d+"T00:00:00").getTime();
+async function hkDays(H){const now=new Date(),cur=S.docs.hkdays||{},full=cur.v!==2||cur.full!==todayKey(),back=full?HK_DAYS:4,
+    from=new Date(now.getFullYear(),now.getMonth(),now.getDate()-back),F=from.getTime()-6*3600000,o=clone(cur.days||{}),put=(d,k,v)=>{if(v==null||isNaN(v))return;(o[d]=o[d]||{})[k]=v};
   const agg=async(dataType,aggregation)=>{try{const r=await H.queryAggregated({dataType,startDate:from.toISOString(),endDate:now.toISOString(),bucket:"day",aggregation});return ((r&&r.samples)||[]).filter(x=>x.value!=null&&+x.value>0).map(x=>[hkLocalDate(x.startDate),+x.value])}catch(e){return[]}};
   (await agg("restingHeartRate","average")).forEach(([d,v])=>put(d,"rhr",Math.round(v)));
   (await agg("heartRate","min")).forEach(([d,v])=>put(d,"hrMin",Math.round(v)));
-  (await agg("heartRateVariability","average")).forEach(([d,v])=>put(d,"hrv",Math.round(v)));
-  try{const r=await H.readSamples({dataType:"sleep",startDate:new Date(from-6*3600000).toISOString(),endDate:now.toISOString(),limit:3000,ascending:true});const by={};
-    ((r&&r.samples)||[]).filter(x=>x.sleepState&&!["inBed","awake"].includes(x.sleepState)).forEach(x=>{const d=hkLocalDate(new Date(new Date(x.endDate).getTime()+6*3600000));by[d]=(by[d]||0)+Math.max(0,new Date(x.endDate)-new Date(x.startDate))});
-    Object.entries(by).forEach(([d,ms])=>{if(ms>3600000)put(d,"sleep",Math.round(ms/360000)/10)})}catch(e){}
-  if(o[todayKey()]&&o[todayKey()].sleep!=null)S.hkSleep=o[todayKey()].sleep;
-  const keep=addDays(todayKey(),-30);Object.keys(o).forEach(d=>{if(d<keep)delete o[d]});
-  if(JSON.stringify(o)!==JSON.stringify((S.docs.hkdays||{}).days||{}))save("hkdays",{type:"hkdays",days:o})}
-// heart rate during each recent session, from the watch's samples in Apple Health (watches often sync later, so it retries for 2 days)
+  (await agg("steps","sum")).forEach(([d,v])=>put(d,"steps",Math.round(v)));
+  const group=(L,key,f)=>{const g={};L.forEach(x=>{let v=+x.value;if(!(v>0))return;if(f)v=f(v);const d=key(x);if(d)(g[d]=g[d]||[]).push(v)});return g};
+  const avgPut=(g,k,dp)=>Object.entries(g).forEach(([d,a])=>put(d,k,Math.round(a.reduce((x,y)=>x+y,0)/a.length*10**dp)/10**dp));
+  const night=x=>isNightT(x.startDate)?nightOf(x.startDate):null;
+  avgPut(group(await hkRead(H,"heartRateVariability",from,now),x=>hkLocalDate(x.startDate)),"hrv",0);
+  avgPut(group(await hkRead(H,"respiratoryRate",F,now),night),"resp",1);
+  avgPut(group(await hkRead(H,"oxygenSaturation",F,now),night,v=>v<=1.5?v*100:v),"spo2",1); // Apple gives a fraction (0.97)
+  avgPut(group(await hkRead(H,"appleSleepingWristTemperature",F,now,200),x=>nightOf(x.endDate)),"temp",2);
+  const seen={};(await hkRead(H,"vo2Max",from,now,200)).forEach(x=>{const d=hkLocalDate(x.startDate);if(!seen[d]&&+x.value>0){seen[d]=1;put(d,"vo2",Math.round(+x.value*10)/10)}});
+  Object.entries(sleepNights(await hkRead(H,"sleep",F,now,6000))).forEach(([d,s])=>{if(d<hkLocalDate(from))return;put(d,"sleep",Math.round(s.sleep/6)/10);
+    o[d].sl={d:s.deep,r:s.rem,l:s.light,a:s.awake,b:Math.round((s.bed-dayMid(d))/60000),w:Math.round((s.wake-dayMid(d))/60000),...(s.staged?{st:1}:{})}});
+  const max=hrMaxFor(null),t=todayKey();
+  if(max){const need=[t,addDays(t,-1)];for(let i=2;i<HK_DAYS&&need.length<6;i++){const d=addDays(t,-i),x=o[d];if(!x||(x.strain==null&&!x.sx))need.push(d)}
+    for(const d of need){const a=dayMid(d),b=Math.min(a+864e5,Date.now()),pts=(await hkRead(H,"heartRate",a,b,9000)).map(x=>[Date.parse(x.startDate),+x.value]).filter(x=>x[1]>30&&x[1]<230).sort((x,y)=>x[0]-y[0]);
+      const r=dayStrain(d,pts,max),x=o[d]=o[d]||{};if(r){x.strain=r.strain;x.z=r.z;if(r.est)x.se=1;else delete x.se;delete x.sx}else if(d<addDays(t,-1))x.sx=1}}
+  if(o[t]&&o[t].sleep!=null)S.hkSleep=o[t].sleep;
+  const keep=addDays(t,-HK_DAYS);Object.keys(o).forEach(d=>{if(d<keep)delete o[d]});
+  if(full||JSON.stringify(o)!==JSON.stringify(cur.days||{}))save("hkdays",{type:"hkdays",days:o,full:t,v:2})}
+// nights from Apple Health sleep samples. When several apps log the same night (watch and iPhone), the one with sleep stages,
+// then the longest, is used, so nothing is counted twice. Naps add to the total but not to bed and wake times.
+function sleepNights(samples){const by={},out={};
+  samples.forEach(x=>{if(!x.sleepState)return;const d=nightOf(x.endDate),src=x.sourceId||x.sourceName||"?";((by[d]=by[d]||{})[src]=by[d][src]||[]).push(x)});
+  Object.entries(by).forEach(([d,srcs])=>{let best=null;Object.values(srcs).forEach(L=>{const s=sleepSummary(L);if(!s)return;if(!best||(s.staged&&!best.staged)||(s.staged===best.staged&&s.sleep>best.sleep))best=s});if(best&&best.sleep>=60)out[d]=best});
+  return out}
+function sleepSummary(L){const iv=st=>L.filter(x=>st.includes(x.sleepState)).map(x=>[Date.parse(x.startDate),Date.parse(x.endDate)]).filter(a=>a[1]>a[0]).sort((a,b)=>a[0]-b[0]);
+  const union=a=>{const m=[];a.forEach(([s,e])=>{const l=m[m.length-1];if(l&&s<=l[1])l[1]=Math.max(l[1],e);else m.push([s,e])});return m},mins=a=>Math.round(union(a).reduce((t,[s,e])=>t+e-s,0)/60000);
+  const asleep=iv(["asleep","light","deep","rem"]);if(!asleep.length)return null;
+  const blocks=[];union(asleep).forEach(([s,e])=>{const l=blocks[blocks.length-1];if(l&&s-l.e<2*3600000){l.e=e;l.m+=e-s}else blocks.push({s,e,m:e-s})});
+  const main=blocks.reduce((a,b)=>b.m>a.m?b:a),deep=mins(iv(["deep"])),rem=mins(iv(["rem"]));
+  return {sleep:mins(asleep),deep,rem,light:mins(iv(["light","asleep"])),awake:mins(iv(["awake"]).filter(([s,e])=>s>=main.s&&e<=main.e+60000)),bed:main.s,wake:main.e,staged:deep+rem>0}}
+// strain (0 to 21, like WHOOP): minutes in each heart-rate zone weighted 1 to 5 (Edwards TRIMP), on a curve that gets harder to climb.
+// Everyday movement (40 to 50% of max heart rate) counts a little, so an ordinary day sits around 3 to 6.
+// Live heart rate from a session replaces the watch's samples for that session; sessions without any heart rate are estimated from their length.
+const zTrimp=z=>(z||[]).reduce((a,s,i)=>a+(+s||0)/60*(i+1),0);
+const strainOf=t=>Math.round(210*(1-Math.exp(-(t||0)/180)))/10;
+function hrZoneSecs(pts,max,cap,light){const z=[0,0,0,0,0];let lt=0;for(let i=0;i<pts.length;i++){const nx=pts[i+1],dt=Math.min(nx?(nx[0]-pts[i][0])/1000:60,cap),k=hrZone(pts[i][1],max);if(dt<=0)continue;if(k)z[k-1]+=dt;else if(pts[i][1]>=0.4*max)lt+=dt}
+  const out=z.map(Math.round);if(light)out.light=lt;return out}
+const woZ=w=>(w.hr&&typeof w.hr==="object"&&w.hr.z)||w.hrZ||null;
+const woStrain=w=>{const z=woZ(w);return z&&z.some(x=>x>0)?strainOf(zTrimp(z)):null};
+const woHR=w=>w.hr&&typeof w.hr==="object"?(w.hr.avg?{avg:w.hr.avg,max:w.hr.max||null}:null):+w.hr?{avg:+w.hr,max:+w.hrMax||null}:null;
+const sessionsOn=d=>[...ofType("workout"),...ofType("cardio")].filter(w=>w.date===d);
+const trimpEst=w=>{const m=+w.mins||0,r=+w.rpe;return m*(w.type==="cardio"?(r?Math.max(1,Math.min(5,r/2)):2.5):2)};
+function dayStrain(d,pts,max){const z=[0,0,0,0,0],add=a=>(a||[]).forEach((s,i)=>z[i]+=+s||0),ses=sessionsOn(d);let est=0,any=pts.length>=10;
+  const live=ses.filter(w=>w.hr&&w.hr.src==="live"&&w.hr.z).map(w=>({w,win:hkWin(w)})).filter(x=>x.win),inLive=t=>live.some(x=>t>=x.win[0]&&t<=x.win[1]);
+  const zs=hrZoneSecs(pts.filter(x=>!inLive(x[0])),max,600,true);add(zs);const lt=(zs.light||0)/60*0.1;live.forEach(x=>{add(x.w.hr.z);any=true});
+  ses.forEach(w=>{if(live.some(x=>x.w===w))return;const win=hkWin(w),cov=win?pts.filter(x=>x[0]>=win[0]&&x[0]<=win[1]).length:0;if(cov<3&&+w.mins){est+=trimpEst(w);any=true}});
+  return any?{strain:strainOf(zTrimp(z)+est+lt),z:z.map(Math.round),est:est>0}:null}
+// heart rate during each recent session, from the watch's samples in Apple Health (watches often sync later, so it retries for 2 days).
+// Sessions recorded with live heart rate keep their own, more detailed data.
 const hkWin=w=>{const mins=Math.max(1,+w.mins||1);let end=w.ended?+w.ended:w.started?+w.started+mins*60000:w.type==="cardio"&&/^cardio_\d+/.test(w.id)?+w.id.slice(7):null;if(!end)return null;const start=w.started&&w.ended?+w.started:end-mins*60000;return [start,end]};
-async function hkWorkoutsHR(H){const since=addDays(todayKey(),-2),L=[...ofType("workout"),...ofType("cardio")].filter(w=>w.date>=since&&!w.hrAt&&(w.hrTry||0)<6);
-  for(const w of L){const win=hkWin(w);if(!win)continue;try{const r=await H.readSamples({dataType:"heartRate",startDate:new Date(win[0]).toISOString(),endDate:new Date(win[1]).toISOString(),limit:2000,ascending:true});
-    const v=((r&&r.samples)||[]).map(x=>+x.value).filter(x=>x>30&&x<230),cur=S.docs[w.id];if(!cur)continue;
-    if(v.length>=3){const avg=Math.round(v.reduce((a,b)=>a+b,0)/v.length),max=Math.max(...v),n={...cur,hr:{avg,max,n:v.length},hrAt:Date.now()};if(w.type==="cardio"){n.hr=+cur.hr||avg;n.hrMax=max}save(w.id,n)}
+async function hkWorkoutsHR(H){const since=addDays(todayKey(),-2),max=hrMaxFor(null),L=[...ofType("workout"),...ofType("cardio")].filter(w=>w.date>=since&&!w.hrAt&&(w.hrTry||0)<6&&!(w.hr&&w.hr.src==="live"));
+  for(const w of L){const win=hkWin(w);if(!win)continue;try{const r=await H.readSamples({dataType:"heartRate",startDate:new Date(win[0]).toISOString(),endDate:new Date(win[1]).toISOString(),limit:3000,ascending:true});
+    const pts=((r&&r.samples)||[]).map(x=>[Date.parse(x.startDate),+x.value]).filter(x=>x[1]>30&&x[1]<230).sort((a,b)=>a[0]-b[0]),v=pts.map(x=>x[1]),cur=S.docs[w.id];if(!cur)continue;
+    if(v.length>=3){const avg=Math.round(v.reduce((a,b)=>a+b,0)/v.length),mx=Math.max(...v),z=max?hrZoneSecs(pts,max,120):null,n={...cur,hr:{avg,max:mx,n:v.length,...(z?{z,src:"health",maxHR:max}:{})},hrAt:Date.now()};
+      if(w.type==="cardio"){n.hr=+cur.hr||avg;n.hrMax=mx;if(z)n.hrZ=z}save(w.id,n)}
     else save(w.id,{...cur,hrTry:(cur.hrTry||0)+1})}catch(e){}}}
 // recovery: today's sleep, resting heart rate and HRV against your own last 2 weeks, plus yesterday's training and your morning check-in
 const median=a=>{a=a.filter(x=>x!=null&&!isNaN(x)).sort((x,y)=>x-y);return a.length?a[Math.floor((a.length-1)/2)]:null};
@@ -1294,22 +1354,80 @@ function recoveryFor(D){const H=(S.docs.hkdays||{}).days||{},t=H[D]||{},prev=Obj
   if(t.hrv!=null&&hB&&hN>=4)parts.push({k:"hrv",l:"HRV",w:35,s:cl(70+(t.hrv/hB-1)*150),v:t.hrv+" ms",n:hB+" ms",good:t.hrv>=hB});
   if(!parts.length)return {building:true,days:Math.max(rN,hN,prev.length)};
   const y=addDays(D,-1),wo=ofType("workout").filter(w=>w.date===y),cd=ofType("cardio").filter(c=>c.date===y),mins=[...wo,...cd].reduce((a,x)=>a+(+x.mins||0),0),hard=cd.some(c=>+c.rpe>=8)||mins>=75;
-  parts.push({k:"load",l:"Yesterday",w:10,s:!mins?85:hard?40:65,v:!mins?"Rest day":mins+" min"+(hard?", hard":""),n:null,good:!hard});
+  const ys=(H[y]||{}).strain;
+  if(ys!=null)parts.push({k:"load",l:"Yesterday's strain",w:10,s:ys<10?80:ys<14?65:ys<17?50:35,v:fmtM(ys,1)+(mins?" · "+mins+" min":""),n:null,good:ys<14});
+  else parts.push({k:"load",l:"Yesterday",w:10,s:!mins?85:hard?40:65,v:!mins?"Rest day":mins+" min"+(hard?", hard":""),n:null,good:!hard});
   const rs=readinessScore(S.docs["ready_"+D]);if(rs!=null)parts.push({k:"check",l:"Morning check-in",w:20,s:rs,v:rs+"/100",n:null,good:rs>=60});
   const tw=parts.reduce((a,x)=>a+x.w,0),score=Math.round(parts.reduce((a,x)=>a+x.s*x.w,0)/tw);
   const band=score>=70?["Ready to push","good","A good day for a heavy session or a personal-best attempt."]:score>=45?["Train as planned","amber","Train as planned and keep 1 to 2 reps in reserve."]:["Go easy today","low","Go lighter today: mobility, a walk or an easy session. Push again when you've recovered."];
   return {score,parts,label:band[0],tone:band[1],advice:band[2],hrv:parts.some(x=>x.k==="hrv")}}
 const recToneColor=t=>t==="good"?"var(--accent)":t==="amber"?"var(--carb)":"var(--protein)";
-function recoveryCard(){if(!NATIVE)return"";if(!hkOn())return `<button class="duerow" data-act="setPage" data-v="watch"><span><b>Daily recovery score</b><span class="small muted" style="display:block">Connect your watch through Apple Health to see how recovered you are each morning</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`;
-  const R=recoveryFor(todayKey());
-  if(R.building)return `<section class="panel"><h2>Recovery</h2><p class="small muted" style="margin:0">Building your normal from your watch data: ${Math.min(R.days,4)} of 4 days so far. Wear your watch to sleep and your score appears once there are 4 nights to compare.</p></section>`;
-  return `<section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">from your watch</span></div>
-    <div class="spread" style="align-items:center"><div><b style="font-family:var(--display);font-size:56px;line-height:1;color:${recToneColor(R.tone)}">${R.score}</b><span class="small muted"> / 100</span></div><div style="text-align:right;min-width:0"><b style="display:block;font-size:17px">${R.label}</b><span class="small muted">${R.advice}</span></div></div>
-    <div class="hist">${R.parts.map(x=>`<div class="spread small" style="padding:4px 0"><span>${x.l}</span><span style="text-align:right"><b style="color:${x.good?"var(--fg)":"var(--carb)"}">${esc(x.v)}</b>${x.n?` <span class="muted">· normal ${esc(x.n)}</span>`:""}</span></div>`).join("")}</div>
-    <span class="small muted">Compared with your own last 2 weeks.${R.hrv?"":" Your watch doesn't share HRV with Apple Health, so this uses sleep and heart rate."} A guide to help you plan training, not a medical measure.</span></section>`}
-function recoveryRow(){if(!hkOn())return"";const R=recoveryFor(todayKey());if(!R||R.building)return"";
-  return `<button class="duerow" data-tab="recover"><span><b>Recovery <span style="color:${recToneColor(R.tone)}">${R.score}</span> · ${R.label}</b><span class="small muted" style="display:block">${R.advice}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
-function recoveryReport(){if(!hkOn())return null;const out=[];for(let i=13;i>=0;i--){const d=addDays(todayKey(),-i),R=recoveryFor(d),h=((S.docs.hkdays||{}).days||{})[d]||{};if(R&&!R.building)out.push({week:d,score:R.score,sleep:h.sleep??null,rhr:h.rhr??h.hrMin??null,hrv:h.hrv??null})}return out.length?out:null}
+/* ---------- watch health, WHOOP-style: these work on a days map (the hkdays doc, or a client's shared copy), so the coach sees the same numbers ---------- */
+const HM=[["rhr","Resting heart rate","bpm",0,3,0,1],["hrv","HRV","ms",0,0,0.1,-1],["resp","Breathing rate","/min",1,0.8,0,1],["spo2","Blood oxygen","%",0,1.5,0,-1],["temp","Wrist temperature","°C",1,0.3,0,0]];
+const rhrKey=days=>Object.values(days).filter(x=>x.rhr!=null).length>=4?"rhr":"hrMin";
+// your normal: median of the last 30 days before D, give or take 1.5 × the typical day-to-day change (with a minimum width per measure)
+function normRange(days,D,k,minBand,rel){const v=Object.keys(days).filter(d=>d<D&&d>=addDays(D,-30)).map(d=>days[d][k]).filter(x=>x!=null&&!isNaN(x));if(v.length<5)return null;
+  const m=median(v),mad=median(v.map(x=>Math.abs(x-m))),h=Math.max(rel?m*rel:minBand,1.5*mad);return {m,lo:m-h,hi:m+h,n:v.length}}
+function healthMonitor(days,D){const rk=rhrKey(days);return HM.map(([k,l,u,dp,band,rel,dir])=>{const key=k==="rhr"?rk:k,lab=k==="rhr"&&rk==="hrMin"?"Lowest heart rate":l,v=(days[D]||{})[key],R=normRange(days,D,key,band,rel);
+    if(!R&&v==null)return null;const st=v==null||!R?"none":v>R.hi?"high":v<R.lo?"low":"in",warn=(st==="high"&&dir>=0)||(st==="low"&&dir<=0);
+    return {k:key,l:lab,u,dp,v,R,st,warn}}).filter(Boolean)}
+const fmtM=(v,dp)=>v==null?"—":dp?(Math.round(v*10**dp)/10**dp).toFixed(dp):String(Math.round(v));
+// sleep need: 8 h, plus a little after a hard day (strain over 10), plus a share of any shortfall over the last 3 nights
+function sleepNeed(days,D){const y=days[addDays(D,-1)]||{},sAdd=y.strain>10?Math.min(0.6,(y.strain-10)*0.06):0;let short=0;
+  for(let i=1;i<=3;i++){const x=days[addDays(D,-i)];if(x&&x.sleep!=null)short+=Math.max(0,8-x.sleep)}return Math.round((8+sAdd+Math.min(1,short*0.2))*10)/10}
+// consistency: how much bed and wake times moved over the last 4 nights (100% = same times every night)
+function sleepConsistency(days,D){const L=[0,1,2,3].map(i=>(days[addDays(D,-i)]||{}).sl).filter(s=>s&&s.b!=null);if(L.length<3)return null;
+  const sd=a=>{const m=a.reduce((x,y)=>x+y,0)/a.length;return Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/a.length)};return Math.max(0,Math.min(100,Math.round(100-(sd(L.map(s=>s.b))+sd(L.map(s=>s.w)))/2)))}
+const hm=m=>{m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
+const fmtHM=h=>h==null?"—":Math.floor(h)+"h "+String(Math.round((h%1)*60)).padStart(2,"0")+"m";
+const strainTarget=sc=>sc==null?null:sc>=70?[14,18]:sc>=45?[10,14]:[0,10];
+const strainTargetTxt=T=>!T?"":T[0]?`${T[0]}–${T[1]}`:`under ${T[1]}`;
+const STRAIN_C="#4EA8FF",SLEEP_C="#9B8CFF",STAGE=[["d","Deep","#5B4BDB"],["r","REM","#9B8CFF"],["l","Light","#CFC8FF"],["a","Awake","#FFA238"]];
+function ringSvg(frac,color,big,label){const r=34,C=2*Math.PI*r,f=Math.max(0,Math.min(1,frac||0));
+  return `<div class="ring" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 80 80" width="88" height="88" aria-hidden="true"><circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/>${f?`<circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C*f).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/>`:""}</svg><b>${big}</b></div>`}
+function stageBar(sl,h){if(!sl||!sl.st)return"";const tot=STAGE.reduce((a,[k])=>a+(sl[k]||0),0)||1;
+  return `<div class="stagebar" role="img" aria-label="Sleep stages: ${STAGE.map(([k,l])=>l+" "+fmtDur(sl[k]||0)).join(", ")}">${STAGE.map(([k,,c])=>sl[k]?`<span style="width:${(sl[k]/tot*100).toFixed(1)}%;background:${c}"></span>`:"").join("")}</div>
+    ${h===false?"":`<div class="row small" style="gap:10px">${STAGE.map(([k,l,c])=>`<span><i class="sdot" style="background:${c}"></i>${l} ${fmtDur(sl[k]||0)}</span>`).join("")}</div>`}`}
+const hasWatchData=()=>{const H=(S.docs.hkdays||{}).days;return !!H&&Object.keys(H).length>0};
+function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button class="duerow" data-act="setPage" data-v="watch"><span><b>Recovery, strain and sleep</b><span class="small muted" style="display:block">Connect your watch through Apple Health to see how recovered you are each morning</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}
+  const t=todayKey(),D=(S.docs.hkdays||{}).days||{},x=D[t]||{},R=recoveryFor(t),need=sleepNeed(D,t),perf=x.sleep!=null?Math.min(100,Math.round(x.sleep/need*100)):null,T=strainTarget(R&&!R.building?R.score:null),HM0=healthMonitor(D,t),cons=sleepConsistency(D,t);
+  const ok=HM0.filter(r=>r.st!=="none"),inR=ok.filter(r=>!r.warn).length,mx=hrMaxFor(null),todayS=sessionsOn(t).filter(w=>woStrain(w)!=null);
+  const share=CL.user&&CL.links&&CL.links.length&&(S.docs.profile||{}).shareWatch==null?`<div class="hint"><b>Share your watch data with ${esc(CL.links.map(l=>firstName(l.coach_name||"your coach")).join(", "))}?</b><span class="small">Your coach would see your recovery, strain, sleep and heart trends to plan your training and check in each week. You can turn it off any time in Settings › Apple Health.</span><div class="row" style="margin-top:6px"><button class="btn primary" data-act="swYes">Share</button><button class="btn" data-act="swNo">Not now</button></div></div>`:"";
+  const days7=[6,5,4,3,2,1,0].map(i=>addDays(t,-i));
+  return `${share}<section class="panel"><div class="spread"><h2>Today</h2><span class="label">from your watch</span></div>
+    <div class="trio">
+      <div>${ringSvg(R&&!R.building?R.score/100:0,R&&!R.building?recToneColor(R.tone):"var(--line)",R&&!R.building?R.score+"%":"—","Recovery "+(R&&!R.building?R.score+" percent":"not ready yet"))}<span class="label">Recovery</span></div>
+      <div>${ringSvg(x.strain!=null?x.strain/21:0,STRAIN_C,x.strain!=null?fmtM(x.strain,1):"—","Strain "+(x.strain!=null?x.strain:"not measured"))}<span class="label">Strain</span></div>
+      <div>${ringSvg(perf!=null?perf/100:0,SLEEP_C,perf!=null?perf+"%":"—","Sleep "+(perf!=null?perf+" percent of what you needed":"not measured"))}<span class="label">Sleep</span></div></div>
+    ${R&&!R.building?`<div><b style="color:${recToneColor(R.tone)}">${R.label}.</b> <span class="small">${R.advice}</span></div>
+      <div class="small"><b>Today's target strain: ${strainTargetTxt(T)}</b>${x.strain!=null?` · so far ${fmtM(x.strain,1)}`:""}</div>
+      <details class="small"><summary>What went into your recovery</summary>${R.parts.map(p=>`<div class="spread" style="padding:3px 0"><span>${p.l}</span><span style="text-align:right"><b style="color:${p.good?"var(--fg)":"var(--carb)"}">${esc(p.v)}</b>${p.n?` <span class="muted">· normal ${esc(p.n)}</span>`:""}</span></div>`).join("")}</details>`
+    :`<p class="small muted" style="margin:0">Building your normal from your watch data: ${Math.min((R&&R.days)||0,4)} of 4 days so far. Wear your watch to sleep and your recovery appears once there are 4 nights to compare.</p>`}
+    ${!mx?`<div class="hint small"><b>Add your age for strain</b><span>Strain is worked out from your heart-rate zones, which need your age. <button class="linkbtn" data-act="setPage" data-v="profile">Add it in your profile ›</button></span></div>`:""}
+    ${todayS.length?`<div class="hist">${todayS.map(w=>`<div class="spread small" style="padding:3px 0"><span>${esc(w.name||w.activity||"Session")}</span><span><b style="color:${STRAIN_C}">${fmtM(woStrain(w),1)}</b> <span class="muted">strain</span></span></div>`).join("")}</div>`:""}
+    ${x.se?`<span class="small muted">Includes an estimate for sessions without heart rate.</span>`:""}</section>
+  <section class="panel"><div class="spread"><h2>Sleep</h2>${x.sleep!=null?`<span class="label">last night</span>`:""}</div>
+    ${x.sleep!=null?`<div class="spread"><div><b style="font-family:var(--display);font-size:30px">${fmtHM(x.sleep)}</b><span class="small muted" style="display:block">needed ${fmtHM(need)}</span></div><div style="text-align:right"><b style="font-size:20px;color:${SLEEP_C}">${perf}%</b><span class="small muted" style="display:block">of what you needed</span></div></div>
+      ${stageBar(x.sl)}${x.sl&&!x.sl.st?`<span class="small muted">Your watch doesn't share sleep stages with Apple Health.</span>`:""}
+      ${x.sl?`<div class="spread small"><span>Asleep ${hm(x.sl.b)} · woke ${hm(x.sl.w)}${x.sl.a?` · ${fmtDur(x.sl.a)} awake`:""}</span>${cons!=null?`<span><b>${cons}%</b> <span class="muted">consistent</span></span>`:""}</div>`:""}
+      <span class="small muted">Need is 8 hours, plus a little after a hard day or short nights.${cons!=null?" Consistency compares your bed and wake times over 4 nights.":""}</span>`
+    :`<p class="small muted" style="margin:0">No sleep from your watch last night yet. Wear it to bed${NATIVE?", then open the app in the morning":""}.</p>`}</section>
+  ${ok.length?`<section class="panel"><div class="spread"><h2>Health monitor</h2><span class="label">${inR} of ${ok.length} in your normal</span></div>
+    ${HM0.map(r=>`<div class="spread small" style="padding:4px 0;gap:8px"><span><b>${r.l}</b><span class="muted" style="display:block">${r.R?`normal ${fmtM(r.R.lo,r.dp)}–${fmtM(r.R.hi,r.dp)} ${r.u}`:"building your normal"}</span></span><span style="text-align:right"><b style="color:${r.warn?"var(--carb)":"var(--fg)"}">${r.v==null?"—":fmtM(r.v,r.dp)+" "+r.u}</b><span class="muted" style="display:block">${r.st==="in"?"normal":r.st==="high"?"higher than usual":r.st==="low"?"lower than usual":r.v==null?"no reading":""}</span></span></div>`).join("")}
+    ${(()=>{const v=Object.keys(D).sort().filter(d=>D[d].vo2!=null);return v.length?`<div class="spread small" style="padding:4px 0;border-top:1px solid var(--line)"><span><b>VO₂ max</b><span class="muted" style="display:block">fitness estimate from your watch</span></span><span><b>${fmtM(D[v[v.length-1]].vo2,1)}</b> <span class="muted">${v.length>1?(D[v[v.length-1]].vo2>=D[v[0]].vo2?"↑":"↓")+" over "+daysSince(v[0])+" days":""}</span></span></div>`:""})()}
+    <span class="small muted">Compared with your own last 30 days. Watch readings vary, and this isn't a medical test. If something stays out of your normal for a few days or you feel unwell, check with a GP.</span></section>`:""}
+  ${Object.keys(D).length>=2?`<section class="panel"><h2>Last 7 days</h2><div class="week7">${days7.map(d=>{const y=D[d]||{},r=recoveryFor(d),sc=r&&!r.building?r.score:null;
+    return `<div><span class="label">${["S","M","T","W","T","F","S"][new Date(d+"T12:00:00").getDay()]}</span><b style="color:${sc==null?"var(--muted)":recToneColor(sc>=70?"good":sc>=45?"amber":"low")}">${sc==null?"—":sc}</b><span style="color:${STRAIN_C}">${y.strain!=null?fmtM(y.strain,1):"—"}</span><span style="color:${SLEEP_C}">${y.sleep!=null?fmtN(y.sleep):"—"}</span></div>`}).join("")}</div>
+    <div class="row small muted" style="gap:12px"><span>Recovery %</span><span style="color:${STRAIN_C}">Strain</span><span style="color:${SLEEP_C}">Sleep (h)</span></div></section>`:""}`}
+function recoveryRow(){if(!hasWatchData())return"";const t=todayKey(),R=recoveryFor(t),x=((S.docs.hkdays||{}).days||{})[t]||{};if((!R||R.building)&&x.strain==null)return"";
+  return `<button class="duerow" data-tab="recover"><span><b>${R&&!R.building?`Recovery <span style="color:${recToneColor(R.tone)}">${R.score}%</span>`:"Recovery building"}${x.strain!=null?` · Strain <span style="color:${STRAIN_C}">${fmtM(x.strain,1)}</span>`:""}${x.sleep!=null?` · Sleep ${fmtN(x.sleep)} h`:""}</b><span class="small muted" style="display:block">${R&&!R.building?R.label+": "+R.advice:"Wear your watch to sleep to get your recovery score"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
+function recoveryReport(){if(!hasWatchData())return null;const out=[];for(let i=13;i>=0;i--){const d=addDays(todayKey(),-i),R=recoveryFor(d),h=((S.docs.hkdays||{}).days||{})[d]||{};if(R&&!R.building)out.push({week:d,score:R.score,sleep:h.sleep??null,rhr:h.rhr??h.hrMin??null,hrv:h.hrv??null})}return out.length?out:null}
+// what a linked coach gets when "Share my watch data with my coach" is on: the 30-day daily summary (with each day's recovery score) and sessions with heart rate
+function watchReport(){const H=(S.docs.hkdays||{}).days;if(!H)return null;const from=addDays(todayKey(),-HK_DAYS),days={};
+  Object.keys(H).filter(d=>d>=from).sort().forEach(d=>{const x={...H[d]};delete x.sx;delete x.z;const R=recoveryFor(d);if(R&&!R.building)x.rec=R.score;if(Object.keys(x).length)days[d]=x});
+  const ses=[...ofType("workout"),...ofType("cardio")].filter(w=>w.date>=from&&woHR(w)).sort((a,b)=>a.date<b.date?1:-1).slice(0,40).map(w=>{const h=woHR(w),z=woZ(w);
+    return {date:w.date,name:w.name||w.activity||kindName(w.kind),mins:+w.mins||null,avg:h.avg||null,max:h.max||null,...(z?{z,strain:woStrain(w)}:{}),...(w.coachLogged?{coach:1}:{}),...(w.hr&&w.hr.src==="live"?{live:1}:{})}});
+  return {days,sessions:ses,maxHR:hrMaxFor(null)}}
 const WATCHES=[["apple","Apple Watch"],["garmin","Garmin"],["whoop","WHOOP"],["oura","Oura"],["fitbit","Fitbit / Google"],["polar","Polar"],["other","Other"]];
 const WATCH_STEPS={
   apple:{app:[["Nothing to set up on the watch","Apple Watch saves everything to Apple Health automatically."],["Turn on sleep tracking","On your iPhone, open the Health app › Browse › Sleep and set up a sleep schedule. Then wear your watch to bed."]],gets:"Workout heart rate, resting heart rate, HRV, sleep and steps. You get the full recovery score."},
@@ -1332,10 +1450,11 @@ function setWatch(){const k=S.watchDev||"apple",W=WATCH_STEPS[k],n0=W.app.length
 function setHealth(){const on=hkOn();
   return `<section class="panel"><h2>${on?"Connected":"What it does"}</h2>
     <p class="small" style="margin:0">${on?"Project Fitness will":"Connect Apple Health and Project Fitness will"}:</p>
-    <ul class="small" style="margin:0;padding-left:18px"><li><b>Save your workouts</b> (and sessions your coach logs for you) so they count towards your Activity rings</li><li><b>Save your weigh-ins</b></li><li><b>Read your steps</b> and tick off your steps habit when you hit it</li><li><b>Read last night's sleep</b> to fill in your morning check-in</li><li><b>Read heart rate, resting heart rate and HRV</b> for your workout heart rate and a daily recovery score</li><li><b>Add weigh-ins</b> from a smart scale or another app</li></ul>
+    <ul class="small" style="margin:0;padding-left:18px"><li><b>Save your workouts</b> (and sessions your coach logs for you) so they count towards your Activity rings</li><li><b>Save your weigh-ins</b></li><li><b>Read your steps</b> and tick off your steps habit when you hit it</li><li><b>Read last night's sleep</b> to fill in your morning check-in</li><li><b>Read heart rate, resting heart rate, HRV, breathing rate, blood oxygen, wrist temperature and VO₂ max</b> for your workout heart rate, daily strain, recovery score and health monitor</li><li><b>Add weigh-ins</b> from a smart scale or another app</li></ul>
     ${on?`<div class="grid2"><div class="tile"><span class="label">Steps today</span><b>${S.hkSteps!=null?S.hkSteps.toLocaleString("en-GB"):"—"}</b></div><div class="tile"><span class="label">Sleep last night</span><b>${S.hkSleep!=null?fmtN(S.hkSleep)+" h":"—"}</b></div></div>
       <button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="setPage" data-v="watch">Connect your watch: step-by-step guide ›</button>
       <div class="row"><button class="btn" data-act="hkPull">Update now</button><button class="btn ghost" style="color:var(--protein)" data-act="hkOff">Turn off</button></div>
+      <label class="habit" style="align-items:flex-start"><input type="checkbox" data-act="shareWatch" ${(S.docs.profile||{}).shareWatch?"checked":""}><span class="small"><b>Share my watch data with my coach</b><span class="muted" style="display:block">Your last 30 days of recovery, strain, sleep (with stages and bed and wake times), resting heart rate, HRV, breathing rate, blood oxygen, wrist temperature, VO₂ max, steps and heart rate in your sessions. Only coaches you've linked to see it.${CL.user&&CL.links&&CL.links.length?"":" You're not linked to a coach yet."}</span></span></label>
       <span class="small muted">To change what Project Fitness can see or save, open the Health app, tap your picture, then Apps › Project Fitness.</span>`
     :`<button class="btn primary" style="align-self:flex-start" data-act="hkConnect">Connect Apple Health</button><button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="setPage" data-v="watch">Step-by-step guide for your watch ›</button><span class="small muted">Apple asks which data to share, and you can choose. You can turn any of it off later in the Health app.</span>`}
     <span class="small muted">Health data is only used to run these features. It's never used for advertising or sold. See the privacy notice for details.</span></section>`}
@@ -2667,7 +2786,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,...(e.swapFrom?{from:e.swapFrom}:{}),sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:recoveryReport(),age:ageFromDob(pr.dob)||+pr.hrAge||null,maxHR:+pr.maxHR||null}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,...(e.swapFrom?{from:e.swapFrom}:{}),sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:pr.shareWatch?recoveryReport():null,watch:pr.shareWatch?watchReport():null,age:ageFromDob(pr.dob)||+pr.hrAge||null,maxHR:+pr.maxHR||null}}
 function liftsReport(){const o={};let n=0;for(const [k,L] of exIndex(0)){if(n++>=80)break;o[k]=L.slice(0,3).map(h=>({date:h.date,sets:(h.sets||[]).map(x=>x.secs!=null&&(x.reps==null||x.reps==="")?{kg:+x.kg||0,secs:+x.secs||0}:{kg:+x.kg||0,reps:+x.reps||0})}))}return o}
 function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
   const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
@@ -2684,7 +2803,7 @@ function coachSeg(){return `<div class="seg" role="tablist" aria-label="Check-in
 function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.kind!=="progress-report"||!Array.isArray(j.weeks))throw 0;
     const id="client_"+String(j.shareId||j.name).replace(/[^a-z0-9_-]/gi,""),old=S.docs[id]||{};
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
-    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],lifts:j.lifts||old.lifts||null,weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
+    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],lifts:j.lifts||old.lifts||null,recovery:j.recovery||old.recovery||null,watch:j.watch||old.watch||null,hcNotes:old.hcNotes||{},age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
 const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["readiness","Readiness"],["recovery","Recovery sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
@@ -2865,6 +2984,7 @@ function clientFlags(c){const F=[],t=todayKey(),R=c.recent||{},done=new Set((c.p
   const fx=clientFlex(c);if(fx&&fx.behind)F.push(["amber",`Flexible plan: ${fx.done} of ${fx.pw} sessions this week`]);
   if(c.clientUid){const missed=ofType("cplan").filter(p=>p.clientUid===c.clientUid&&!p.flex&&p.date<t&&p.date>=addDays(t,-7)&&!done.has(p.pid)).length;if(missed)F.push(["red",`Missed ${missed} planned session${missed>1?"s":""} (last 7 days)`])}
   const rs=(R.ready||[]).slice(0,3).map(x=>x.s).filter(x=>x!=null);if(rs.length===3&&rs.every(x=>x<50))F.push(["amber","Low readiness 3 days running"]);
+  if(c.watch&&c.watch.days){const D=c.watch.days,rk=rhrKey(D),up=[0,1,2,3].map(i=>addDays(t,-i)).filter(d=>{const v=(D[d]||{})[rk],R=normRange(D,d,rk,3,0);return v!=null&&R&&v>R.hi}).length;if(up>=3)F.push(["amber","Resting heart rate above their normal"])}
   const rc=(c.recovery||[]).slice(-3).map(x=>x.score);if(rc.length===3&&rc.every(x=>x<45)&&daysSince((c.recovery||[]).slice(-1)[0].week)<=1)F.push(["amber","Low recovery 3 days running"]);
   const lf=daysSince(R.lastFood);if(R.at&&!c.habitsOnly&&(lf==null||lf>=3))F.push(["amber",lf==null?"No food logged yet":`No food logged for ${lf} days`]);
   const lw=daysSince(R.lastWorkout);if(R.at&&(lw==null||lw>=(fx?6:7)))F.push(["amber",lw==null?"No sessions logged yet":`No session for ${lw} days`]);
@@ -2882,7 +3002,7 @@ function renderClients(){if(S.progView)return renderProgrammes();if(CL.user&&(!C
   const list=ofType("client").map(c=>({c,F:clientFlags(c)})).sort((a,b)=>flagRank(b.F)-flagRank(a.F)||String(a.c.name).localeCompare(String(b.c.name))).map(x=>Object.assign(x.c,{_F:x.F}));const c=S.clientOpen&&S.docs[S.clientOpen];
   const need=list.filter(x=>x._F.some(f=>f[0]!=="grey")).length;
   const head="";
-  if(c)return head+(c.local?localClientDetail(S.clientOpen,c):clientDetail(S.clientOpen,c));
+  if(c)return head+(c.local?localClientDetail(S.clientOpen,c):S.hc&&S.hc.id===S.clientOpen?healthCheckPage(S.clientOpen,c):clientDetail(S.clientOpen,c));
   return head+`<div class="stack"><div class="row" style="gap:6px"><button class="btn" data-act="progOpen">📋 Programmes (${ofType("cprog").length})</button><button class="btn" data-act="lcNew">+ Add client</button></div>${addClientForm()}${S.tcPicker&&list.length?`<section class="panel"><h2>Who are you training?</h2><div class="chips">${list.map(cl=>`<button class="qchip" data-act="tcOpen" data-id="${cl.id}">${esc(cl.name)}</button>`).join("")}</div></section>`:""}${list.length?`<section class="dashsum"><div><b>${list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>need you</span></div><div><b>${list.length-list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)).length}</b><span>on track</span></div><div><b>${ofType("cplan").filter(p=>!p.flex&&p.date>=weekStart()&&p.date<=addDays(weekStart(),6)).length+list.reduce((a,cl)=>a+((clientFlex(cl)||{}).pw||0),0)}</b><span>sessions planned this week</span></div></section>`:""}${list.length?(()=>{const row=cl=>{const F=cl._F||[],pc=clientWeekPct(cl),warn=F.find(f=>f[0]==="red"||f[0]==="amber"),gl=(cl.goals||[])[0],wk=cl.weeks[cl.weeks.length-1]||{};
         return `<button class="setrow clientrow" data-act="openClient" data-id="${cl.id}"><span class="who-row"><span class="avatar">${esc(initials(cl.name))}</span><span style="min-width:0"><b>${esc(cl.name)}</b><span class="small ${warn?"":"muted"}" style="display:block;${warn?"color:var(--carb)":""}">${cl.local?esc(localSub(cl)):warn?esc(F.filter(f=>f[0]!=="grey").slice(0,2).map(f=>f[1]).join(" · ")):esc([wk.sessions!=null?wk.sessions+" session"+(wk.sessions===1?"":"s")+" this week":"",gl?gl.name+" "+gl.pct+"%":GOALS[cl.goal]||""].filter(Boolean).join(" · ")||"Report "+fmtDay(String(cl.received||cl.date).slice(0,10)))}</span></span></span><span class="rpct" style="color:${warn||(pc!=null&&pc<60)?"var(--carb)":"var(--accent)"}">${pc==null?"–":pc+"%"}</span></button>`};
       const needL=list.filter(cl=>(cl._F||[]).some(f=>f[0]==="red"||f[0]==="amber")||(clientWeekPct(cl)!=null&&clientWeekPct(cl)<60)),okL=list.filter(cl=>!needL.includes(cl));
@@ -2901,7 +3021,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   ${coachGoalsPanel(c)}
   ${plansSection(c)}
   ${clientSessionsPanel(id,c)}
-  ${c.recovery&&c.recovery.length?`<section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">from their watch</span></div>${chartSVG(c.recovery,[{key:"score",label:"Recovery",color:"var(--accent)"}],{min:0,max:100,label:"Daily recovery score out of 100"})}<span class="small muted">Latest ${c.recovery[c.recovery.length-1].score}/100 (${fmtDay(c.recovery[c.recovery.length-1].week)})${c.recovery[c.recovery.length-1].sleep!=null?" · slept "+fmtN(c.recovery[c.recovery.length-1].sleep)+" h":""}. 70+ ready to push, under 45 go easy.</span></section>`:""}
+  ${watchPanel(id,c)}
   ${coachSetPanel(c)}
   ${feedbackPanel(c)}
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
@@ -2918,6 +3038,98 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
     ${w.win?`<div class="small"><b>Win:</b> ${esc(w.win)}</div>`:""}${w.struggle?`<div class="small"><b>Struggle:</b> ${esc(w.struggle)}</div>`:""}${w.focus?`<div class="small"><b>Focus:</b> ${esc(w.focus)}</div>`:""}</div>`).join("")}</div></section>`:""}
   <section class="panel"><h2>Your consultation notes</h2><textarea id="cnotes" data-act="clientNotes" data-id="${id}" rows="5" placeholder="Private to you, e.g. agreed changes, next review date">${esc(c.notes)}</textarea><span class="small muted">Saved automatically. Never sent to the client.</span></section></div>`}
 
+/* ---------- coach: weekly health check for a client who shares watch data (their report's watch block) ---------- */
+const DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const wkKeys=ws=>[0,1,2,3,4,5,6].map(i=>addDays(ws,i));
+const recTone=v=>v>=70?"good":v>=45?"amber":"low";
+function hcStats(D,ws){const ds=wkKeys(ws),rk=rhrKey(D),rows=ds.map(d=>D[d]||{}),t=todayKey(),av=k=>{const v=rows.filter((r,i)=>k!=="strain"||ds[i]!==t).map(r=>r[k]).filter(x=>x!=null&&!isNaN(x));return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+  const cons=ds.map(d=>sleepConsistency(D,d)).filter(x=>x!=null);
+  return {ds,rows,rec:av("rec"),strain:av("strain"),sleep:av("sleep"),rhr:av(rk),hrv:av("hrv"),resp:av("resp"),spo2:av("spo2"),temp:av("temp"),steps:av("steps"),cons:cons.length?cons.reduce((a,b)=>a+b,0)/cons.length:null,n:rows.filter(r=>r.rec!=null||r.sleep!=null||r.strain!=null).length}}
+// each health-monitor measure this week against their normal from before the week
+function hcOut(D,ws){const rk=rhrKey(D),ds=wkKeys(ws);return HM.map(([k,l,u,dp,band,rel,dir])=>{const key=k==="rhr"?rk:k,R=normRange(D,ws,key,band,rel),v=ds.map(d=>(D[d]||{})[key]).filter(x=>x!=null);
+  if(!v.length)return null;const hi=R?v.filter(x=>x>R.hi).length:0,lo=R?v.filter(x=>x<R.lo).length:0,out=(dir>=0?hi:0)+(dir<=0?lo:0);
+  return {k:key,l:k==="rhr"&&rk==="hrMin"?"Lowest heart rate":l,u,dp,dir,R,avg:v.reduce((a,b)=>a+b,0)/v.length,hi,lo,out,n:v.length}}).filter(Boolean)}
+// three things worth talking about, most important first. Trends only: never a diagnosis
+function hcPoints(c,D,ws){const nm=esc(firstName(c.name)),A=hcStats(D,ws),B=hcStats(D,addDays(ws,-7)),O=hcOut(D,ws),P=[],add=(pri,tone,txt)=>P.push({pri,tone,txt});
+  const el=Math.min(7,Math.floor((new Date(todayKey())-new Date(ws))/864e5)+1);
+  if(el>=4&&A.n<el/2){add(0,"amber",`Not much watch data this week (${A.n} day${A.n===1?"":"s"}). Remind ${nm} to wear their watch to sleep and open the app each morning so it syncs.`)}
+  O.filter(o=>["resp","temp","spo2"].includes(o.k)&&o.out>=2).forEach(o=>add(1,"low",`${o.l} was outside ${nm}'s normal on ${o.out} nights. This often goes with a cold coming on, poor sleep, alcohol or stress. Ask how they feel, and if it carries on or they feel unwell, suggest they check with a GP.`));
+  const rh=O.find(o=>o.k==="rhr"||o.k==="hrMin");if(rh&&rh.R&&rh.hi>=3)add(2,"amber",`${rh.l} ran above ${nm}'s normal on ${rh.hi} days (average ${fmtM(rh.avg,0)} vs a normal ${fmtM(rh.R.m,0)} bpm). Usually tiredness, stress, poor sleep, alcohol or something coming on. Ask how they've felt and ease off if it continues.`);
+  const hv=O.find(o=>o.k==="hrv");if(hv&&hv.R&&hv.lo>=3)add(3,"amber",`HRV was below ${nm}'s normal on ${hv.lo} days (average ${fmtM(hv.avg,0)} vs a normal ${fmtM(hv.R.m,0)} ms), a sign their body is under more stress than usual.`);
+  const hardLow=A.rows.filter(r=>r.rec!=null&&r.rec<45&&r.strain>=14).length;if(hardLow>=2)add(4,"amber",`Trained hard (strain 14+) on ${hardLow} low-recovery days. Plan lighter sessions for red days.`);
+  const low=A.rows.filter(r=>r.rec!=null&&r.rec<45).length;if(low>=3)add(5,"amber",`Recovery was under 45% on ${low} days. Ask about sleep, stress, work and food this week.`);
+  if(A.sleep!=null&&A.sleep<7)add(6,"amber",`Averaged ${fmtHM(A.sleep)} of sleep a night${B.sleep!=null?` (${A.sleep<B.sleep?fmtHM(B.sleep-A.sleep)+" less":fmtHM(A.sleep-B.sleep)+" more"} than last week)`:""}. More sleep is the quickest way to lift recovery.`);
+  if(A.cons!=null&&A.cons<60)add(7,"amber",`Bed and wake times moved around a lot (consistency ${Math.round(A.cons)}%). A steadier routine usually lifts recovery.`);
+  if(A.strain!=null&&B.strain>0){const ch=(A.strain-B.strain)/B.strain;if(Math.abs(ch)>=0.25)add(8,ch>0&&A.rec!=null&&B.rec!=null&&A.rec<B.rec-5?"amber":"good",`Average daily strain went ${ch>0?"up":"down"} from ${fmtM(B.strain,1)} to ${fmtM(A.strain,1)} (${Math.round(Math.abs(ch)*100)}%)${ch>0&&A.rec!=null&&B.rec!=null&&A.rec<B.rec-5?" while recovery dropped, so keep an eye on the build-up":""}.`)}
+  if(A.rec!=null&&B.rec!=null&&A.rec>=B.rec+5)add(9,"good",`Recovery averaged ${Math.round(A.rec)}%, up ${Math.round(A.rec-B.rec)} on last week. Ask what went well so they keep doing it.`);
+  if(A.sleep!=null&&B.sleep!=null&&A.sleep>=B.sleep+0.5)add(10,"good",`Slept ${fmtHM(A.sleep-B.sleep)} more a night than last week.`);
+  if(A.n>=3&&!P.some(p=>p.tone!=="good")){const odd=O.filter(o=>o.out),redD=A.ds.filter((d,i)=>A.rows[i].rec!=null&&A.rows[i].rec<45).map(d=>DOW[(new Date(d+"T12:00:00").getDay()+6)%7]);
+    if(!odd.length&&!redD.length)add(11,"good",`Everything stayed within ${nm}'s normal this week. A good week to progress training.`);
+    else add(11,"amber",`A steady week overall, but ${[redD.length?`recovery was low on ${redD.join(" and ")}`:"",odd.length?`${odd.map(o=>o.l==="HRV"?o.l:o.l.toLowerCase()).join(", ")} ${odd.length>1?"were":"was"} briefly outside their normal`:""].filter(Boolean).join(" and ")}. Check how they've felt since.`)}
+  return P.sort((a,b)=>a.pri-b.pri).slice(0,3)}
+function hcRecSvg(D,ws){const W=320,H=150,T=10,B=20,L=8,R=8,cw=(W-L-R)/7,y100=v=>T+(1-v/100)*(H-T-B),y21=v=>T+(1-v/21)*(H-T-B),pts=[];let bars="",lab="";
+  wkKeys(ws).forEach((d,i)=>{const x=D[d]||{},cx=L+cw*i+cw/2;if(x.rec!=null)bars+=`<rect x="${(cx-cw*0.3).toFixed(1)}" y="${y100(x.rec).toFixed(1)}" width="${(cw*0.6).toFixed(1)}" height="${(H-B-y100(x.rec)).toFixed(1)}" rx="3" fill="${recToneColor(recTone(x.rec))}" opacity=".85"><title>${DOW[i]}: recovery ${x.rec}%</title></rect>`;
+    if(x.strain!=null)pts.push([cx,y21(x.strain),x.strain,i]);lab+=`<text x="${cx.toFixed(1)}" y="${H-5}" text-anchor="middle" font-size="10" fill="var(--muted)">${DOW[i]}</text>`});
+  if(!bars&&!pts.length)return `<p class="small muted" style="margin:0">No recovery or strain this week.</p>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Recovery bars and strain line for each day of the week">${[0,50,100].map(v=>`<line x1="${L}" x2="${W-R}" y1="${y100(v)}" y2="${y100(v)}" stroke="var(--line)"/>`).join("")}${bars}${pts.length>1?`<polyline points="${pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")}" fill="none" stroke="${STRAIN_C}" stroke-width="2"/>`:""}${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="${STRAIN_C}" stroke="var(--bg)" stroke-width="1.5"><title>${DOW[p[3]]}: strain ${p[2]}</title></circle>`).join("")}${lab}</svg>
+  <div class="row small muted" style="gap:12px"><span><i class="sdot" style="background:var(--accent)"></i>Recovery % (bars)</span><span><i class="sdot" style="background:${STRAIN_C}"></i>Strain 0–21 (line)</span></div>`}
+function hcSleepSvg(D,ws){const W=320,H=150,T=10,B=20,L=26,R=8,cw=(W-L-R)/7,mx=10,y=h=>T+(1-Math.min(h,mx)/mx)*(H-T-B);let g="",any=false;
+  [4,6,8,10].forEach(h=>g+=`<line x1="${L}" x2="${W-R}" y1="${y(h)}" y2="${y(h)}" stroke="var(--line)"/><text x="${L-4}" y="${y(h)+3.5}" text-anchor="end" font-size="9.5" fill="var(--muted)">${h}h</text>`);
+  wkKeys(ws).forEach((d,i)=>{const x=D[d]||{},cx=L+cw*i+cw/2,bw=cw*0.6,x0=(cx-bw/2).toFixed(1);g+=`<text x="${cx.toFixed(1)}" y="${H-5}" text-anchor="middle" font-size="10" fill="var(--muted)">${DOW[i]}</text>`;if(x.sleep==null)return;any=true;
+    const tip=`<title>${DOW[i]}: ${fmtHM(x.sleep)} asleep, needed ${fmtHM(sleepNeed(D,d))}</title>`;
+    if(x.sl&&x.sl.st){const tot=(x.sl.d||0)+(x.sl.r||0)+(x.sl.l||0)||1;let at=0;STAGE.slice(0,3).forEach(([k,,c])=>{const h=x.sleep*(x.sl[k]||0)/tot;if(!h)return;g+=`<rect x="${x0}" y="${y(at+h).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(at)-y(at+h)).toFixed(1)}" fill="${c}">${tip}</rect>`;at+=h})}
+    else g+=`<rect x="${x0}" y="${y(x.sleep).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0)-y(x.sleep)).toFixed(1)}" rx="2" fill="${SLEEP_C}">${tip}</rect>`;
+    const n=y(sleepNeed(D,d));g+=`<line x1="${(cx-bw/2-3).toFixed(1)}" x2="${(cx+bw/2+3).toFixed(1)}" y1="${n.toFixed(1)}" y2="${n.toFixed(1)}" stroke="var(--fg)" stroke-width="2" stroke-dasharray="3 2"/>`});
+  if(!any)return `<p class="small muted" style="margin:0">No sleep from their watch this week.</p>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Hours asleep each night with sleep stages, and the sleep they needed">${g}</svg>
+  <div class="row small muted" style="gap:10px">${STAGE.slice(0,3).map(([,l,c])=>`<span><i class="sdot" style="background:${c}"></i>${l}</span>`).join("")}<span>- - needed</span></div>`}
+// 30 days to the end of the chosen week, with their normal range shaded and the chosen week highlighted
+function hcTrendSvg(D,end,key,unit,band,dp){const ds=[];for(let i=29;i>=0;i--)ds.push(addDays(end,-i));const v=ds.map(d=>(D[d]||{})[key]),vals=v.filter(x=>x!=null);
+  if(vals.length<2)return `<p class="small muted" style="margin:0">Not enough readings yet.</p>`;
+  let lo=Math.min(...vals,band?band.lo:Infinity),hi=Math.max(...vals,band?band.hi:-Infinity);const pad=(hi-lo)*0.15||1;lo-=pad;hi+=pad;
+  const W=320,H=120,L=30,R=8,T=8,B=18,x=i=>L+i*(W-L-R)/29,y=val=>T+(hi-val)*(H-T-B)/(hi-lo||1);let path="",pen=false,dots="";
+  v.forEach((val,i)=>{if(val==null){pen=false;return}path+=(pen?"L":"M")+x(i).toFixed(1)+","+y(val).toFixed(1);pen=true;const out=band&&(val>band.hi||val<band.lo);dots+=`<circle cx="${x(i).toFixed(1)}" cy="${y(val).toFixed(1)}" r="${i>=23?3:2.2}" fill="${out?"var(--carb)":"var(--fg)"}"><title>${fmtDay(ds[i])}: ${fmtM(val,dp)} ${unit}</title></circle>`});
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Last 30 days${band?", normal range "+fmtM(band.lo,dp)+" to "+fmtM(band.hi,dp)+" "+unit:""}">
+    <rect x="${x(22.5).toFixed(1)}" y="${T}" width="${(x(29)-x(22.5)+4).toFixed(1)}" height="${H-T-B}" fill="var(--accent)" opacity=".08"/>
+    ${band?`<rect x="${L}" y="${y(band.hi).toFixed(1)}" width="${W-L-R}" height="${Math.max(1,y(band.lo)-y(band.hi)).toFixed(1)}" fill="var(--veg)" opacity=".14"/>`:""}
+    ${[lo+pad,hi-pad].map(val=>`<text x="${L-4}" y="${(y(val)+3.5).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">${fmtM(val,dp)}</text>`).join("")}
+    <path d="${path}" fill="none" stroke="var(--muted)" stroke-width="1.5"/>${dots}
+    <text x="${L}" y="${H-4}" font-size="9.5" fill="var(--muted)">${fmtDay(ds[0])}</text><text x="${W-R}" y="${H-4}" text-anchor="end" font-size="9.5" fill="var(--muted)">this week</text></svg>`}
+const zbar=z=>{const tot=(z||[]).reduce((a,b)=>a+b,0);return tot?`<div class="zbar" role="img" aria-label="Time in heart-rate zones: ${ZONES.map(([,l],i)=>l+" "+Math.round(z[i]/tot*100)+"%").join(", ")}">${ZONES.map(([,,c],i)=>z[i]?`<span style="width:${(z[i]/tot*100).toFixed(1)}%;background:${c}"></span>`:"").join("")}</div>`:""};
+function hcTile(label,v,prev,fmt,better){const d=v!=null&&prev!=null?v-prev:null,good=d==null||!better?null:(d*better>0),arrow=d==null||Math.abs(d)<0.05?"":d>0?"▲":"▼";
+  return `<div class="tile"><span class="label">${label}</span><b>${v==null?"—":fmt(v)}</b><span class="delta" style="color:${good==null?"var(--muted)":good?"var(--veg)":"var(--carb)"}">${d==null?"&nbsp;":arrow?arrow+" "+fmt(Math.abs(d)).replace(/^0h /,"")+" vs last wk":"same as last wk"}</span></div>`}
+function healthCheckPage(id,c){const W=c.watch||{},D=W.days||{},ws=S.hc.week,we=addDays(ws,6),nm=firstName(c.name),A=hcStats(D,ws),B=hcStats(D,addDays(ws,-7)),O=hcOut(D,ws),P=hcPoints(c,D,ws),cur=weekStart();
+  const ses=(W.sessions||[]).filter(x=>x.date>=ws&&x.date<=we).sort((a,b)=>a.date<b.date?-1:1),Bses=(W.sessions||[]).filter(x=>x.date>=addDays(ws,-7)&&x.date<ws).length,end=we>todayKey()?todayKey():we,rk=rhrKey(D);
+  const t0=x=>fmtM(x,0),t1=x=>fmtM(x,1);
+  return `<div class="stack"><section class="panel"><div class="spread"><button class="btn ghost" style="padding:4px 0" data-act="hcClose">‹ ${esc(c.name)}</button><button class="btn ghost" data-act="hcShare">Share summary</button></div>
+    <h1 style="margin:0">Weekly health check</h1>
+    <div class="spread"><button class="btn" data-act="hcWeek" data-v="-1" ${ws<=addDays(cur,-28)?"disabled":""} aria-label="Previous week">‹</button><b>${fmtDay(ws)} – ${fmtDay(we)}${ws===cur?" · this week":""}</b><button class="btn" data-act="hcWeek" data-v="1" ${ws>=cur?"disabled":""} aria-label="Next week">›</button></div>
+    <div class="hctiles">${hcTile("Recovery",A.rec,B.rec,x=>Math.round(x)+"%",1)}${hcTile("Strain",A.strain,B.strain,t1,0)}${hcTile("Sleep",A.sleep,B.sleep,fmtHM,1)}
+      ${hcTile(rk==="rhr"?"Resting HR":"Lowest HR",A.rhr,B.rhr,x=>t0(x)+(x>=20?" bpm":""),-1)}${hcTile("HRV",A.hrv,B.hrv,x=>t0(x)+(x>=5?" ms":""),1)}${hcTile("Sessions",ses.length,Bses,x=>String(Math.round(x)),0)}</div></section>
+  <section class="panel"><h2>Talking points</h2>${P.length?P.map(p=>`<div class="tpoint ${p.tone==="good"?"":p.tone} small">${p.txt}</div>`).join(""):`<p class="small muted" style="margin:0">Nothing stands out this week.</p>`}
+    <span class="small muted">Picked automatically from ${esc(nm)}'s watch trends. A guide for your conversation, not a medical assessment.</span></section>
+  <section class="panel"><h2>Strain and recovery</h2>${hcRecSvg(D,ws)}<span class="small muted">Green 70%+ ready to push, amber 45–69% train as planned, red under 45% go easy. Strain over 14 on a red day is worth a conversation.</span></section>
+  <section class="panel"><div class="spread"><h2>Sleep</h2>${A.sleep!=null?`<span class="label">avg ${fmtHM(A.sleep)}</span>`:""}</div>${hcSleepSvg(D,ws)}
+    ${(()=>{const sl=A.rows.map(r=>r.sl).filter(s=>s&&s.b!=null);if(!sl.length)return"";const m=a=>a.reduce((x,y)=>x+y,0)/a.length;return `<div class="spread small"><span>Usually asleep ${hm(m(sl.map(s=>s.b)))}, up ${hm(m(sl.map(s=>s.w)))}</span>${A.cons!=null?`<span><b>${Math.round(A.cons)}%</b> <span class="muted">consistent</span></span>`:""}</div>`})()}</section>
+  <section class="panel"><h2>Heart trends</h2>
+    ${[[rk,rk==="rhr"?"Resting heart rate":"Lowest heart rate","bpm",3,0,0],["hrv","HRV","ms",0,0.1,0]].map(([k,l,u,band,rel,dp])=>{const R=normRange(D,ws,k,band,rel);return `<div class="stack" style="gap:4px"><div class="spread small"><b>${l}</b><span class="muted">${R?`normal ${fmtM(R.lo,dp)}–${fmtM(R.hi,dp)} ${u}`:"building their normal"}</span></div>${hcTrendSvg(D,end,k,u,R,dp)}</div>`}).join("")}
+    ${O.filter(o=>!["rhr","hrMin","hrv"].includes(o.k)).length||Object.values(D).some(x=>x.vo2!=null)?`<div class="hist">${O.filter(o=>!["rhr","hrMin","hrv"].includes(o.k)).map(o=>`<div class="spread small" style="padding:4px 0;gap:8px"><span><b>${o.l}</b><span class="muted" style="display:block">${o.R?`normal ${fmtM(o.R.lo,o.dp)}–${fmtM(o.R.hi,o.dp)} ${o.u}`:"building their normal"}</span></span><span style="text-align:right"><b style="color:${o.out?"var(--carb)":"var(--fg)"}">${fmtM(o.avg,o.dp)} ${o.u}</b><span class="muted" style="display:block">${o.out?`out of range ${o.out} night${o.out>1?"s":""}`:"in range"}</span></span></div>`).join("")}
+      ${(()=>{const v=Object.keys(D).sort().filter(d=>D[d].vo2!=null&&d<=we);return v.length?`<div class="spread small" style="padding:4px 0"><span><b>VO₂ max</b><span class="muted" style="display:block">watch fitness estimate</span></span><b>${fmtM(D[v[v.length-1]].vo2,1)}${v.length>1?` <span class="muted">(${fmtM(D[v[0]].vo2,1)} on ${fmtDay(v[0])})</span>`:""}</b></div>`:""})()}</div>`:""}
+    <span class="small muted">Shaded band: ${esc(nm)}'s normal from the 30 days before this week. Orange dots are outside it.</span></section>
+  <section class="panel"><div class="spread"><h2>Sessions</h2><span class="label">${ses.length}</span></div>${ses.length?`<div class="hist">${ses.map(x=>`<div class="item stack" style="gap:4px"><div class="spread small"><span><b>${esc(x.name||"Session")}</b><span class="muted"> · ${DOW[(new Date(x.date+"T12:00:00").getDay()+6)%7]}${x.mins?" · "+fmtDur(x.mins):""}${x.coach?" · with you":""}</span></span>${x.strain!=null?`<span><b style="color:${STRAIN_C}">${t1(x.strain)}</b> <span class="muted">strain</span></span>`:""}</div>
+      <div class="small muted">♥ avg ${x.avg||"—"} · max ${x.max||"—"} bpm${x.live?" · live":""}</div>${zbar(x.z)}</div>`).join("")}</div>
+      <div class="row small muted" style="gap:8px">${ZONES.map(([,l,c],i)=>`<span><i class="sdot" style="background:${c}"></i>${i+1} ${l}</span>`).join("")}</div>`:`<p class="small muted" style="margin:0">No sessions with heart rate this week.</p>`}</section>
+  <section class="panel"><h2>Notes for this week</h2><textarea data-act="hcNote" data-id="${id}" data-v="${ws}" rows="4" placeholder="e.g. agreed an extra rest day, bed by 11, check in Thursday">${esc((c.hcNotes||{})[ws]||"")}</textarea><span class="small muted">Saved automatically. Included when you share the summary.</span></section></div>`}
+function hcShareText(c){const D=(c.watch||{}).days||{},ws=S.hc.week,A=hcStats(D,ws),P=hcPoints(c,D,ws),note=((c.hcNotes||{})[ws]||"").trim(),strip=t=>String(t).replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&lt;/g,"<").replace(/&gt;/g,">");
+  const top=[A.rec!=null&&`Recovery ${Math.round(A.rec)}%`,A.strain!=null&&`Strain ${fmtM(A.strain,1)} a day`,A.sleep!=null&&`Sleep ${fmtHM(A.sleep)}`,A.rhr!=null&&`Resting HR ${fmtM(A.rhr,0)} bpm`,A.hrv!=null&&`HRV ${fmtM(A.hrv,0)} ms`].filter(Boolean).join(" · ");
+  return `Weekly health check: ${c.name}, ${fmtDay(ws)} – ${fmtDay(addDays(ws,6))}\n${top||"Not much watch data this week"}\n\n${P.map(p=>"• "+strip(p.txt)).join("\n")}${note?"\n\nNotes:\n"+note:""}\n\nFrom Project Fitness. Based on watch trends, not a medical assessment.`}
+function watchPanel(id,c){const W=c.watch;if((!W||!W.days)&&c.recovery&&c.recovery.length)return `<section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">from their watch</span></div>${chartSVG(c.recovery,[{key:"score",label:"Recovery",color:"var(--accent)"}],{min:0,max:100,label:"Daily recovery score out of 100"})}<span class="small muted">Latest ${c.recovery[c.recovery.length-1].score}/100. They're on an older version of the app: once they update, you'll get the weekly health check.</span></section>`;
+  if(!W||!W.days||!Object.keys(W.days).length)return c.cloud?`<section class="panel"><div class="spread"><h2>Watch data</h2><span class="label">not shared</span></div><p class="small muted" style="margin:0">${esc(firstName(c.name))} isn't sharing watch data. In their iPhone app they connect their watch (Settings › Connect your watch), then turn on <b>Share my watch data with my coach</b> in Settings › Apple Health.</p></section>`:"";
+  const D=W.days,ks=Object.keys(D).sort(),last=ks.filter(d=>D[d].rec!=null||D[d].sleep!=null).pop()||ks[ks.length-1],x=D[last]||{};
+  return `<section class="panel"><div class="spread"><h2>Watch data</h2><span class="label">latest ${fmtDay(last)}</span></div>
+    <div class="hctiles"><div class="tile"><span class="label">Recovery</span><b style="color:${x.rec!=null?recToneColor(recTone(x.rec)):"var(--muted)"}">${x.rec!=null?x.rec+"%":"—"}</b></div><div class="tile"><span class="label">Strain</span><b style="color:${STRAIN_C}">${x.strain!=null?fmtM(x.strain,1):"—"}</b></div><div class="tile"><span class="label">Sleep</span><b>${x.sleep!=null?fmtHM(x.sleep):"—"}</b></div></div>
+    ${c.recovery&&c.recovery.length>1?chartSVG(c.recovery,[{key:"score",label:"Recovery",color:"var(--accent)"}],{min:0,max:100,label:"Daily recovery score out of 100"}):""}
+    <button class="btn primary" style="align-self:flex-start" data-act="hcOpen" data-id="${id}">Weekly health check ›</button></section>`}
 /* ---------- coach-led sessions: train a client in person and log it for them ---------- */
 const firstName=n=>String(n||"").trim().split(/\s+/)[0]||"them";
 const csOf=cid=>ofType("csession").filter(x=>x.clientId===cid).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:String(b.id).localeCompare(String(a.id)));
@@ -3209,7 +3421,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,recovery:j.recovery||null,age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,recovery:j.recovery||null,watch:j.watch||null,hcNotes:old.hcNotes||{},age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 /* ---------- coach-planned sessions ---------- */
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
@@ -3713,6 +3925,7 @@ document.addEventListener("click",e=>{
     case "mDel":{const c=S.docs[ds.id],prev=clone(c);save(ds.id,{...c,measures:(c.measures||[]).filter(x=>x.date!==ds.d)});toast("Deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
     case "youView":S.youView=ds.v;S.clientOpen=null;render();window.scrollTo(0,0);break;
     case "shareReport":shareReport();break;
+    case "swYes":case "swNo":save("profile",{...(S.docs.profile||{type:"profile"}),shareWatch:ds.act==="swYes"});if(ds.act==="swYes"){toast("Shared. Your coach will see your watch data");CL.user&&pushReports(true)}else toast("Not shared. You can turn it on in Settings › Apple Health");break;
     case "importReport":document.getElementById("reportIn").click();break;
     case "tcPick":S.tab="you";S.youView="clients";S.progView=null;S.clientOpen=null;S.tcPicker=true;render();window.scrollTo(0,0);break;
     case "tcOpen":S.tcOpen=ds.id||null;S.tcPicker=false;if(ds.id&&S.clientOpen!==ds.id){S.clientOpen=ds.id;render();window.scrollTo(0,0)}else render();break;
@@ -3727,7 +3940,11 @@ document.addEventListener("click",e=>{
       const ms=[...(to.measures||[])];(from.measures||[]).forEach(m=>{if(!ms.some(y=>y.date===m.date))ms.push(m)});
       save(ds.v,{...to,measures:ms,notes:[to.notes,from.notes].filter(Boolean).join("\n\n")});remove(ds.id);S.clientOpen=ds.v;render();window.scrollTo(0,0);
       pushPendingPlans();toast(`Moved ${L.length} session${L.length===1?"":"s"} to ${firstName(to.name)}'s account`);break}
-    case "openClient":S.clientOpen=ds.id||null;S.tcOpen=null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
+    case "hcOpen":{const ws=weekStart(),early=(new Date().getDay()+6)%7<2;S.hc={id:ds.id,week:early?addDays(ws,-7):ws}}render();window.scrollTo(0,0);break;
+    case "hcClose":S.hc=null;render();window.scrollTo(0,0);break;
+    case "hcWeek":if(S.hc){const n=addDays(S.hc.week,7*(+ds.v)),cur=weekStart();if(n<=cur&&n>=addDays(cur,-28)){S.hc.week=n;render()}}break;
+    case "hcShare":{const c=S.hc&&S.docs[S.hc.id];if(!c)break;const text=hcShareText(c);if(navigator.share)navigator.share({title:"Weekly health check",text}).catch(()=>{});else if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>toast("Summary copied. Paste it into a message"),()=>toast("Couldn't copy"));break}
+    case "openClient":S.hc=null;S.clientOpen=ds.id||null;S.tcOpen=null;S.confirmDelClient=null;render();window.scrollTo(0,0);break;
     case "delClient":if(S.confirmDelClient!==ds.id){S.confirmDelClient=ds.id;render();break}{const prev=clone(S.docs[ds.id]);S.confirmDelClient=null;S.clientOpen=null;if(prev.clientUid){unlinkClient(prev.clientUid);remove(ds.id);toast("Client removed and sharing stopped")}else{const ses=csOf(ds.id).map(x=>[x.id,clone(S.docs[x.id])]);ses.forEach(([k])=>remove(k));remove(ds.id);toast("Client removed",{undo:()=>{ses.forEach(([k,v])=>restoreDoc(k,v));restoreDoc(ds.id,prev)}})}}break;
     case "clientCsv":clientCsv(ds.id);break;
     case "obPick":S.onboard.d[ds.k]=ds.v;if(ds.k==="goal"||ds.k==="activity")S.onboard.d.targets=null;render();break;
@@ -4095,12 +4312,14 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="delLocal"){CL.delLocal=t.checked}
   if(ds.act==="linkNotes"){setNotes(ds.id,t.checked)}
   if(ds.act==="hqConsent"){const h=ds.p==="ob"?(S.onboard.d.health||(S.onboard.d.health={})):S.healthDraft;h.consent=t.checked}
+  if(ds.act==="shareWatch"){save("profile",{...(S.docs.profile||{type:"profile"}),shareWatch:t.checked});toast(t.checked?"Your coach will see your watch data":"Watch data no longer shared");window.Cloud&&CL.user&&pushReports(true)}
   if(ds.act==="shareHealth"){save("profile",{...(S.docs.profile||{}),shareHealth:t.checked});window.Cloud&&CL.user&&pushReports(true)}
   if(ds.act==="habitsOnly"){const p=S.docs.profile||{type:"profile",name:activeProf().name};if(p.minor&&!t.checked){t.checked=true;toast("Numbers stay hidden for under-18s");return}save("profile",{...p,habitsOnly:t.checked});toast(t.checked?"Numbers hidden. Focus on habits and portions":"Calorie and macro numbers shown")}
   if(ds.act==="rdPopTgl"){lsSet(rdPopOffKey(),t.checked?"0":"1");toast(t.checked?"Check-in pop-up on":"Check-in pop-up off");return}
   if(ds.act==="coachMode"){save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),coach:t.checked});if(t.checked){S.youView="clients"};toast(t.checked?"Clients view added to Check-in":"Coach tools off")}
   if(ds.act==="shareWeeks"){S.share={...(S.share||{notes:true}),weeks:+t.value}}
   if(ds.act==="shareNotes"){S.share={...(S.share||{weeks:8}),notes:t.checked};render()}
+  if(ds.act==="hcNote"){const c=S.docs[ds.id];if(c)save(ds.id,{...c,hcNotes:{...(c.hcNotes||{}),[ds.v]:t.value}})}
   if(ds.act==="clientNotes"){const c=S.docs[ds.id];if(c)save(ds.id,{...c,notes:t.value})}
   if(ds.act==="remOn"||ds.act==="remTime"||ds.act==="remMins"){const st=clone(settings()),R=remCfg();if(ds.act==="remOn")R[ds.k].on=t.checked;else if(ds.act==="remTime")R[ds.k].time=t.value||R[ds.k].time;else R.idle.mins=+t.value;if(ds.k==="gym")R.plan={...R.plan,on:R.gym.on,time:R.gym.time};st.reminders=R;save("settings",st);
     if(ds.act==="remOn"&&t.checked&&"Notification" in window&&Notification.permission==="default"){enablePush().then(r=>{S.pushStatus=r;render()})}}
