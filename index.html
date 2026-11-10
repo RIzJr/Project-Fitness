@@ -528,6 +528,9 @@ section.panel{border-radius:22px}
 .wp-head .wp-title{flex:1 1 auto}.wp-head .wp-title b{max-width:100%}
 .wp-hr{display:flex;align-items:center;gap:3px;height:36px;padding:0 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-weight:800;flex:none;font-variant-numeric:tabular-nums}.wp-hr .hrdot{color:var(--muted)}
 .hrsheet{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.fdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--muted);vertical-align:0}.fdot.live{background:var(--veg)}.fdot.recent{background:var(--carb)}.fdot.wait{background:var(--protein)}
+@media (prefers-reduced-motion:no-preference){.fdot.live{animation:fpulse 1.6s infinite}}@keyframes fpulse{0%{box-shadow:0 0 0 0 rgba(61,220,132,.6)}100%{box-shadow:0 0 0 8px rgba(61,220,132,0)}}
+.hkok{display:flex;gap:12px;align-items:center;border:1.5px solid var(--veg);border-radius:14px;padding:10px 12px;background:color-mix(in srgb,var(--veg) 10%,transparent)}.hkck{flex:none;width:30px;height:30px;border-radius:50%;background:var(--veg);color:#000;display:flex;align-items:center;justify-content:center;font-weight:900}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}.trio>div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
 .ring{position:relative;width:88px;height:88px}.ring svg{display:block}.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
 .stagebar{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px}.stagebar span{display:block;min-width:3px}
@@ -1170,7 +1173,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-10-1";
+const APP_VERSION="2026-11-10-2";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1198,10 +1201,11 @@ function hrOnValue(ev){const bpm=hrParse(ev&&ev.value);if(!bpm||bpm<25||bpm>240)
   if(dw&&HRL.who===hrWho()){dw.hrLog=dw.hrLog||[];const t=Math.round((Date.now()-(dw.started||Date.now()))/1000),L=dw.hrLog;if(!L.length||t-L[L.length-1][0]>=5)L.push([t,bpm])}
   HRL.ls.push([Date.now(),bpm]);while(HRL.ls.length&&HRL.ls[0][0]<Date.now()-90000)HRL.ls.shift();hrPaint()}
 // update the numbers in place every beat, without re-rendering the whole screen
-function hrPaint(){const max=hrMaxFor(S.draftWorkout&&S.draftWorkout.forClient),z=hrZone(HRL.bpm,max),col=z?ZONES[z-1][2]:"var(--muted)";
-  document.querySelectorAll(".hrlive").forEach(el=>{el.textContent=HRL.state==="on"&&HRL.bpm?HRL.bpm:"--"});
-  document.querySelectorAll(".hrzone").forEach(el=>{el.textContent=z?"Zone "+z+" · "+ZONES[z-1][1]:HRL.state==="on"?"":"Not connected"});
-  document.querySelectorAll(".hrdot").forEach(el=>{el.style.color=HRL.state==="on"?col:"var(--muted)"});
+function hrPaint(){const n=hrNow(),max=hrMaxFor(S.draftWorkout&&S.draftWorkout.forClient),z=n?hrZone(n.bpm,max):null,col=z?ZONES[z-1][2]:"var(--muted)";
+  document.querySelectorAll(".hrlive").forEach(el=>{el.textContent=n?n.bpm:el.closest(".wp-hr")?(HRL.state==="connecting"?"…":"+"):"--"});
+  document.querySelectorAll(".hrzone").forEach(el=>{el.textContent=z?"Zone "+z+" · "+ZONES[z-1][1]:n?"":"Not connected"});
+  document.querySelectorAll(".hrsrc").forEach(el=>{el.textContent=n&&n.src==="health"?"from your watch, "+ago(n.age):""});
+  document.querySelectorAll(".hrdot").forEach(el=>{el.style.color=n?col:"var(--muted)"});
   const dn=document.getElementById("hrDown");if(dn){const d=hrDrop();dn.textContent=d!=null&&d>=5?`down ${d} since your set`:""}}
 const hrDrop=()=>{if(!S.rest||!HRL.bpm)return null;const pk=Math.max(0,...HRL.ls.filter(x=>x[0]>=(S.rest.t0||0)-30000&&x[0]<=(S.rest.t0||0)+8000).map(x=>x[1]));return pk?pk-HRL.bpm:null};
 async function hrStart(dev){const B=NPlug("BluetoothLe");if(!B){toast("Live heart rate needs the latest version of the app");return false}
@@ -1233,6 +1237,7 @@ function hrSheet(){const dw=S.draftWorkout,fc=dw&&dw.forClient,who=fc?esc(firstN
       <span class="small muted">Connected to ${esc(HRL.dev.name)}.</span><button class="btn" style="align-self:flex-start" data-act="hrOff">Disconnect</button>`
     :HRL.state==="connecting"?`<span class="small"><span class="spin dark" aria-hidden="true"></span> Looking for the monitor…</span>`
     :`${HRL.err?`<div class="hint small"><b>${esc(HRL.err)}</b></div>`:""}
+      ${!fc&&hkOn()?`<div class="hint small"><b>From your watch via Apple Health${HKL.bpm&&Date.now()-HKL.at<=120000?`: <span class="hrlive">${HKL.bpm}</span> bpm <span class="hrsrc"></span>`:""}</b><span>${HKL.bpm&&HKL.at?`Latest reading ${ago(Date.now()-HKL.at)}${HKL.src?" from "+esc(HKL.src):""}. `:"No heart rate from your watch in the last 15 minutes. "}Apple Watch sends it every few seconds while a workout is running on the watch. Garmin only sends it when Garmin Connect syncs, so for live heart rate on a Garmin use Broadcast Heart Rate (below).</span></div>`:""}
       <ol class="small" style="margin:0;padding-left:18px"><li><b>Garmin watch:</b> press and hold the top button (A), then choose Broadcast Heart Rate.</li><li><b>Chest strap:</b> wet the sensor pads and put it on. It wakes up by itself.</li><li>Keep it within a few metres of this phone.</li></ol>
       <div class="row">${saved?`<button class="btn primary" data-act="hrGo" data-v="saved">Reconnect ${esc(saved.name||"monitor")}</button>`:""}<button class="btn ${saved?"":"primary"}" data-act="hrGo">${saved?"Another monitor":"Find a heart-rate monitor"}</button></div>
       <label class="habit"><input type="checkbox" data-act="hrAll" ${S.hrAll?"checked":""}><span class="small">Can't see it? Show all Bluetooth devices</span></label>`}
@@ -1247,10 +1252,55 @@ const hkOn=()=>NATIVE&&!!(settings().health&&settings().health.on);
 const hkType=(w)=>{if(w.type==="cardio"){const a=String(w.activity||"").toLowerCase();return /run|jog/.test(a)?"run":/walk/.test(a)?"walk":/cycl|bike/.test(a)?"cycle":/row/.test(a)?"row":/swim/.test(a)?"swim":/cross/.test(a)?"elliptical":/stair/.test(a)?"stairs":/hiit|interval/.test(a)?"hiit":/sport|other/.test(a)?"other":"cardio"}return w.kind==="gym"?"strength":"functional"};
 const HK_MET={run:9.8,walk:3.8,cycle:7.5,row:7,swim:7,elliptical:5,stairs:8,hiit:8,other:6,cardio:6};
 async function hkConnect(){const H=NPlug("Health"),W=NPlug("PFWorkout");if(!H||!W){toast("Apple Health needs the latest version of the app. Update it from TestFlight or the App Store");return}
+  if(S.hkBusy)return;S.hkBusy=true;render();let ok=false;
   try{const a=await H.isAvailable();if(!a||!a.available){toast("Apple Health isn't available on this phone");return}
     await hkAuth(H);await W.requestAuthorization();
-    const st=clone(settings());st.health={...(st.health||{}),on:true,v:HK_V,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);toast("Apple Health connected");hkPull(true)}
-  catch(e){toast("Couldn't connect to Apple Health: "+((e&&e.message)||"try again"))}}
+    const st=clone(settings());st.health={...(st.health||{}),on:true,v:HK_V,since:(st.health&&st.health.since)||new Date().toISOString()};save("settings",st);ok=true}
+  catch(e){toast("Couldn't connect to Apple Health: "+((e&&e.message)||"try again"))}
+  finally{S.hkBusy=false}
+  render();if(ok){toast("Apple Health connected ✓");hkPull(true)}}
+// is data actually arriving? The newest heart-rate reading in Apple Health (the iPhone records steps itself, so steps can't tell).
+// Live = under 20 min old, Recent = under 3 h, else Waiting. Garmin only writes to Apple Health while Garmin Connect is open.
+async function hkFresh(){const H=NPlug("Health");if(!H||!hkOn()||S.hkFreshing)return;S.hkFreshing=true;const now=Date.now();
+  try{const r=await H.readSamples({dataType:"heartRate",startDate:new Date(now-7*864e5).toISOString(),endDate:new Date(now).toISOString(),limit:1,ascending:false}),x=((r&&r.samples)||[])[0];
+    S.hkFresh={at:x?Date.parse(x.endDate||x.startDate):0,src:x?String(x.sourceName||""):"",chk:now};lsSet("pf-hkfresh:"+PROF.active,JSON.stringify(S.hkFresh))}
+  catch(e){S.hkFresh={...(hkFreshGet()||{at:0,src:""}),chk:now}}finally{S.hkFreshing=false}}
+const hkFreshGet=()=>{if(S.hkFresh)return S.hkFresh;try{return JSON.parse(lsGet("pf-hkfresh:"+PROF.active)||"null")}catch(e){return null}};
+const ago=ms=>ms<90000?"just now":ms<3600000?Math.round(ms/60000)+" min ago":Math.floor(ms/3600000)+" h "+String(Math.round(ms%3600000/60000)).padStart(2,"0")+" min ago";
+const fmtWhen=t=>{const d=new Date(t),k=hkLocalDate(d);return (k===todayKey()?"today":k===addDays(todayKey(),-1)?"yesterday":fmtDay(k))+" at "+hm(d.getHours()*60+d.getMinutes())};
+function hkFreshState(){const f=hkFreshGet();if(!f||!f.chk)return {k:"check",l:"Checking",t:"looking for data from your watch…"};const age=Date.now()-f.at,src=f.src?" from "+esc(f.src):"";
+  const hint=/garmin|connect/i.test(f.src)?"Garmin only sends data while Garmin Connect is open: open it, let it sync, then come back.":/whoop/i.test(f.src)?"Open the WHOOP app so it syncs, then come back.":/oura/i.test(f.src)?"Open the Oura app so it syncs, then come back.":"Open your watch's app so it syncs to Apple Health, then come back.";
+  if(!f.at)return {k:"wait",l:"Waiting",t:"no heart rate from your watch in the last 7 days.",hint};
+  if(age<=20*60000)return {k:"live",l:"Live",t:"latest heart rate "+ago(age)+src};
+  if(age<=3*3600000)return {k:"recent",l:"Recent",t:"latest heart rate "+ago(age)+src,hint};
+  return {k:"wait",l:"Waiting for new data",t:"last heart rate "+fmtWhen(f.at)+src,hint}}
+const hkFreshInner=()=>{const F=hkFreshState();return `<span><span class="fdot ${F.k}" aria-hidden="true"></span><b>${F.l}</b> · ${F.t}</span>${F.hint?`<span class="muted" style="display:block">${F.hint}</span>`:""}`};
+const hkFreshTag=()=>{const F=hkFreshState();return `<span class="fdot ${F.k}" aria-hidden="true"></span>${S.hkSyncing?"Syncing…":F.l}`};
+function hkFreshPaint(){document.querySelectorAll(".hkfresh").forEach(e=>e.innerHTML=hkFreshInner());document.querySelectorAll(".hkftag").forEach(e=>e.innerHTML=hkFreshTag())}
+async function hkCheckNow(){await hkFresh();hkFreshPaint();const f=S.hkFresh;if(f&&f.at>(S.hkSeen||0))await hkPull(true)}
+// heart rate from Apple Health during your own workout when no Bluetooth monitor is connected (Apple Watch writes it every few seconds
+// while a workout runs on the watch; Garmin only when Connect syncs, so it shows only if under 2 minutes old)
+const HKL={bpm:null,at:0,src:"",chk:0};
+async function hkLiveTick(){const H=NPlug("Health");if(!H)return;const now=Date.now();
+  try{const r=await H.readSamples({dataType:"heartRate",startDate:new Date(now-15*60000).toISOString(),endDate:new Date(now).toISOString(),limit:1,ascending:false}),x=((r&&r.samples)||[])[0];
+    if(x){HKL.bpm=Math.round(+x.value);HKL.at=Date.parse(x.endDate||x.startDate);HKL.src=String(x.sourceName||"")}else HKL.bpm=null}catch(e){}
+  hrPaint()}
+const bleOn=()=>HRL.state==="on"&&HRL.who===hrWho();
+function hrNow(){if(bleOn()&&HRL.bpm)return {bpm:HRL.bpm,src:"ble"};const dw=S.draftWorkout;if(dw&&!dw.forClient&&hkOn()&&HKL.bpm&&Date.now()-HKL.at<=120000)return {bpm:HKL.bpm,src:"health",age:Date.now()-HKL.at};return null}
+if(NATIVE){setInterval(()=>{if(document.hidden||!hkOn())return;const now=Date.now(),dw=S.draftWorkout;
+    if(playerOn()&&dw&&!dw.forClient&&!bleOn()&&now-HKL.chk>15000){HKL.chk=now;hkLiveTick()}
+    if(hkShown()&&!S.hkSyncing&&now-((S.hkFresh||{}).chk||0)>60000)hkCheckNow()},5000);
+  document.addEventListener("visibilitychange",()=>{if(document.hidden||!hkOn())return;HKL.chk=0;hkFresh().then(()=>{hkFreshPaint();const f=S.hkFresh;if(f&&f.at>(S.hkSeen||0))hkPull(true);else hkPull()})})}
+// sync status: shown on the Apple Health page, the watch guide and Recover
+const hkLast=()=>S.hkLast||+lsGet("pf-hklast:"+PROF.active)||null;
+const hkSyncTxt=()=>{if(S.hkSyncing)return "Syncing your last 30 days…";const t=hkLast();if(!t)return "Waiting for the first sync";const d=new Date(t),k=hkLocalDate(d);return "Last synced "+(k===todayKey()?"today at "+hm(d.getHours()*60+d.getMinutes()):fmtDay(k))};
+function hkReceived(){const V=Object.values((S.docs.hkdays||{}).days||{}),n=f=>V.filter(f).length,r=n(x=>x.rhr!=null);
+  return [["Steps",n(x=>x.steps!=null)],["Sleep",n(x=>x.sleep!=null)],["Sleep stages",n(x=>x.sl&&x.sl.st)],["Heart rate (strain)",n(x=>x.strain!=null)],[r?"Resting heart rate":"Lowest heart rate",r||n(x=>x.hrMin!=null)],["HRV",n(x=>x.hrv!=null)],["Breathing rate",n(x=>x.resp!=null)],["Blood oxygen",n(x=>x.spo2!=null)],["Wrist temperature",n(x=>x.temp!=null)],["VO₂ max",n(x=>x.vo2!=null)]]}
+function hkStatus(full){const since=(settings().health||{}).since,R=full?hkReceived():[],miss=R.some(x=>!x[1]);
+  return `<div class="hkok" role="status"><span class="hkck" aria-hidden="true">✓</span><span style="min-width:0"><b>Connected to Apple Health</b><span class="small muted" style="display:block">${since?"Since "+fmtDay(hkLocalDate(since))+" · ":""}${hkSyncTxt()}</span></span></div>
+    <div class="hkfresh small">${hkFreshInner()}</div>${full?`<button class="btn" style="align-self:flex-start" data-act="hkCheck" ${S.hkSyncing?"disabled":""}>Check for new data</button>`:""}
+    ${full?`<div class="stack" style="gap:2px"><span class="label">What's coming in (last 30 days)</span>${R.map(([l,c])=>`<div class="spread small" style="padding:2px 0"><span>${l}</span><span style="color:${c?"var(--veg)":"var(--muted)"};font-weight:${c?700:400}">${c?"✓ "+c+" day"+(c>1?"s":""):S.hkSyncing?"…":"not received"}</span></div>`).join("")}</div>
+      ${miss&&!S.hkSyncing?`<span class="small muted">"Not received" means your watch hasn't sent it to Apple Health. Some watches never share these: the guide for your watch says which.</span>`:""}`:""}`}
 async function hkSaveWorkout(id){if(!hkOn())return;const W=NPlug("PFWorkout"),w=S.docs[id];if(!W||!w||w.hk)return;
   try{const mins=Math.max(1,+w.mins||1),end=w.ended?new Date(w.ended):w.started?new Date(+w.started+mins*60000):(w.date===todayKey()?new Date():new Date(w.date+"T18:00:00")),start=w.started&&w.ended?new Date(w.started):new Date(end-mins*60000);
     const type=hkType(w),kcal=w.type==="cardio"?Math.round((HK_MET[type]||6)*(bodyKg()||75)*mins/60):woKcal(w);
@@ -1258,7 +1308,11 @@ async function hkSaveWorkout(id){if(!hkOn())return;const W=NPlug("PFWorkout"),w=
 async function hkSaveWeight(b){if(!hkOn())return;const H=NPlug("Health");if(!H)return;try{await H.saveSample({dataType:"weight",value:+b.weight,unit:"kilogram",startDate:(b.date===todayKey()?new Date():new Date(b.date+"T08:00:00")).toISOString()})}catch(e){}}
 const hkLocalDate=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 // steps today (ticks a steps habit), last night's sleep (morning check-in) and weigh-ins from other apps or a smart scale
+const hkShown=()=>S.setPage==="health"||S.setPage==="watch"||S.tab==="recover";
 async function hkPull(force){if(!hkOn())return;const H=NPlug("Health");if(!H)return;if(!force&&S.hkAt&&Date.now()-S.hkAt<10*60000)return;S.hkAt=Date.now();
+  S.hkSyncing=true;if(hkShown())render();try{await hkFresh();S.hkSeen=(S.hkFresh||{}).at||0;await hkPullRun(H)}finally{S.hkSyncing=false;S.hkLast=Date.now();lsSet("pf-hklast:"+PROF.active,String(S.hkLast))}
+  if(hkShown()||S.tab==="today"||S.woSum)render()}
+async function hkPullRun(H){
   if((settings().health||{}).v!==HK_V){try{await hkAuth(H)}catch(e){}const st=clone(settings());st.health={...(st.health||{}),v:HK_V};save("settings",st)}
   const now=new Date(),mid=new Date(now.getFullYear(),now.getMonth(),now.getDate()),t=todayKey();
   try{const r=await H.queryAggregated({dataType:"steps",startDate:mid.toISOString(),endDate:now.toISOString(),bucket:"day",aggregation:"sum"});
@@ -1272,8 +1326,7 @@ async function hkPull(force){if(!hkOn())return;const H=NPlug("Health");if(!H)ret
     const byDay={};((r&&r.samples)||[]).filter(x=>x.sourceId!==HK_BUNDLE&&+x.value>20).forEach(x=>{byDay[hkLocalDate(x.startDate)]=+x.value});let n=0;
     Object.entries(byDay).forEach(([day,kg])=>{const b=S.docs["body_"+day];if(b&&+b.weight)return;save("body_"+day,{...(b||{type:"body",date:day}),weight:Math.round(kg*10)/10,hkFrom:true});n++});
     if(n)toast(`Added ${n} weigh-in${n>1?"s":""} from Apple Health`)}catch(e){}
-  await hkDays(H);await hkWorkoutsHR(H);
-  if(S.setPage==="health"||S.tab==="recover"||S.tab==="today"||S.woSum)render()}
+  await hkDays(H);await hkWorkoutsHR(H)}
 // daily watch summary for the last 30 days (the hkdays doc): sleep with stages and bed/wake times, resting or lowest heart rate, HRV,
 // breathing rate, blood oxygen, wrist temperature, VO2 max, steps and strain. Re-reads 30 days once a day, otherwise the last 4.
 // The plugin can only aggregate steps and heart rate, so HRV, breathing rate and blood oxygen are averaged here from samples.
@@ -1390,11 +1443,12 @@ function stageBar(sl,h){if(!sl||!sl.st)return"";const tot=STAGE.reduce((a,[k])=>
     ${h===false?"":`<div class="row small" style="gap:10px">${STAGE.map(([k,l,c])=>`<span><i class="sdot" style="background:${c}"></i>${l} ${fmtDur(sl[k]||0)}</span>`).join("")}</div>`}`}
 const hasWatchData=()=>{const H=(S.docs.hkdays||{}).days;return !!H&&Object.keys(H).length>0};
 function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button class="duerow" data-act="setPage" data-v="watch"><span><b>Recovery, strain and sleep</b><span class="small muted" style="display:block">Connect your watch through Apple Health to see how recovered you are each morning</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}
+  if(hkOn()&&!hasWatchData())return `<section class="panel"><h2>Recovery, strain and sleep</h2>${hkStatus(false)}<p class="small muted" style="margin:0">${S.hkSyncing?"Getting your watch data from Apple Health…":"Nothing from your watch yet. Open your watch's own app so it syncs to Apple Health, then come back here. Wear it to bed for sleep and recovery."}</p></section>`;
   const t=todayKey(),D=(S.docs.hkdays||{}).days||{},x=D[t]||{},R=recoveryFor(t),need=sleepNeed(D,t),perf=x.sleep!=null?Math.min(100,Math.round(x.sleep/need*100)):null,T=strainTarget(R&&!R.building?R.score:null),HM0=healthMonitor(D,t),cons=sleepConsistency(D,t);
   const ok=HM0.filter(r=>r.st!=="none"),inR=ok.filter(r=>!r.warn).length,mx=hrMaxFor(null),todayS=sessionsOn(t).filter(w=>woStrain(w)!=null);
   const share=CL.user&&CL.links&&CL.links.length&&(S.docs.profile||{}).shareWatch==null?`<div class="hint"><b>Share your watch data with ${esc(CL.links.map(l=>firstName(l.coach_name||"your coach")).join(", "))}?</b><span class="small">Your coach would see your recovery, strain, sleep and heart trends to plan your training and check in each week. You can turn it off any time in Settings › Apple Health.</span><div class="row" style="margin-top:6px"><button class="btn primary" data-act="swYes">Share</button><button class="btn" data-act="swNo">Not now</button></div></div>`:"";
   const days7=[6,5,4,3,2,1,0].map(i=>addDays(t,-i));
-  return `${share}<section class="panel"><div class="spread"><h2>Today</h2><span class="label">from your watch</span></div>
+  return `${share}<section class="panel"><div class="spread"><h2>Today</h2>${hkOn()?`<button class="linkbtn small hkftag" data-act="setPage" data-v="health" style="color:var(--fg)">${hkFreshTag()}</button>`:`<span class="label">from your watch</span>`}</div>
     <div class="trio">
       <div>${ringSvg(R&&!R.building?R.score/100:0,R&&!R.building?recToneColor(R.tone):"var(--line)",R&&!R.building?R.score+"%":"—","Recovery "+(R&&!R.building?R.score+" percent":"not ready yet"))}<span class="label">Recovery</span></div>
       <div>${ringSvg(x.strain!=null?x.strain/21:0,STRAIN_C,x.strain!=null?fmtM(x.strain,1):"—","Strain "+(x.strain!=null?x.strain:"not measured"))}<span class="label">Strain</span></div>
@@ -1443,20 +1497,20 @@ function setWatch(){const k=S.watchDev||"apple",W=WATCH_STEPS[k],n0=W.app.length
   <section class="panel"><h2>Which watch do you wear?</h2><div class="chips">${WATCHES.map(([v,l])=>`<button class="qchip" data-act="watchDev" data-v="${v}" aria-pressed="${k===v}">${l}</button>`).join("")}</div></section>
   <section class="panel"><span class="label">In your watch's app</span>${W.app.map(([t,d],i)=>step(i+1,t,d)).join("")}
     <span class="label" style="margin-top:6px">In Project Fitness</span>
-    ${step(n0+1,"Connect Apple Health","You › Settings (gear) › Apple Health › Connect Apple Health. On Apple's screen tap Turn On All, then Allow.",NATIVE?`<div style="margin-top:8px">${on?`<span class="small good"><b>Connected ✓</b></span>`:`<button class="btn primary" data-act="hkConnect">Connect Apple Health</button>`}</div>`:"")}
+    ${step(n0+1,"Connect Apple Health","You › Settings (gear) › Apple Health › Connect Apple Health. On Apple's screen tap Turn On All, then Allow.",NATIVE?`<div style="margin-top:8px">${on?hkStatus(false)+`<button class="btn ghost" style="padding:4px 0" data-act="setPage" data-v="health">See what's coming in ›</button>`:`<button class="btn primary" data-act="hkConnect" ${S.hkBusy?"disabled":""}>${S.hkBusy?"Connecting…":"Connect Apple Health"}</button>`}</div>`:"")}
     ${step(n0+2,"Check it's working","Wear your watch to sleep. Next morning, open Recover: your recovery score appears once there are 4 nights to compare. After a workout, its summary shows your average and peak heart rate.")}
     <div class="hint small" style="margin-top:6px"><b>What you'll get</b><span>${W.gets}</span></div>
     <span class="small muted">Steps counted twice? In the Health app open Steps › Data Sources & Access › Edit and drag your watch to the top.</span></section>`}
 function setHealth(){const on=hkOn();
-  return `<section class="panel"><h2>${on?"Connected":"What it does"}</h2>
+  return `${on?`<section class="panel">${hkStatus(true)}</section>`:""}<section class="panel"><h2>What it does</h2>
     <p class="small" style="margin:0">${on?"Project Fitness will":"Connect Apple Health and Project Fitness will"}:</p>
     <ul class="small" style="margin:0;padding-left:18px"><li><b>Save your workouts</b> (and sessions your coach logs for you) so they count towards your Activity rings</li><li><b>Save your weigh-ins</b></li><li><b>Read your steps</b> and tick off your steps habit when you hit it</li><li><b>Read last night's sleep</b> to fill in your morning check-in</li><li><b>Read heart rate, resting heart rate, HRV, breathing rate, blood oxygen, wrist temperature and VO₂ max</b> for your workout heart rate, daily strain, recovery score and health monitor</li><li><b>Add weigh-ins</b> from a smart scale or another app</li></ul>
     ${on?`<div class="grid2"><div class="tile"><span class="label">Steps today</span><b>${S.hkSteps!=null?S.hkSteps.toLocaleString("en-GB"):"—"}</b></div><div class="tile"><span class="label">Sleep last night</span><b>${S.hkSleep!=null?fmtN(S.hkSleep)+" h":"—"}</b></div></div>
       <button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="setPage" data-v="watch">Connect your watch: step-by-step guide ›</button>
-      <div class="row"><button class="btn" data-act="hkPull">Update now</button><button class="btn ghost" style="color:var(--protein)" data-act="hkOff">Turn off</button></div>
+      <div class="row"><button class="btn" data-act="hkPull" ${S.hkSyncing?"disabled":""}>${S.hkSyncing?"Syncing…":"Sync now"}</button><button class="btn ghost" style="color:var(--protein)" data-act="hkOff">Turn off</button></div>
       <label class="habit" style="align-items:flex-start"><input type="checkbox" data-act="shareWatch" ${(S.docs.profile||{}).shareWatch?"checked":""}><span class="small"><b>Share my watch data with my coach</b><span class="muted" style="display:block">Your last 30 days of recovery, strain, sleep (with stages and bed and wake times), resting heart rate, HRV, breathing rate, blood oxygen, wrist temperature, VO₂ max, steps and heart rate in your sessions. Only coaches you've linked to see it.${CL.user&&CL.links&&CL.links.length?"":" You're not linked to a coach yet."}</span></span></label>
       <span class="small muted">To change what Project Fitness can see or save, open the Health app, tap your picture, then Apps › Project Fitness.</span>`
-    :`<button class="btn primary" style="align-self:flex-start" data-act="hkConnect">Connect Apple Health</button><button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="setPage" data-v="watch">Step-by-step guide for your watch ›</button><span class="small muted">Apple asks which data to share, and you can choose. You can turn any of it off later in the Health app.</span>`}
+    :`<button class="btn primary" style="align-self:flex-start" data-act="hkConnect" ${S.hkBusy?"disabled":""}>${S.hkBusy?"Connecting…":"Connect Apple Health"}</button><button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="setPage" data-v="watch">Step-by-step guide for your watch ›</button><span class="small muted">Apple asks which data to share, and you can choose. You can turn any of it off later in the Health app.</span>`}
     <span class="small muted">Health data is only used to run these features. It's never used for advertising or sold. See the privacy notice for details.</span></section>`}
 const WEB_URL="https://rizjr.github.io/Project-Fitness/";
 const appUrl=()=>NATIVE?WEB_URL:location.origin+location.pathname;
@@ -1768,7 +1822,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
   const seg=steps.filter(x=>x.t!=="finish").map((x,i)=>`<i class="${i<S.wp.step?"on":i===S.wp.step?"cur":""}"></i>`).join("");
   const head=`<header class="wp-head"><button class="iconbtn" data-act="wpEnd" aria-label="End workout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="wp-title"><b>${dw.forClient?esc(firstName(dw.forClient.name))+" · ":""}${esc(dw.name||kindName(dw.kind)+" session")}</b><span id="wpClock">${elapsed()}</span></div>
-    ${NATIVE?`<button class="wp-hr" data-act="hrOpen" aria-label="Heart rate"><span class="hrdot">♥</span><b class="hrlive">${HRL.state==="on"&&HRL.who===hrWho()&&HRL.bpm?HRL.bpm:HRL.state==="connecting"?"…":"+"}</b></button>`:""}
+    ${NATIVE?`<button class="wp-hr" data-act="hrOpen" aria-label="Heart rate"><span class="hrdot">♥</span><b class="hrlive">${hrNow()?hrNow().bpm:HRL.state==="connecting"?"…":"+"}</b></button>`:""}
     <div class="wp-view" role="group" aria-label="View"><button data-act="wpView" data-v="focus" aria-pressed="${S.wpView!=="list"}">Focus</button><button data-act="wpView" data-v="list" aria-pressed="${S.wpView==="list"}">List</button></div></header>
     <div class="wp-seg" aria-label="Step ${S.wp.step+1} of ${steps.length}">${seg}</div>${S.hrSheet?hrSheet():""}`;
   if(S.idlePrompt&&dw.lastAct){const t=new Date(dw.lastAct),hm=t.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),gone=Math.round(idleMins()),gh=gone>=60?Math.floor(gone/60)+" h "+(gone%60)+" min":gone+" min";
@@ -1789,7 +1843,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
     return `<div class="player">${head}<div class="wp-body wp-rest">
       <div class="wp-ring" id="wpRing" style="--p:${R.fired?100:Math.min(100,(1-left/R.total)*100).toFixed(1)}"><div><span class="label">${R.fired?"Rest over":"Rest"}</span><b id="wpRest">${R.fired?"Go!":mmss(left)}</b><span>of ${mmss(R.total)}</span></div></div>
       ${last?`<span class="small muted" style="text-align:center">Set ${ex.sets.indexOf(last)+1} logged · ${esc(val(last))}${last.rir!==""&&last.rir!=null?" · "+last.rir+" in reserve":""}</span>`:""}
-      ${HRL.state==="on"&&HRL.who===hrWho()?`<span class="small" style="text-align:center"><span class="hrdot">♥</span> <b class="hrlive">${HRL.bpm||"--"}</b> bpm · <span class="hrzone"></span> <span class="muted" id="hrDown"></span></span>`:""}
+      ${hrNow()?`<span class="small" style="text-align:center"><span class="hrdot">♥</span> <b class="hrlive">${hrNow().bpm}</b> bpm · <span class="hrzone"></span> <span class="muted hrsrc"></span> <span class="muted" id="hrDown"></span></span>`:""}
       <div class="wp-trio"><button class="btn" data-act="restAdj" data-d="-15">−15 s</button><button class="btn" data-act="restAdj" data-d="15">+15 s</button><button class="btn" data-act="restSkip">Skip</button></div>
       <section class="panel wp-next"><span class="label">Up next${st?" · set "+(si+1)+" of "+ex.sets.length:""}</span>
         ${st?`<div class="spread" style="align-items:baseline"><b class="wp-nx">${esc(ex.name||"Exercise")}</b><b class="wp-nx" id="wpNextVal">${esc(val(st))}</b></div>
@@ -3717,7 +3771,7 @@ function renderSettings(){const pg=S.setPage,me=activeProf(),pr=S.docs.profile||
   if(!pg)return `<header class="top"><div><button class="btn ghost back" data-tab="you">‹ You</button><h1>Settings</h1><div class="sub">Using as ${esc(me.name)}</div></div></header>
     <div class="stack"><section class="panel"><div class="who-row"><span class="avatar big">${esc(initials(me.name))}</span><div style="min-width:0"><b style="font-size:17px">${esc(me.name)}</b><div class="small muted">${esc([GOALS[pr.goal],pr.email].filter(Boolean).join(" · ")||"Add your details in Profile & account")}</div></div></div>
       ${PROF.list.length>1?`<button class="btn" style="align-self:flex-start" data-act="setPage" data-v="users">Switch user</button>`:""}</section>
-    <section class="panel" style="padding:2px 16px">${SET_PAGES.filter(x=>x[0]!=="health"||NATIVE).map(([k,l,d])=>`<button class="setrow" data-act="setPage" data-v="${k}"><span style="min-width:0"><b>${l}</b><span class="small muted" style="display:block">${k==="users"?PROF.list.length+" user"+(PROF.list.length===1?"":"s")+" on this phone":d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</section></div>`;
+    <section class="panel" style="padding:2px 16px">${SET_PAGES.filter(x=>x[0]!=="health"||NATIVE).map(([k,l,d])=>`<button class="setrow" data-act="setPage" data-v="${k}"><span style="min-width:0"><b>${l}</b><span class="small muted" style="display:block">${k==="users"?PROF.list.length+" user"+(PROF.list.length===1?"":"s")+" on this phone":(k==="health"||k==="watch")&&hkOn()?`<b class="good">Connected ✓</b> · ${k==="health"?"see what's coming in":"set-up guide"}`:d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</section></div>`;
   const title=(SET_PAGES.find(x=>x[0]===pg)||[0,""])[1];
   const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="reminders"?setReminders():pg==="look"?lookPanel():pg==="health"?setHealth():pg==="watch"?setWatch():pg==="data"?setData():setAbout();
   return `<header class="top"><div><button class="btn ghost back" data-act="setPage" data-v="">‹ Settings</button><h1>${title}</h1></div></header><div class="stack">${body}</div>`}
@@ -3993,6 +4047,7 @@ document.addEventListener("click",e=>{
     case "watchOff":lsSet("pf-watchoff:"+PROF.active,"1");render();toast("Hidden. Find the guide any time in Settings › Connect your watch");break;
     case "hkOff":{const st=clone(settings());st.health={...(st.health||{}),on:false};save("settings",st);toast("Apple Health turned off here");break}
     case "hkPull":hkPull(true).then(()=>toast("Updated from Apple Health"));break;
+    case "hkCheck":S.hkSeen=0;hkCheckNow().then(()=>{render();const F=hkFreshState();toast(F.k==="live"?"Data is coming in live ✓":F.k==="recent"?"Up to date. Latest data "+ago(Date.now()-hkFreshGet().at):"No new data yet. Open your watch's app so it syncs")});break;
     case "setPage":S.setPage=ds.v||null;if(ds.v&&S.tab!=="settings"){S.tab="settings"}S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
     case "lockCancel":S.lock=null;render();break;
