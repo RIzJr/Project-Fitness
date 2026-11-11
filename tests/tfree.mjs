@@ -38,7 +38,7 @@ await A.click('[data-act=plSave]');await A.waitForTimeout(800);
 console.log('coach list:',(await A.locator('section.panel:has(h2:text("Planned sessions"))').innerText()).replace(/\n/g,' | '));
 // client receives
 await sync(A,B);await B.click('[data-tab=today]');await B.waitForTimeout(300);
-console.log('B today card:',(await B.locator('.nextup').innerText()).replace(/\n/g,' | '));
+console.log('B today card:',(await B.locator('.hero').innerText()).replace(/\n/g,' | '));
 await B.screenshot({path:'tests/shots/plan-today.png'});
 await B.click('[data-tab=train]');await B.waitForTimeout(200);
 console.log('train top:',(await B.locator('#app').innerText()).replace(/\n/g,' | ').slice(0,420));
