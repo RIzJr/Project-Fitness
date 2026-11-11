@@ -1173,7 +1173,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-10-3";
+const APP_VERSION="2026-11-11-1";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1418,7 +1418,7 @@ function recoveryFor(D){const H=(S.docs.hkdays||{}).days||{},t=H[D]||{},prev=Obj
   else parts.push({k:"load",l:"Yesterday",w:10,s:!mins?85:hard?40:65,v:!mins?"Rest day":mins+" min"+(hard?", hard":""),n:null,good:!hard});
   const rs=readinessScore(S.docs["ready_"+D]);if(rs!=null)parts.push({k:"check",l:"Morning check-in",w:20,s:rs,v:rs+"/100",n:null,good:rs>=60});
   const tw=parts.reduce((a,x)=>a+x.w,0),score=Math.round(parts.reduce((a,x)=>a+x.s*x.w,0)/tw);
-  const band=score>=70?["Ready to push","good","A good day for a heavy session or a personal-best attempt."]:score>=45?["Train as planned","amber","Train as planned and keep 1 to 2 reps in reserve."]:["Go easy today","low","Go lighter today: mobility, a walk or an easy session. Push again when you've recovered."];
+  const band=score>=70?["Ready to push","good","A good day for a heavy session or a personal-best attempt."]:score>=45?["Train as planned","amber","Keep 1 to 2 reps in reserve."]:["Go easy today","low","Mobility, a walk or an easy session. Push again when you've recovered."];
   return {score,parts,label:band[0],tone:band[1],advice:band[2],hrv:parts.some(x=>x.k==="hrv")}}
 const recToneColor=t=>t==="good"?"var(--accent)":t==="amber"?"var(--carb)":"var(--protein)";
 /* ---------- watch health, WHOOP-style: these work on a days map (the hkdays doc, or a client's shared copy), so the coach sees the same numbers ---------- */
@@ -1480,7 +1480,7 @@ function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button clas
     return `<div><span class="label">${["S","M","T","W","T","F","S"][new Date(d+"T12:00:00").getDay()]}</span><b style="color:${sc==null?"var(--muted)":recToneColor(sc>=70?"good":sc>=45?"amber":"low")}">${sc==null?"—":sc}</b><span style="color:${STRAIN_C}">${y.strain!=null?fmtM(y.strain,1):"—"}</span><span style="color:${SLEEP_C}">${y.sleep!=null?fmtN(y.sleep):"—"}</span></div>`}).join("")}</div>
     <div class="row small muted" style="gap:12px"><span>Recovery %</span><span style="color:${STRAIN_C}">Strain</span><span style="color:${SLEEP_C}">Sleep (h)</span></div></section>`:""}`}
 function recoveryRow(){if(!hasWatchData())return"";const t=todayKey(),R=recoveryFor(t),x=((S.docs.hkdays||{}).days||{})[t]||{};if((!R||R.building)&&x.strain==null)return"";
-  return `<button class="duerow" data-tab="recover"><span><b>${R&&!R.building?`Recovery <span style="color:${recToneColor(R.tone)}">${R.score}%</span>`:"Recovery building"}${x.strain!=null?` · Strain <span style="color:${STRAIN_C}">${fmtM(x.strain,1)}</span>`:""}${x.sleep!=null?` · Sleep ${fmtN(x.sleep)} h`:""}</b><span class="small muted" style="display:block">${R&&!R.building?R.label+": "+R.advice:"Wear your watch to sleep to get your recovery score"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
+  return `<button class="duerow" data-tab="recover"><span><b>${R&&!R.building?`Recovery <span style="color:${recToneColor(R.tone)}">${R.score}%</span>`:"Recovery building"}${x.strain!=null?` · Strain <span style="color:${STRAIN_C}">${fmtM(x.strain,1)}</span>`:""}${x.sleep!=null?` · Sleep ${fmtN(x.sleep)} h`:""}</b><span class="small muted" style="display:block">${R&&!R.building?R.label+". "+R.advice:"Wear your watch to sleep to get your recovery score"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
 function recoveryReport(){if(!hasWatchData())return null;const out=[];for(let i=13;i>=0;i--){const d=addDays(todayKey(),-i),R=recoveryFor(d),h=((S.docs.hkdays||{}).days||{})[d]||{};if(R&&!R.building)out.push({week:d,score:R.score,sleep:h.sleep??null,rhr:h.rhr??h.hrMin??null,hrv:h.hrv??null})}return out.length?out:null}
 // what a linked coach gets when "Share my watch data with my coach" is on: the 30-day daily summary (with each day's recovery score) and sessions with heart rate
 function watchReport(){const H=(S.docs.hkdays||{}).days;if(!H)return null;const from=addDays(todayKey(),-HK_DAYS),days={};
@@ -4347,6 +4347,10 @@ document.addEventListener("click",e=>{
     case "delCi":{const prev=clone(S.docs[ds.id]);remove(ds.id);toast("Check-in deleted",{undo:()=>restoreDoc(ds.id,prev)});break}
   }
 });
+// typing a number then tapping a button (e.g. Done): the blur's change event re-rendered the screen under the finger and the tap was lost,
+// so when a press is under way the redraw waits until after that tap
+let _ptrAt=0;document.addEventListener("pointerdown",()=>{_ptrAt=Date.now()},true);
+function renderAfterTap(){clearTimeout(renderAfterTap.t);if(Date.now()-_ptrAt<800)renderAfterTap.t=setTimeout(render,350);else render()}
 document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="tcProg"){S.tcProg=t.value?{id:t.value,week:1}:null;render();return}
   if(ds.act==="tcWeek"&&S.tcProg){S.tcProg.week=+t.value||1;render();return}
@@ -4359,9 +4363,9 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(S.fbDraft&&ds.act==="fbF"&&ds.k==="week"){S.fbDraft.week=t.value;render()}
   if(S.planDraft&&(ds.act==="plF"||ds.act==="plRx")){if(ds.act==="plF")S.planDraft[ds.k]=t.value;else S.planDraft.ex[+ds.i].rx[ds.k]=t.value}
   if(S.planDraft&&ds.act==="plEx"&&ds.k==="name"){S.planDraft.ex[+ds.i].name=t.value;render()}
-  if(ds.act==="wuType"&&S.wu){const st=S.wu.stages[S.wu.idx],x=st&&st.sets&&st.sets[st.pos];if(x){const v=Math.max(0,+String(t.value).replace(",",".")||0);x[ds.f]=ds.f==="kg"?r1(v):Math.round(v);render()}}
+  if(ds.act==="wuType"&&S.wu){const st=S.wu.stages[S.wu.idx],x=st&&st.sets&&st.sets[st.pos];if(x){const v=Math.max(0,+String(t.value).replace(",",".")||0);x[ds.f]=ds.f==="kg"?r1(v):Math.round(v);renderAfterTap()}}
   if(ds.act==="wpType"&&S.draftWorkout&&S.wp){const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=cur&&S.draftWorkout.exercises[cur.ei],si=ex?wpCurSet(ex):-1,st=ex&&ex.sets[si];
-    if(st){const old=st[ds.f],raw=String(t.value).replace(",","."),v=Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0));st[ds.f]=v;ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});render()}}
+    if(st){const old=st[ds.f],raw=String(t.value).replace(",","."),v=Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0));st[ds.f]=v;ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});renderAfterTap()}}
   if(ds.act==="wlSet"&&S.draftWorkout){const e=S.draftWorkout.exercises[+ds.ei],x=e&&e.sets[+ds.si];if(x){const raw=String(t.value).replace(",","."),v=t.value===""?"":Math.max(0,ds.f==="kg"?r1(+raw||0):Math.round(+raw||0)),old=x[ds.f];x[ds.f]=v;e.sets.slice(+ds.si+1).forEach(y=>{if(!y.done&&String(y[ds.f])===String(old))y[ds.f]=v});S.draftWorkout.lastAct=Date.now();if(typeof persistDraft==="function")persistDraft()}return}
   if(ds.act==="gdF"&&S.goalDraft){S.goalDraft[ds.k]=t.value;if(ds.k==="kind")render();return}
   if(ds.act==="goalCur"){const g=S.docs["goal_"+ds.id];if(g)save("goal_"+ds.id,{...g,cur:+t.value});return}
