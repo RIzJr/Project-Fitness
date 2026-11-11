@@ -16,7 +16,7 @@
 :root{
   --bg:#F3F4F5; --surface:#FFFFFF; --sunk:#EBEDEF; --fg:#0D0E10; --muted:#5A6169; --line:#E0E3E6;
   --accent:#3F6212; --accent-ink:#FFFFFF;
-  --protein:#C2410C; --veg:#3E8A3A; --carb:#B7791F; --fat:#6D28D9;
+  --protein:#C2410C; --veg:#2F7A2B; --carb:#8A5A12; --fat:#6D28D9;
   --display:"Archivo","Arial",system-ui,sans-serif;
   --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
@@ -755,7 +755,7 @@ function renderToday(){
   <section class="panel" id="logPanel"><h2>Log food</h2>
     <div class="mealpick" role="group" aria-label="Add to meal">${MEALS.map(([k,l])=>`<button data-act="addTo" data-m="${k}" aria-pressed="${(S.addTo||(S.addTo=defaultMeal()))===k}">${l}</button>`).join("")}</div>
     <div class="chiprow srctabs" role="tablist" aria-label="Search in">${SEARCH_SRC.map(([k,l])=>`<button class="qchip" role="tab" data-act="srcTab" data-v="${k}" aria-pressed="${(S.searchSrc||"all")===k}">${l}</button>`).join("")}</div>
-    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="${({world:"Dish or cuisine, e.g. jollof, adobo, korean",menu:"e.g. Nando's chicken wrap, Big Mac",shop:"Product, brand or barcode",basic:"e.g. chicken breast, rice, banana"})[S.searchSrc]||"Food, restaurant item, brand or barcode"}" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""} style="min-width:92px">${S.searching?'<span class="spin dark" aria-hidden="true"></span>':"Search"}</button></form>
+    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" aria-label="Search foods" placeholder="${({world:"Dish or cuisine, e.g. jollof, adobo, korean",menu:"e.g. Nando's chicken wrap, Big Mac",shop:"Product, brand or barcode",basic:"e.g. chicken breast, rice, banana"})[S.searchSrc]||"Food, restaurant item, brand or barcode"}" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""} style="min-width:92px">${S.searching?'<span class="spin dark" aria-hidden="true"></span>':"Search"}</button></form>
     <div class="row"><button class="btn" data-act="photo" ${S.searching?"disabled":""}>Scan barcode or label</button><button class="btn" data-act="newFood">Add manually</button></div>
     ${quick}
     ${mealCard()}
@@ -2149,7 +2149,7 @@ function wpPicker(dw,ex){const pool=stylePool(dw.kind),groups=[...new Set(pool.m
   return `<div class="picker">
     <div class="spread"><span class="label">${ex.name?"Change exercise":"Choose an exercise"} · ${esc(kindName(dw.kind))}</span>${ex.name?`<button class="btn ghost" data-act="wpRenameNo">Cancel</button>`:""}</div>
     ${swapPanel(dw,ex)}
-    <form id="wpPickForm" class="row" style="flex-wrap:nowrap"><input id="wpPickQ" class="pick-q" placeholder="Search, or type your own" autocomplete="off" enterkeyhint="done" value="${esc(S.pick.q)}"></form>
+    <form id="wpPickForm" class="row" style="flex-wrap:nowrap"><input aria-label="Search exercises" id="wpPickQ" class="pick-q" placeholder="Search, or type your own" autocomplete="off" enterkeyhint="done" value="${esc(S.pick.q)}"></form>
     <div class="chiprow pick-tabs" ${S.pick.q?"hidden":""}>${tabs.map(([k,l])=>`<button class="qchip" data-act="pickTab" data-v="${esc(k)}" aria-pressed="${S.pick.g===k}">${esc(l)}</button>`).join("")}</div>
     <div class="pick-list" id="pickList">${pickResults(dw,ex)}</div>
     ${ex.name&&ex.sets.some(x=>x.done)?`<span class="small muted">Sets you've already done move to the new exercise.</span>`:""}</div>`}
@@ -4007,11 +4007,12 @@ function setData(){const me=activeProf(),n=Object.values(S.docs).filter(d=>d&&d.
   <section class="panel"><h2>Start over</h2><p class="small" style="margin:0">Deletes all of ${esc(me.name)}'s logs, targets and details on this phone. Other users aren't affected.</p>
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="wipeData">${S.confirmWipe?"Tap again to delete everything":"Delete my data"}</button></section>`}
 function setAbout(){return `<section class="panel">${PF_LOCKUP()}
-  <p class="small" style="margin:0">Your data is stored in this browser on this device. There's no account or server, so nobody else can see it, but clearing your browser data or losing the phone loses it. Keep a backup from Data & backup.</p>
-  <p class="small" style="margin:0">Users on one phone are kept separate. For clients to log on their own phones while you see their progress, the app would need real accounts and an online database. That's a later upgrade.</p>
+  <p class="small" style="margin:0">Without an account, your data is stored only on this phone, so clearing your browser data or losing the phone loses it: keep a backup from Data & backup. With an account (Settings › Cloud account), it's also stored securely online and syncs between your phones. Only you can read it, and a coach only sees the weekly summaries you choose to share.</p>
+  <p class="small" style="margin:0">Several people can use one phone, and their data is kept separate.</p>
   ${NATIVE?"":`<h2 style="margin-top:6px">Install as an app</h2>
   <p class="small" style="margin:0"><b>iPhone:</b> open the app's web address in Safari, tap Share, then Add to Home Screen.<br><b>Android:</b> open it in Chrome, tap ⋮, then Install app (or Add to Home screen).<br>It then opens full screen with its own icon and works offline.</p>`}
-  <a class="btn" style="align-self:flex-start;text-decoration:none" href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">Read the privacy notice</a>
+  <div class="row"><a class="btn" style="text-decoration:none;color:var(--fg)" href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">Privacy notice</a><a class="btn" style="text-decoration:none;color:var(--fg)" href="${NATIVE?WEB_URL:""}terms.html" target="_blank" rel="noopener">Terms of use</a><a class="btn" style="text-decoration:none;color:var(--fg)" href="${NATIVE?WEB_URL:""}support.html" target="_blank" rel="noopener">Help</a></div>
+  <p class="small muted" style="margin:0">Project Fitness is run by Rizalito Jr Mangilit, personal trainer, UK · <a style="color:var(--accent)" href="mailto:rizalitojrmangilit@yahoo.com">rizalitojrmangilit@yahoo.com</a></p>
   <p class="small muted" style="margin:0">Food data: built-in UK list and Open Food Facts. Calorie suggestions: Mifflin-St Jeor.</p></section>`}
 function renderLock(){const L=S.lock,p=PROF.list.find(x=>x.id===L.id)||{},others=PROF.list.filter(x=>x.id!==L.id);
   return `<div class="stack" style="max-width:340px;margin:10vh auto 0"><div style="text-align:center"><span class="avatar big" style="margin:0 auto">${esc(initials(p.name))}</span><h1 style="margin-top:12px">${esc(p.name)}</h1><div class="sub">Enter PIN to open this profile</div></div>

@@ -132,7 +132,7 @@ In App Store Connect, open the app and go to **Distribution**, then **iOS App 1.
 - Copyright: `2026 Rizalito Jr Mangilit`
 - Category: **Health & Fitness**
 - Price: **Free**, in all countries or just the UK, as you prefer
-- Age rating: answer **None/No** to everything. This gives a 4+ rating.
+- Age rating (Apple's questionnaire changed in 2025): answer **Health or Wellness Topics: Frequent** (training, nutrition, sleep and recovery are the whole app) and **Medical or Treatment Information: Infrequent** (the health check and "see your GP" notes, no treatment advice). **Messaging**: Yes (coach notes) and **User-Generated Content**: Yes (check-in notes). Everything else **None/No**, including Unrestricted Web Access (outside links open Safari). This should give **9+**. Because the app is designed for adults, you can choose a higher rating if you prefer; it doesn't change anything else.
 
 **App Review Information**
 - Sign-in required: **No**. Reviewers can use the app without an account.
@@ -148,6 +148,7 @@ Go to **App Privacy**, then **Get Started**. Answer **Yes, we collect data**, th
 |---|---|---|---|
 | Contact Info › Email Address | Yes | No | App Functionality |
 | Contact Info › Name | Yes | No | App Functionality |
+| Contact Info › Phone Number (optional, in the profile) | Yes | No | App Functionality |
 | Health & Fitness › Health | Yes | No | App Functionality |
 | Health & Fitness › Fitness | Yes | No | App Functionality |
 | User Content › Other User Content (check-in notes, messages with a coach) | Yes | No | App Functionality |
@@ -156,6 +157,8 @@ Go to **App Privacy**, then **Get Started**. Answer **Yes, we collect data**, th
 Leave everything else unticked. That covers location, contacts, browsing history, purchases, ads and analytics. Progress photos stay on the phone, so they aren't "collected".
 
 Privacy Policy URL: `https://rizjr.github.io/Project-Fitness/privacy.html`
+
+Terms of use: leave Apple's standard licence agreement selected (App Store Connect › App Information › License Agreement). Our own plain-English terms are at `https://rizjr.github.io/Project-Fitness/terms.html` and linked in Settings › About; you can add that link to the app description if you like.
 
 ## Step 8. Submit
 
