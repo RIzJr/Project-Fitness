@@ -1173,7 +1173,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-11-2";
+const APP_VERSION="2026-11-11-3";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1351,8 +1351,10 @@ async function hkDays(H){const now=new Date(),cur=S.docs.hkdays||{},full=cur.v!=
   const avgPut=(g,k,dp)=>Object.entries(g).forEach(([d,a])=>put(d,k,Math.round(a.reduce((x,y)=>x+y,0)/a.length*10**dp)/10**dp));
   const night=x=>isNightT(x.startDate)?nightOf(x.startDate):null;
   avgPut(group(await hkRead(H,"heartRateVariability",from,now),x=>hkLocalDate(x.startDate)),"hrv",0);
-  avgPut(group(await hkRead(H,"respiratoryRate",F,now),night),"resp",1);
-  avgPut(group(await hkRead(H,"oxygenSaturation",F,now),night,v=>v<=1.5?v*100:v),"spo2",1); // Apple gives a fraction (0.97)
+  // overnight readings first; a day with none uses that day's readings (sync apps that copy Garmin's daily values may timestamp them at midday)
+  const nightOrDay=(L,f)=>{const g=group(L,night,f),all=group(L,x=>hkLocalDate(x.startDate),f);Object.keys(all).forEach(d=>{if(!g[d])g[d]=all[d]});return g};
+  avgPut(nightOrDay(await hkRead(H,"respiratoryRate",F,now)),"resp",1);
+  avgPut(nightOrDay(await hkRead(H,"oxygenSaturation",F,now),v=>v<=1.5?v*100:v),"spo2",1); // Apple gives a fraction (0.97)
   avgPut(group(await hkRead(H,"appleSleepingWristTemperature",F,now,200),x=>nightOf(x.endDate)),"temp",2);
   const seen={};(await hkRead(H,"vo2Max",from,now,200)).forEach(x=>{const d=hkLocalDate(x.startDate);if(!seen[d]&&+x.value>0){seen[d]=1;put(d,"vo2",Math.round(+x.value*10)/10)}});
   Object.entries(sleepNights(await hkRead(H,"sleep",F,now,6000))).forEach(([d,s])=>{if(d<hkLocalDate(from))return;put(d,"sleep",Math.round(s.sleep/6)/10);
