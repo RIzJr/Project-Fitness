@@ -530,6 +530,7 @@ section.panel{border-radius:22px}
 .hrsheet{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
 .fdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--muted);vertical-align:0}.fdot.live{background:var(--veg)}.fdot.recent{background:var(--carb)}.fdot.wait{background:var(--protein)}
 @media (prefers-reduced-motion:no-preference){.fdot.live{animation:fpulse 1.6s infinite}}@keyframes fpulse{0%{box-shadow:0 0 0 0 rgba(61,220,132,.6)}100%{box-shadow:0 0 0 8px rgba(61,220,132,0)}}
+.coachcall{border-left:4px solid var(--accent);padding:8px 0 8px 12px;display:flex;flex-direction:column;gap:4px}.coachlist{margin:2px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
 .hkok{display:flex;gap:12px;align-items:center;border:1.5px solid var(--veg);border-radius:14px;padding:10px 12px;background:color-mix(in srgb,var(--veg) 10%,transparent)}.hkck{flex:none;width:30px;height:30px;border-radius:50%;background:var(--veg);color:#000;display:flex;align-items:center;justify-content:center;font-weight:900}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}.trio>div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
 .wring{position:relative;width:88px;height:88px}.wring svg{display:block}.wring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
@@ -1173,7 +1174,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-11-3";
+const APP_VERSION="2026-11-11-4";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1443,6 +1444,90 @@ const hm=m=>{m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).
 const fmtHM=h=>h==null?"—":Math.floor(h)+"h "+String(Math.round((h%1)*60)).padStart(2,"0")+"m";
 const strainTarget=sc=>sc==null?null:sc>=70?[14,18]:sc>=45?[10,14]:[0,10];
 const strainTargetTxt=T=>!T?"":T[0]?`${T[0]}–${T[1]}`:`under ${T[1]}`;
+/* ---------- daily coaching call: HRV trend, resting heart rate, breathing, blood oxygen, temperature, sleep and load → push / as planned / easy / rest ----------
+   HRV rule (Plews; Javaloyes et al. 2018, IJSPP): 7-day rolling average of ln HRV against the person's own band = baseline mean ± 0.5 SD
+   (the smallest worthwhile change). Inside or above the band → train hard is fine; below → keep it easy. Baseline = days 8–30 back, so this
+   week's dip doesn't hide itself. Breathing rate and wrist temperature rising above normal are common early signs of illness (wearable studies);
+   blood oxygen from a wrist is only roughly accurate (about ±3%), so it only flags when it stays low. Load ratio is a soft hint, not an injury predictor.
+   Wording is coaching, never a diagnosis. Works on any days map, so the coach sees the same call. */
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const sd=a=>{const m=mean(a);return a.length>1?Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/(a.length-1)):0};
+const dayVals=(days,from,to,k)=>{const out=[];for(let d=from;d<=to;d=addDays(d,1)){const v=(days[d]||{})[k];if(v!=null&&!isNaN(v))out.push(v)}return out};
+function hrvTrend(days,D){const ln=v=>Math.log(v),base=dayVals(days,addDays(D,-30),addDays(D,-8),"hrv").filter(v=>v>0).map(ln),wk=dayVals(days,addDays(D,-6),D,"hrv").filter(v=>v>0).map(ln);
+  if(base.length<10||wk.length<3)return null;const m=mean(base),s=sd(base),swc=0.5*s,r=mean(wk),t=(days[D]||{}).hrv;
+  return {m,swc,s,roll:r,state:r<m-swc?"low":r>m+swc?"high":"normal",today:t>0?ln(t):null,todayLow:t>0&&ln(t)<m-s,lo:Math.exp(m-swc),hi:Math.exp(m+swc),avg:Math.exp(r),n:base.length}}
+function hrvRollSeries(days,end){const out=[];for(let i=29;i>=0;i--){const d=addDays(end,-i),w=dayVals(days,addDays(d,-6),d,"hrv").filter(v=>v>0);out.push(w.length>=3?Math.exp(mean(w.map(Math.log))):null)}return out}
+const COACH={push:["Green light: push today","good","Your body is handling training well. A good day to progress."],
+  train:["Train as planned","amber","Nothing stands out. Stick to the plan and keep 1 to 2 reps in reserve."],
+  easy:["Keep it easy today","low","Your numbers say you're under more stress than usual. Train lighter and put recovery first."],
+  rest:["Rest or move gently","low","Several signs suggest your body is very tired or fighting something off."]};
+function coachCall(days,D,o){o=o||{};const x=days[D]||{},rk=rhrKey(days),why=[],todo=[],add=(t,tone)=>why.push({t,tone});
+  const H=hrvTrend(days,D);
+  const rr=normRange(days,addDays(D,-2),rk,3,0),r3=dayVals(days,addDays(D,-2),D,rk),rhrUp=!!(rr&&r3.length&&mean(r3)>rr.hi),rhrToday=x[rk]!=null&&rr&&x[rk]>rr.hi;
+  const up=(k,band)=>{const R=normRange(days,D,k,band,0);return R&&x[k]!=null&&x[k]>R.hi?{v:x[k],R}:null};
+  const resp=up("resp",0.8),temp=up("temp",0.3);
+  const sp=[0,1,2].map(i=>{const d=addDays(D,-i),v=(days[d]||{}).spo2,R=normRange(days,d,"spo2",1.5,0);return v==null?null:{v,low:R?v<R.lo:false}}).filter(Boolean);
+  const spLow=sp.filter(z=>z.low).length>=2,spVeryLow=sp.filter(z=>z.v<90).length>=2;
+  const need=sleepNeed(days,D),sl3=dayVals(days,addDays(D,-2),D,"sleep"),slAvg=mean(sl3),shortNight=x.sleep!=null&&x.sleep<6,debt=sl3.length>=2&&slAvg<7,cons=sleepConsistency(days,D);
+  const ac=dayVals(days,addDays(D,-7),addDays(D,-1),"strain"),ch=dayVals(days,addDays(D,-28),addDays(D,-1),"strain"),ratio=ac.length>=4&&ch.length>=14&&mean(ch)>0?mean(ac)/mean(ch):null;
+  const illness=[resp,temp,rhrToday||rhrUp].filter(Boolean).length;
+  // what we saw
+  if(H){if(H.state==="low")add(`HRV 7-day average ${fmtM(H.avg,0)} ms, below its usual range (${fmtM(H.lo,0)}–${fmtM(H.hi,0)} ms)`,"low");
+    else if(H.state==="high")add(`HRV 7-day average ${fmtM(H.avg,0)} ms, above its usual range: well recovered`,"good");
+    else add(`HRV 7-day average ${fmtM(H.avg,0)} ms, inside its usual range`,"good");
+    if(H.todayLow&&H.state!=="low")add("Last night's HRV dipped well below your usual","amber")}
+  if(rhrUp||rhrToday)add(`${rk==="rhr"?"Resting":"Lowest"} heart rate ${fmtM(x[rk]!=null?x[rk]:mean(r3),0)} bpm, above your normal (${fmtM(rr.lo,0)}–${fmtM(rr.hi,0)})`,"amber");
+  else if(rr&&x[rk]!=null)add(`${rk==="rhr"?"Resting":"Lowest"} heart rate ${fmtM(x[rk],0)} bpm, normal`,"good");
+  if(resp)add(`Breathing rate ${fmtM(resp.v,1)} a minute overnight, higher than your normal (${fmtM(resp.R.lo,1)}–${fmtM(resp.R.hi,1)})`,"amber");
+  if(temp)add(`Wrist temperature ${temp.v-temp.R.m>=0?"+":""}${fmtM(temp.v-temp.R.m,1)} °C above your normal`,"amber");
+  if(spVeryLow)add("Blood oxygen under 90% on 2 of the last 3 nights","low");else if(spLow)add("Blood oxygen below your normal on 2 of the last 3 nights","amber");
+  if(x.sleep!=null)add(`Slept ${fmtHM(x.sleep)} (needed about ${fmtHM(need)})${debt?`, ${fmtHM(slAvg)} a night over the last ${sl3.length}`:""}`,x.sleep>=need-0.5?"good":shortNight||debt?"low":"amber");
+  if(ratio!=null&&ratio>1.3)add(`Training load this week is ${Math.round((ratio-1)*100)}% above your 4-week average`,"amber");
+  if(o.check!=null&&o.check<45)add(`Morning check-in ${o.check}/100`,"amber");
+  // the call
+  const rec=o.rec!=null?o.rec:x.rec!=null?x.rec:null;let k;
+  if(illness>=2||(H&&H.state==="low"&&(rhrUp||rhrToday)&&(debt||shortNight)))k="rest";
+  else if((H&&H.state==="low")||(H&&H.todayLow&&(rhrToday||shortNight))||resp||temp||rhrUp||shortNight||spVeryLow||(rec!=null&&rec<45)||(o.check!=null&&o.check<40))k="easy";
+  else{const greenHRV=H?H.state!=="low":rec!=null&&rec>=70,sleepOK=x.sleep==null?!debt:x.sleep>=Math.min(7,need-0.5);
+    k=greenHRV&&!rhrToday&&sleepOK&&!debt&&(ratio==null||ratio<=1.3)&&(o.check==null||o.check>=60)&&(rec==null||rec>=60)?"push":"train"}
+  if(!H&&!rr&&x.sleep==null&&rec==null)return null;
+  // what to do
+  if(k==="push"){todo.push("Strength: add 2.5–5% to your main lifts, or 1–2 reps, if last time's top sets felt like 2 or more reps in reserve.");
+    todo.push("Cardio: if intervals or a long effort are planned, today is the day for them.");
+    if(ratio!=null&&ratio<0.8)todo.push("Your load is below your 4-week average: there's room to add a set or an extra session this week.")}
+  if(k==="train")todo.push("Do the planned session and stop each set with 1 to 2 reps in reserve. Save personal-best attempts for a green day.");
+  if(k==="easy")todo.push("Keep the session but drop about a third of the sets and stop 3+ reps short of failure, or swap it for technique, mobility or 30 to 45 minutes of easy cardio (you can talk in full sentences).");
+  if(k==="rest")todo.push("Skip hard training today. A walk or gentle mobility is fine if you feel OK. If you have a fever, chest symptoms or aches, rest completely.");
+  if(debt||shortNight||(x.sleep!=null&&x.sleep<need-0.5))todo.push(`Sleep: aim for ${fmtHM(Math.min(10,need+0.5))} in bed tonight. Keep your wake time and go to bed earlier; extra sleep has been shown to improve speed and accuracy in athletes.`);
+  if(H&&(H.state==="low"||H.todayLow))todo.push("Skip alcohol tonight: even 1 to 2 drinks lower overnight HRV and recovery in a dose-dependent way.");
+  if(H&&(H.state==="low"||H.todayLow)||rhrUp)todo.push("Before bed, try 5 minutes of slow breathing, about 6 breaths a minute (4 seconds in, 6 out). It raises HRV while you do it.");
+  if(rhrUp||rhrToday)todo.push("Drink more water today, keep caffeine to the morning and notice any signs of a cold coming on.");
+  if(resp||temp)todo.push("Higher breathing rate or temperature often shows before you feel ill. Rest, fluids and check how you feel tomorrow.");
+  if(spLow||spVeryLow)todo.push("Wrist oxygen readings can be thrown off by a loose strap or cold hands. If it keeps reading low, or you snore loudly and wake up tired, check with a GP.");
+  if(ratio!=null&&ratio>1.3&&k!=="rest")todo.push("Your training load jumped this week. Keep extra sets or sessions in the tank until it settles.");
+  if(cons!=null&&cons<60)todo.push("Bed and wake times have moved around a lot: a steadier routine usually lifts recovery.");
+  if(illness>=2||spVeryLow)todo.push("If this carries on for more than a few days or you feel unwell, speak to a GP or call NHS 111.");
+  const C=COACH[k];return {k,title:C[0],tone:C[1],line:C[2],why,todo:todo.slice(0,5),basis:H?"hrv":"basic",H,target:k==="push"?[14,18]:k==="train"?[10,14]:k==="easy"?[0,10]:[0,6]}}
+const coachToneColor=t=>t==="good"?"var(--accent)":t==="amber"?"var(--carb)":"var(--protein)";
+const myCoachCall=D=>{const days=(S.docs.hkdays||{}).days||{},R=recoveryFor(D);return coachCall(days,D,{check:readinessScore(S.docs["ready_"+D]),rec:R&&!R.building?R.score:null})};
+function coachCallHtml(C,who){if(!C)return"";return `<div class="coachcall" style="border-color:${coachToneColor(C.tone)}"><b style="color:${coachToneColor(C.tone)};font-size:17px">${C.title}</b><span class="small" style="display:block">${C.line}${C.basis==="basic"?` <span class="muted">(based on heart rate and sleep: no HRV from ${who||"your"} watch)</span>`:""}</span>
+  ${C.todo.length?`<span class="label" style="margin-top:6px">Do this today</span><ul class="small coachlist">${C.todo.map(t=>`<li>${t}</li>`).join("")}</ul>`:""}
+  ${C.why.length?`<details class="small"><summary>What the call is based on</summary>${C.why.map(w=>`<div style="padding:2px 0"><span class="sdot" style="background:${coachToneColor(w.tone)}"></span>${esc(w.t)}</div>`).join("")}<span class="muted" style="display:block;margin-top:4px">Compared with ${who?who+"'s":"your"} own last 30 days. Coaching guidance, not a medical assessment.</span></details>`:""}</div>`}
+// HRV trend: daily values, the 7-day average line and the normal band (the smallest worthwhile change around baseline)
+function hrvTrendSvg(days,end){const H=hrvTrend(days,end),ds=[];for(let i=29;i>=0;i--)ds.push(addDays(end,-i));const v=ds.map(d=>(days[d]||{}).hrv),roll=hrvRollSeries(days,end),vals=[...v,...roll].filter(z=>z>0);
+  if(vals.length<4)return "";let lo=Math.min(...vals,H?H.lo:Infinity),hi=Math.max(...vals,H?H.hi:-Infinity);const pad=(hi-lo)*0.12||2;lo-=pad;hi+=pad;
+  const W=320,Hh=120,L=30,R=8,T=8,B=18,X=i=>L+i*(W-L-R)/29,Y=val=>T+(hi-val)*(Hh-T-B)/(hi-lo||1);let path="",pen=false,dots="";
+  roll.forEach((val,i)=>{if(!val){pen=false;return}path+=(pen?"L":"M")+X(i).toFixed(1)+","+Y(val).toFixed(1);pen=true});
+  v.forEach((val,i)=>{if(!(val>0))return;dots+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(val).toFixed(1)}" r="2.2" fill="var(--muted)" opacity=".7"><title>${fmtDay(ds[i])}: ${Math.round(val)} ms</title></circle>`});
+  return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" role="img" aria-label="HRV over 30 days with your 7-day average${H?" and its usual range "+fmtM(H.lo,0)+" to "+fmtM(H.hi,0)+" ms":""}">
+    ${H?`<rect x="${L}" y="${Y(H.hi).toFixed(1)}" width="${W-L-R}" height="${Math.max(1,Y(H.lo)-Y(H.hi)).toFixed(1)}" fill="var(--veg)" opacity=".14"/>`:""}
+    ${[lo+pad,hi-pad].map(val=>`<text x="${L-4}" y="${(Y(val)+3.5).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">${Math.round(val)}</text>`).join("")}
+    ${dots}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>
+    <text x="${L}" y="${Hh-4}" font-size="9.5" fill="var(--muted)">${fmtDay(ds[0])}</text><text x="${W-R}" y="${Hh-4}" text-anchor="end" font-size="9.5" fill="var(--muted)">today</text></svg>
+    <div class="row small muted" style="gap:10px"><span><i class="sdot" style="background:var(--accent)"></i>7-day average</span><span><i class="sdot" style="background:var(--muted)"></i>nightly</span>${H?`<span><i class="sdot" style="background:var(--veg);opacity:.5"></i>usual range of the 7-day average</span>`:"<span>usual range appears after 10 days</span>"}</div>`}
+// one line in the workout player before the warm-up
+function coachBanner(dw){let C,who="";if(dw.forClient){const c=S.docs[dw.forClient];const D=c&&c.watch&&c.watch.days;if(!D)return"";const k=Object.keys(D).sort().pop();if(!k||daysSince(k)>1)return"";C=coachCall(D,k,{});who=firstName(c.name)}else{if(!hasWatchData())return"";C=myCoachCall(todayKey())}
+  if(!C)return"";return `<div class="hint small" style="border-left:3px solid ${coachToneColor(C.tone)}"><b>${who?esc(who)+": ":""}${C.title}</b><span>${esc(C.todo[0]||C.line)}</span></div>`}
 const STRAIN_C="#4EA8FF",SLEEP_C="#9B8CFF",STAGE=[["d","Deep","#5B4BDB"],["r","REM","#9B8CFF"],["l","Light","#CFC8FF"],["a","Awake","#FFA238"]];
 function ringSvg(frac,color,big,label){const r=34,C=2*Math.PI*r,f=Math.max(0,Math.min(1,frac||0));
   return `<div class="wring" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 80 80" width="88" height="88" aria-hidden="true"><circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/>${f?`<circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C*f).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/>`:""}</svg><b>${big}</b></div>`}
@@ -1452,7 +1537,7 @@ function stageBar(sl,h){if(!sl||!sl.st)return"";const tot=STAGE.reduce((a,[k])=>
 const hasWatchData=()=>{const H=(S.docs.hkdays||{}).days;return !!H&&Object.keys(H).length>0};
 function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button class="duerow" data-act="setPage" data-v="watch"><span><b>Recovery, strain and sleep</b><span class="small muted" style="display:block">Connect your watch through Apple Health to see how recovered you are each morning</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}
   if(hkOn()&&!hasWatchData())return `<section class="panel"><h2>Recovery, strain and sleep</h2>${hkStatus(false)}<p class="small muted" style="margin:0">${S.hkSyncing?"Getting your watch data from Apple Health…":"Nothing from your watch yet. Open your watch's own app so it syncs to Apple Health, then come back here. Wear it to bed for sleep and recovery."}</p></section>`;
-  const t=todayKey(),D=(S.docs.hkdays||{}).days||{},x=D[t]||{},R=recoveryFor(t),need=sleepNeed(D,t),perf=x.sleep!=null?Math.min(100,Math.round(x.sleep/need*100)):null,T=strainTarget(R&&!R.building?R.score:null),HM0=healthMonitor(D,t),cons=sleepConsistency(D,t);
+  const t=todayKey(),D=(S.docs.hkdays||{}).days||{},x=D[t]||{},R=recoveryFor(t),need=sleepNeed(D,t),perf=x.sleep!=null?Math.min(100,Math.round(x.sleep/need*100)):null,CC=myCoachCall(t),T=CC?CC.target:strainTarget(R&&!R.building?R.score:null),HM0=healthMonitor(D,t),cons=sleepConsistency(D,t);
   const ok=HM0.filter(r=>r.st!=="none"),inR=ok.filter(r=>!r.warn).length,mx=hrMaxFor(null),todayS=sessionsOn(t).filter(w=>woStrain(w)!=null);
   const share=CL.user&&CL.links&&CL.links.length&&(S.docs.profile||{}).shareWatch==null?`<div class="hint"><b>Share your watch data with ${esc(CL.links.map(l=>firstName(l.coach_name||"your coach")).join(", "))}?</b><span class="small">Your coach would see your recovery, strain, sleep and heart trends to plan your training and check in each week. You can turn it off any time in Settings › Apple Health.</span><div class="row" style="margin-top:6px"><button class="btn primary" data-act="swYes">Share</button><button class="btn" data-act="swNo">Not now</button></div></div>`:"";
   const days7=[6,5,4,3,2,1,0].map(i=>addDays(t,-i));
@@ -1461,8 +1546,8 @@ function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button clas
       <div>${ringSvg(R&&!R.building?R.score/100:0,R&&!R.building?recToneColor(R.tone):"var(--line)",R&&!R.building?R.score+"%":"—","Recovery "+(R&&!R.building?R.score+" percent":"not ready yet"))}<span class="label">Recovery</span></div>
       <div>${ringSvg(x.strain!=null?x.strain/21:0,STRAIN_C,x.strain!=null?fmtM(x.strain,1):"—","Strain "+(x.strain!=null?x.strain:"not measured"))}<span class="label">Strain</span></div>
       <div>${ringSvg(perf!=null?perf/100:0,SLEEP_C,perf!=null?perf+"%":"—","Sleep "+(perf!=null?perf+" percent of what you needed":"not measured"))}<span class="label">Sleep</span></div></div>
-    ${R&&!R.building?`<div><b style="color:${recToneColor(R.tone)}">${R.label}.</b> <span class="small">${R.advice}</span></div>
-      <div class="small"><b>Today's target strain: ${strainTargetTxt(T)}</b>${x.strain!=null?` · so far ${fmtM(x.strain,1)}`:""}</div>
+    ${CC?coachCallHtml(CC):""}
+    ${R&&!R.building?`<div class="small"><b>Today's target strain: ${strainTargetTxt(T)}</b>${x.strain!=null?` · so far ${fmtM(x.strain,1)}`:""}</div>
       <details class="small"><summary>What went into your recovery</summary>${R.parts.map(p=>`<div class="spread" style="padding:3px 0"><span>${p.l}</span><span style="text-align:right"><b style="color:${p.good?"var(--fg)":"var(--carb)"}">${esc(p.v)}</b>${p.n?` <span class="muted">· normal ${esc(p.n)}</span>`:""}</span></div>`).join("")}</details>`
     :R&&R.days>=4?`<p class="small muted" style="margin:0">Your normal is ready. Today's score appears once last night's sleep or this morning's heart rate reaches Apple Health.${(()=>{for(let i=1;i<=7;i++){const d=addDays(t,-i),r=recoveryFor(d);if(r&&!r.building)return ` Your latest recovery was <b style="color:${recToneColor(r.tone)}">${r.score}%</b> on ${fmtDay(d)}.`}return""})()}</p>`
     :`<p class="small muted" style="margin:0">Building your normal from your watch data: ${Math.min((R&&R.days)||0,4)} of 4 days so far. Wear your watch to sleep and your recovery appears once there are 4 nights to compare.</p>`}
@@ -1477,14 +1562,15 @@ function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button clas
       <span class="small muted">Need is 8 hours, plus a little after a hard day or short nights.${cons!=null?" Consistency compares your bed and wake times over 4 nights.":""}</span>`
     :`<p class="small muted" style="margin:0">No sleep from your watch last night yet. Wear it to bed${NATIVE?", then open the app in the morning":""}.</p>`}</section>
   ${ok.length?`<section class="panel"><div class="spread"><h2>Health monitor</h2><span class="label">${inR} of ${ok.length} in your normal</span></div>
+    ${Object.values(D).filter(y=>y.hrv>0).length>=4?`<div class="stack" style="gap:4px"><b class="small">HRV trend</b>${hrvTrendSvg(D,t)}</div>`:""}
     ${HM0.map(r=>`<div class="spread small" style="padding:4px 0;gap:8px"><span><b>${r.l}</b><span class="muted" style="display:block">${r.R?`normal ${fmtM(r.R.lo,r.dp)}–${fmtM(r.R.hi,r.dp)} ${r.u}`:"building your normal"}</span></span><span style="text-align:right"><b style="color:${r.warn?"var(--carb)":"var(--fg)"}">${r.v==null?"—":fmtM(r.v,r.dp)+" "+r.u}</b><span class="muted" style="display:block">${r.st==="in"?"normal":r.st==="high"?"higher than usual":r.st==="low"?"lower than usual":r.v==null?"no reading":""}</span></span></div>`).join("")}
     ${(()=>{const v=Object.keys(D).sort().filter(d=>D[d].vo2!=null);return v.length?`<div class="spread small" style="padding:4px 0;border-top:1px solid var(--line)"><span><b>VO₂ max</b><span class="muted" style="display:block">fitness estimate from your watch</span></span><span><b>${fmtM(D[v[v.length-1]].vo2,1)}</b> <span class="muted">${v.length>1?(D[v[v.length-1]].vo2>=D[v[0]].vo2?"↑":"↓")+" over "+daysSince(v[0])+" days":""}</span></span></div>`:""})()}
     <span class="small muted">Compared with your own last 30 days. Watch readings vary, and this isn't a medical test. If something stays out of your normal for a few days or you feel unwell, check with a GP.</span></section>`:""}
   ${Object.keys(D).length>=2?`<section class="panel"><h2>Last 7 days</h2><div class="week7">${days7.map(d=>{const y=D[d]||{},r=recoveryFor(d),sc=r&&!r.building?r.score:null;
     return `<div><span class="label">${["S","M","T","W","T","F","S"][new Date(d+"T12:00:00").getDay()]}</span><b style="color:${sc==null?"var(--muted)":recToneColor(sc>=70?"good":sc>=45?"amber":"low")}">${sc==null?"—":sc}</b><span style="color:${STRAIN_C}">${y.strain!=null?fmtM(y.strain,1):"—"}</span><span style="color:${SLEEP_C}">${y.sleep!=null?fmtN(y.sleep):"—"}</span></div>`}).join("")}</div>
     <div class="row small muted" style="gap:12px"><span>Recovery %</span><span style="color:${STRAIN_C}">Strain</span><span style="color:${SLEEP_C}">Sleep (h)</span></div></section>`:""}`}
-function recoveryRow(){if(!hasWatchData())return"";const t=todayKey(),R=recoveryFor(t),x=((S.docs.hkdays||{}).days||{})[t]||{};if((!R||R.building)&&x.strain==null)return"";
-  return `<button class="duerow" data-tab="recover"><span><b>${R&&!R.building?`Recovery <span style="color:${recToneColor(R.tone)}">${R.score}%</span>`:"Recovery building"}${x.strain!=null?` · Strain <span style="color:${STRAIN_C}">${fmtM(x.strain,1)}</span>`:""}${x.sleep!=null?` · Sleep ${fmtN(x.sleep)} h`:""}</b><span class="small muted" style="display:block">${R&&!R.building?R.label+". "+R.advice:"Wear your watch to sleep to get your recovery score"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
+function recoveryRow(){if(!hasWatchData())return"";const t=todayKey(),R=recoveryFor(t),x=((S.docs.hkdays||{}).days||{})[t]||{},C=myCoachCall(t);if((!R||R.building)&&x.strain==null&&!C)return"";
+  return `<button class="duerow" data-tab="recover"><span><b>${C?`<span style="color:${coachToneColor(C.tone)}">${C.title}</span>`:R&&!R.building?`Recovery <span style="color:${recToneColor(R.tone)}">${R.score}%</span>`:"Recovery building"}${R&&!R.building&&C?` · Recovery ${R.score}%`:""}${x.strain!=null?` · Strain <span style="color:${STRAIN_C}">${fmtM(x.strain,1)}</span>`:""}</b><span class="small muted" style="display:block">${C?esc(C.todo[0]||C.line):R&&!R.building?R.label+": "+R.advice:"Wear your watch to sleep to get your recovery score"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
 function recoveryReport(){if(!hasWatchData())return null;const out=[];for(let i=13;i>=0;i--){const d=addDays(todayKey(),-i),R=recoveryFor(d),h=((S.docs.hkdays||{}).days||{})[d]||{};if(R&&!R.building)out.push({week:d,score:R.score,sleep:h.sleep??null,rhr:h.rhr??h.hrMin??null,hrv:h.hrv??null})}return out.length?out:null}
 // what a linked coach gets when "Share my watch data with my coach" is on: the 30-day daily summary (with each day's recovery score) and sessions with heart rate
 function watchReport(){const H=(S.docs.hkdays||{}).days;if(!H)return null;const from=addDays(todayKey(),-HK_DAYS),days={};
@@ -1875,6 +1961,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
           <form class="row" id="wuForm" style="flex-wrap:nowrap"><input id="wuNew" placeholder="e.g. Hip airplanes, 5 each side" autocomplete="off"><button class="btn primary" type="submit">Add</button></form>
           <span class="label">Recommended for ${esc(kindName(dw.kind).toLowerCase())}</span><div class="chips">${(WARM_IDEAS_K[dw.kind]||WARM_IDEAS_K.gym).filter(x=>!L.some(it=>it.name===x)).map(x=>`<button class="qchip" data-act="wuIdea" data-v="${esc(x)}">+ ${esc(x)}</button>`).join("")}</div>
           <button class="btn ghost" style="align-self:flex-start" data-act="wuAddToggle">Done</button></div></div>`:`<button class="btn" style="align-self:flex-start" data-act="wuAddToggle">+ Add your own warm-up</button>`):coolAdd(dw,L)}</div></div>
+      ${cur.t==="warmup"?coachBanner(dw):""}
       ${cur.t==="warmup"?(()=>{const n=wuStagesFor(dw).length;return n?`<button class="wp-big" data-act="wuStart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg> Start warm-up</button><button class="btn ghost" data-act="wpGo" data-v="${S.wp.step+1}">Skip warm-up, start training ›</button>`
         :`<span class="small muted" style="text-align:center">Tick the warm-ups you want to do and they'll run step by step: a timer for cardio, drills and ramp-up sets one at a time.</span><button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Start training</button>`})()
       :coolBottom(dw,L)}</div>`}
@@ -3119,7 +3206,10 @@ function hcPoints(c,D,ws){const nm=esc(firstName(c.name)),A=hcStats(D,ws),B=hcSt
   if(el>=4&&A.n<el/2){add(0,"amber",`Not much watch data this week (${A.n} day${A.n===1?"":"s"}). Remind ${nm} to wear their watch to sleep and open the app each morning so it syncs.`)}
   O.filter(o=>["resp","temp","spo2"].includes(o.k)&&o.out>=2).forEach(o=>add(1,"low",`${o.l} was outside ${nm}'s normal on ${o.out} nights. This often goes with a cold coming on, poor sleep, alcohol or stress. Ask how they feel, and if it carries on or they feel unwell, suggest they check with a GP.`));
   const rh=O.find(o=>o.k==="rhr"||o.k==="hrMin");if(rh&&rh.R&&rh.hi>=3)add(2,"amber",`${rh.l} ran above ${nm}'s normal on ${rh.hi} days (average ${fmtM(rh.avg,0)} vs a normal ${fmtM(rh.R.m,0)} bpm). Usually tiredness, stress, poor sleep, alcohol or something coming on. Ask how they've felt and ease off if it continues.`);
-  const hv=O.find(o=>o.k==="hrv");if(hv&&hv.R&&hv.lo>=3)add(3,"amber",`HRV was below ${nm}'s normal on ${hv.lo} days (average ${fmtM(hv.avg,0)} vs a normal ${fmtM(hv.R.m,0)} ms), a sign their body is under more stress than usual.`);
+  const hs=A.ds.filter(d=>d<=todayKey()).map(d=>hrvTrend(D,d)).filter(Boolean),hLow=hs.filter(h=>h.state==="low").length,hHigh=hs.filter(h=>h.state!=="low").length;
+  if(hLow>=3)add(2.5,"amber",`${nm}'s 7-day HRV average sat below its usual range on ${hLow} days. In HRV-guided plans that means lower intensity until it's back inside: check sleep, alcohol, stress and how hard the last fortnight was.`);
+  else if(hs.length>=5&&hHigh===hs.length&&!(A.rec!=null&&A.rec<45))add(9.5,"good",`${nm}'s 7-day HRV average stayed inside or above its usual range all week: they're absorbing the training. A good week to progress load.`);
+  const hv=O.find(o=>o.k==="hrv");if(hv&&hv.R&&hv.lo>=3&&hLow<3)add(3,"amber",`HRV was below ${nm}'s normal on ${hv.lo} days (average ${fmtM(hv.avg,0)} vs a normal ${fmtM(hv.R.m,0)} ms), a sign their body is under more stress than usual.`);
   const hardLow=A.rows.filter(r=>r.rec!=null&&r.rec<45&&r.strain>=14).length;if(hardLow>=2)add(4,"amber",`Trained hard (strain 14+) on ${hardLow} low-recovery days. Plan lighter sessions for red days.`);
   const low=A.rows.filter(r=>r.rec!=null&&r.rec<45).length;if(low>=3)add(5,"amber",`Recovery was under 45% on ${low} days. Ask about sleep, stress, work and food this week.`);
   if(A.sleep!=null&&A.sleep<7)add(6,"amber",`Averaged ${fmtHM(A.sleep)} of sleep a night${B.sleep!=null?` (${A.sleep<B.sleep?fmtHM(B.sleep-A.sleep)+" less":fmtHM(A.sleep-B.sleep)+" more"} than last week)`:""}. More sleep is the quickest way to lift recovery.`);
@@ -3162,6 +3252,11 @@ function hcTrendSvg(D,end,key,unit,band,dp){const ds=[];for(let i=29;i>=0;i--)ds
 const zbar=z=>{const tot=(z||[]).reduce((a,b)=>a+b,0);return tot?`<div class="zbar" role="img" aria-label="Time in heart-rate zones: ${ZONES.map(([,l],i)=>l+" "+Math.round(z[i]/tot*100)+"%").join(", ")}">${ZONES.map(([,,c],i)=>z[i]?`<span style="width:${(z[i]/tot*100).toFixed(1)}%;background:${c}"></span>`:"").join("")}</div>`:""};
 function hcTile(label,v,prev,fmt,better){const d=v!=null&&prev!=null?v-prev:null,good=d==null||!better?null:(d*better>0),arrow=d==null||Math.abs(d)<0.05?"":d>0?"▲":"▼";
   return `<div class="tile"><span class="label">${label}</span><b>${v==null?"—":fmt(v)}</b><span class="delta" style="color:${good==null?"var(--muted)":good?"var(--veg)":"var(--carb)"}">${d==null?"&nbsp;":arrow?arrow+" "+fmt(Math.abs(d)).replace(/^0h /,"")+" vs last wk":"same as last wk"}</span></div>`}
+function hcCalls(D,ws,nm){const t=todayKey(),cells=wkKeys(ws).map((d,i)=>{const C=d<=t?coachCall(D,d,{}):null;return {d,i,C}}),any=cells.some(x=>x.C);if(!any)return"";
+  const short={push:"Push",train:"Plan",easy:"Easy",rest:"Rest"},n=k=>cells.filter(x=>x.C&&x.C.k===k).length;
+  return `<section class="panel"><div class="spread"><h2>Daily calls</h2><span class="label">${n("push")} push · ${n("easy")+n("rest")} easy or rest</span></div>
+    <div class="week7">${cells.map(x=>`<div><span class="label">${DOW[x.i]}</span><b style="color:${x.C?coachToneColor(x.C.tone):"var(--muted)"}">${x.C?short[x.C.k]:"—"}</b></div>`).join("")}</div>
+    <span class="small muted">The call ${esc(nm)}'s app gave each morning from HRV trend, heart rate, breathing, sleep and load (green push, amber as planned, red easy or rest). Compare it with what they actually did in Sessions below.</span></section>`}
 function healthCheckPage(id,c){const W=c.watch||{},D=W.days||{},ws=S.hc.week,we=addDays(ws,6),nm=firstName(c.name),A=hcStats(D,ws),B=hcStats(D,addDays(ws,-7)),O=hcOut(D,ws),P=hcPoints(c,D,ws),cur=weekStart();
   const ses=(W.sessions||[]).filter(x=>x.date>=ws&&x.date<=we).sort((a,b)=>a.date<b.date?-1:1),Bses=(W.sessions||[]).filter(x=>x.date>=addDays(ws,-7)&&x.date<ws).length,end=we>todayKey()?todayKey():we,rk=rhrKey(D);
   const t0=x=>fmtM(x,0),t1=x=>fmtM(x,1);
@@ -3172,11 +3267,13 @@ function healthCheckPage(id,c){const W=c.watch||{},D=W.days||{},ws=S.hc.week,we=
       ${hcTile(rk==="rhr"?"Resting HR":"Lowest HR",A.rhr,B.rhr,x=>t0(x)+(x>=20?" bpm":""),-1)}${hcTile("HRV",A.hrv,B.hrv,x=>t0(x)+(x>=5?" ms":""),1)}${hcTile("Sessions",ses.length,Bses,x=>String(Math.round(x)),0)}</div></section>
   <section class="panel"><h2>Talking points</h2>${P.length?P.map(p=>`<div class="tpoint ${p.tone==="good"?"":p.tone} small">${p.txt}</div>`).join(""):`<p class="small muted" style="margin:0">Nothing stands out this week.</p>`}
     <span class="small muted">Picked automatically from ${esc(nm)}'s watch trends. A guide for your conversation, not a medical assessment.</span></section>
+  ${hcCalls(D,ws,nm)}
   <section class="panel"><h2>Strain and recovery</h2>${hcRecSvg(D,ws)}<span class="small muted">Green 70%+ ready to push, amber 45–69% train as planned, red under 45% go easy. Strain over 14 on a red day is worth a conversation.</span></section>
   <section class="panel"><div class="spread"><h2>Sleep</h2>${A.sleep!=null?`<span class="label">avg ${fmtHM(A.sleep)}</span>`:""}</div>${hcSleepSvg(D,ws)}
     ${(()=>{const sl=A.rows.map(r=>r.sl).filter(s=>s&&s.b!=null);if(!sl.length)return"";const m=a=>a.reduce((x,y)=>x+y,0)/a.length;return `<div class="spread small"><span>Usually asleep ${hm(m(sl.map(s=>s.b)))}, up ${hm(m(sl.map(s=>s.w)))}</span>${A.cons!=null?`<span><b>${Math.round(A.cons)}%</b> <span class="muted">consistent</span></span>`:""}</div>`})()}</section>
   <section class="panel"><h2>Heart trends</h2>
-    ${[[rk,rk==="rhr"?"Resting heart rate":"Lowest heart rate","bpm",3,0,0],["hrv","HRV","ms",0,0.1,0]].map(([k,l,u,band,rel,dp])=>{const R=normRange(D,ws,k,band,rel);return `<div class="stack" style="gap:4px"><div class="spread small"><b>${l}</b><span class="muted">${R?`normal ${fmtM(R.lo,dp)}–${fmtM(R.hi,dp)} ${u}`:"building their normal"}</span></div>${hcTrendSvg(D,end,k,u,R,dp)}</div>`}).join("")}
+    ${(()=>{const R=normRange(D,ws,rk,3,0);return `<div class="stack" style="gap:4px"><div class="spread small"><b>${rk==="rhr"?"Resting heart rate":"Lowest heart rate"}</b><span class="muted">${R?`normal ${fmtM(R.lo,0)}–${fmtM(R.hi,0)} bpm`:"building their normal"}</span></div>${hcTrendSvg(D,end,rk,"bpm",R,0)}</div>`})()}
+    ${Object.values(D).some(y=>y.hrv>0)?(()=>{const H=hrvTrend(D,end);return `<div class="stack" style="gap:4px"><div class="spread small"><b>HRV</b><span class="muted">${H?`7-day average ${fmtM(H.avg,0)} ms · usual range ${fmtM(H.lo,0)}–${fmtM(H.hi,0)}`:"usual range appears after 10 days"}</span></div>${hrvTrendSvg(D,end)}</div>`})():`<p class="small muted" style="margin:0">No HRV from ${esc(nm)}'s watch. Garmin doesn't send HRV to Apple Health; an app such as Vitals Sync or HRV Sync can copy it across.</p>`}
     ${O.filter(o=>!["rhr","hrMin","hrv"].includes(o.k)).length||Object.values(D).some(x=>x.vo2!=null)?`<div class="hist">${O.filter(o=>!["rhr","hrMin","hrv"].includes(o.k)).map(o=>`<div class="spread small" style="padding:4px 0;gap:8px"><span><b>${o.l}</b><span class="muted" style="display:block">${o.R?`normal ${fmtM(o.R.lo,o.dp)}–${fmtM(o.R.hi,o.dp)} ${o.u}`:"building their normal"}</span></span><span style="text-align:right"><b style="color:${o.out?"var(--carb)":"var(--fg)"}">${fmtM(o.avg,o.dp)} ${o.u}</b><span class="muted" style="display:block">${o.out?`out of range ${o.out} night${o.out>1?"s":""}`:"in range"}</span></span></div>`).join("")}
       ${(()=>{const v=Object.keys(D).sort().filter(d=>D[d].vo2!=null&&d<=we);return v.length?`<div class="spread small" style="padding:4px 0"><span><b>VO₂ max</b><span class="muted" style="display:block">watch fitness estimate</span></span><b>${fmtM(D[v[v.length-1]].vo2,1)}${v.length>1?` <span class="muted">(${fmtM(D[v[0]].vo2,1)} on ${fmtDay(v[0])})</span>`:""}</b></div>`:""})()}</div>`:""}
     <span class="small muted">Shaded band: ${esc(nm)}'s normal from the 30 days before this week. Orange dots are outside it.</span></section>
@@ -3186,12 +3283,14 @@ function healthCheckPage(id,c){const W=c.watch||{},D=W.days||{},ws=S.hc.week,we=
   <section class="panel"><h2>Notes for this week</h2><textarea data-act="hcNote" data-id="${id}" data-v="${ws}" rows="4" placeholder="e.g. agreed an extra rest day, bed by 11, check in Thursday">${esc((c.hcNotes||{})[ws]||"")}</textarea><span class="small muted">Saved automatically. Included when you share the summary.</span></section></div>`}
 function hcShareText(c){const D=(c.watch||{}).days||{},ws=S.hc.week,A=hcStats(D,ws),P=hcPoints(c,D,ws),note=((c.hcNotes||{})[ws]||"").trim(),strip=t=>String(t).replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&lt;/g,"<").replace(/&gt;/g,">");
   const top=[A.rec!=null&&`Recovery ${Math.round(A.rec)}%`,A.strain!=null&&`Strain ${fmtM(A.strain,1)} a day`,A.sleep!=null&&`Sleep ${fmtHM(A.sleep)}`,A.rhr!=null&&`Resting HR ${fmtM(A.rhr,0)} bpm`,A.hrv!=null&&`HRV ${fmtM(A.hrv,0)} ms`].filter(Boolean).join(" · ");
-  return `Weekly health check: ${c.name}, ${fmtDay(ws)} – ${fmtDay(addDays(ws,6))}\n${top||"Not much watch data this week"}\n\n${P.map(p=>"• "+strip(p.txt)).join("\n")}${note?"\n\nNotes:\n"+note:""}\n\nFrom Project Fitness. Based on watch trends, not a medical assessment.`}
+  const calls=wkKeys(ws).filter(d=>d<=todayKey()).map(d=>coachCall(D,d,{})).filter(Boolean),cn=k=>calls.filter(x=>x.k===k).length;
+  return `Weekly health check: ${c.name}, ${fmtDay(ws)} – ${fmtDay(addDays(ws,6))}\n${top||"Not much watch data this week"}${calls.length?`\nDaily calls: ${cn("push")} push, ${cn("train")} as planned, ${cn("easy")} easy, ${cn("rest")} rest`:""}\n\n${P.map(p=>"• "+strip(p.txt)).join("\n")}${note?"\n\nNotes:\n"+note:""}\n\nFrom Project Fitness. Based on watch trends, not a medical assessment.`}
 function watchPanel(id,c){const W=c.watch;if((!W||!W.days)&&c.recovery&&c.recovery.length)return `<section class="panel"><div class="spread"><h2>Recovery</h2><span class="label">from their watch</span></div>${chartSVG(c.recovery,[{key:"score",label:"Recovery",color:"var(--accent)"}],{min:0,max:100,label:"Daily recovery score out of 100"})}<span class="small muted">Latest ${c.recovery[c.recovery.length-1].score}/100. They're on an older version of the app: once they update, you'll get the weekly health check.</span></section>`;
   if(!W||!W.days||!Object.keys(W.days).length)return c.cloud?`<section class="panel"><div class="spread"><h2>Watch data</h2><span class="label">not shared</span></div><p class="small muted" style="margin:0">${esc(firstName(c.name))} isn't sharing watch data. In their iPhone app they connect their watch (Settings › Connect your watch), then turn on <b>Share my watch data with my coach</b> in Settings › Apple Health.</p></section>`:"";
   const D=W.days,ks=Object.keys(D).sort(),last=ks.filter(d=>D[d].rec!=null||D[d].sleep!=null).pop()||ks[ks.length-1],x=D[last]||{};
   return `<section class="panel"><div class="spread"><h2>Watch data</h2><span class="label">latest ${fmtDay(last)}</span></div>
     <div class="hctiles"><div class="tile"><span class="label">Recovery</span><b style="color:${x.rec!=null?recToneColor(recTone(x.rec)):"var(--muted)"}">${x.rec!=null?x.rec+"%":"—"}</b></div><div class="tile"><span class="label">Strain</span><b style="color:${STRAIN_C}">${x.strain!=null?fmtM(x.strain,1):"—"}</b></div><div class="tile"><span class="label">Sleep</span><b>${x.sleep!=null?fmtHM(x.sleep):"—"}</b></div></div>
+    ${coachCallHtml(coachCall(D,last,{}),firstName(c.name))}
     ${c.recovery&&c.recovery.length>1?chartSVG(c.recovery,[{key:"score",label:"Recovery",color:"var(--accent)"}],{min:0,max:100,label:"Daily recovery score out of 100"}):""}
     <button class="btn primary" style="align-self:flex-start" data-act="hcOpen" data-id="${id}">Weekly health check ›</button></section>`}
 /* ---------- coach-led sessions: train a client in person and log it for them ---------- */
