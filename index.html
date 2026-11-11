@@ -532,7 +532,7 @@ section.panel{border-radius:22px}
 @media (prefers-reduced-motion:no-preference){.fdot.live{animation:fpulse 1.6s infinite}}@keyframes fpulse{0%{box-shadow:0 0 0 0 rgba(61,220,132,.6)}100%{box-shadow:0 0 0 8px rgba(61,220,132,0)}}
 .hkok{display:flex;gap:12px;align-items:center;border:1.5px solid var(--veg);border-radius:14px;padding:10px 12px;background:color-mix(in srgb,var(--veg) 10%,transparent)}.hkck{flex:none;width:30px;height:30px;border-radius:50%;background:var(--veg);color:#000;display:flex;align-items:center;justify-content:center;font-weight:900}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}.trio>div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
-.ring{position:relative;width:88px;height:88px}.ring svg{display:block}.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.wring{position:relative;width:88px;height:88px}.wring svg{display:block}.wring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
 .stagebar{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px}.stagebar span{display:block;min-width:3px}
 .sdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
 .week7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center;font-variant-numeric:tabular-nums}.week7>div{display:flex;flex-direction:column;gap:3px;font-size:13px;padding:6px 0;border-radius:10px;background:var(--sunk)}.week7 b{font-size:15px}
@@ -1173,7 +1173,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-11-1";
+const APP_VERSION="2026-11-11-2";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1443,7 +1443,7 @@ const strainTarget=sc=>sc==null?null:sc>=70?[14,18]:sc>=45?[10,14]:[0,10];
 const strainTargetTxt=T=>!T?"":T[0]?`${T[0]}–${T[1]}`:`under ${T[1]}`;
 const STRAIN_C="#4EA8FF",SLEEP_C="#9B8CFF",STAGE=[["d","Deep","#5B4BDB"],["r","REM","#9B8CFF"],["l","Light","#CFC8FF"],["a","Awake","#FFA238"]];
 function ringSvg(frac,color,big,label){const r=34,C=2*Math.PI*r,f=Math.max(0,Math.min(1,frac||0));
-  return `<div class="ring" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 80 80" width="88" height="88" aria-hidden="true"><circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/>${f?`<circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C*f).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/>`:""}</svg><b>${big}</b></div>`}
+  return `<div class="wring" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 80 80" width="88" height="88" aria-hidden="true"><circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/>${f?`<circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C*f).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/>`:""}</svg><b>${big}</b></div>`}
 function stageBar(sl,h){if(!sl||!sl.st)return"";const tot=STAGE.reduce((a,[k])=>a+(sl[k]||0),0)||1;
   return `<div class="stagebar" role="img" aria-label="Sleep stages: ${STAGE.map(([k,l])=>l+" "+fmtDur(sl[k]||0)).join(", ")}">${STAGE.map(([k,,c])=>sl[k]?`<span style="width:${(sl[k]/tot*100).toFixed(1)}%;background:${c}"></span>`:"").join("")}</div>
     ${h===false?"":`<div class="row small" style="gap:10px">${STAGE.map(([k,l,c])=>`<span><i class="sdot" style="background:${c}"></i>${l} ${fmtDur(sl[k]||0)}</span>`).join("")}</div>`}`}
@@ -1462,7 +1462,9 @@ function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button clas
     ${R&&!R.building?`<div><b style="color:${recToneColor(R.tone)}">${R.label}.</b> <span class="small">${R.advice}</span></div>
       <div class="small"><b>Today's target strain: ${strainTargetTxt(T)}</b>${x.strain!=null?` · so far ${fmtM(x.strain,1)}`:""}</div>
       <details class="small"><summary>What went into your recovery</summary>${R.parts.map(p=>`<div class="spread" style="padding:3px 0"><span>${p.l}</span><span style="text-align:right"><b style="color:${p.good?"var(--fg)":"var(--carb)"}">${esc(p.v)}</b>${p.n?` <span class="muted">· normal ${esc(p.n)}</span>`:""}</span></div>`).join("")}</details>`
+    :R&&R.days>=4?`<p class="small muted" style="margin:0">Your normal is ready. Today's score appears once last night's sleep or this morning's heart rate reaches Apple Health.${(()=>{for(let i=1;i<=7;i++){const d=addDays(t,-i),r=recoveryFor(d);if(r&&!r.building)return ` Your latest recovery was <b style="color:${recToneColor(r.tone)}">${r.score}%</b> on ${fmtDay(d)}.`}return""})()}</p>`
     :`<p class="small muted" style="margin:0">Building your normal from your watch data: ${Math.min((R&&R.days)||0,4)} of 4 days so far. Wear your watch to sleep and your recovery appears once there are 4 nights to compare.</p>`}
+    ${hkOn()?`<div class="hkfresh small">${hkFreshInner()}</div>`:""}
     ${!mx?`<div class="hint small"><b>Add your age for strain</b><span>Strain is worked out from your heart-rate zones, which need your age. <button class="linkbtn" data-act="setPage" data-v="profile">Add it in your profile ›</button></span></div>`:""}
     ${todayS.length?`<div class="hist">${todayS.map(w=>`<div class="spread small" style="padding:3px 0"><span>${esc(w.name||w.activity||"Session")}</span><span><b style="color:${STRAIN_C}">${fmtM(woStrain(w),1)}</b> <span class="muted">strain</span></span></div>`).join("")}</div>`:""}
     ${x.se?`<span class="small muted">Includes an estimate for sessions without heart rate.</span>`:""}</section>
