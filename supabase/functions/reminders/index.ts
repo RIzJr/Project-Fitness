@@ -7,7 +7,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "access-control-allow-methods": "GET, POST, OPTIONS" };
 const CONTACT = "mailto:rizalitojrmangilit@yahoo.com";
-export const DEF = { food: { on: false, time: "19:00" }, ready: { on: false, time: "09:00" }, plan: { on: false, time: "17:00" }, gym: { on: false, time: "08:00", days: null as number[] | null }, idle: { on: true, mins: 45 } };
+export const DEF = { food: { on: false, time: "19:00" }, ready: { on: false, time: "09:00" }, plan: { on: false, time: "17:00" }, gym: { on: false, time: "08:00", days: null as number[] | null }, idle: { on: true, mins: 45 }, sleep: { on: false, plan: null as any } };
 // the kind training nudge: same wording as the app (GYM_LINES in index.html), picked by date
 const GYM_LINES = [
   ["{hi}, {n}! 💪", "{s} is ready for you. Future you is already grateful."],
@@ -50,6 +50,10 @@ export function decide(o: { cfg: any; tz: string; now: Date; day: any; ready: an
   }
   if (!G.on && due(R.plan) && p && !o.sent.has("plan|" + L.date))
     out.push({ kind: "plan", key: L.date, title: "Today's session is ready 💪", body: `${p.name || "Your coach's session"} is waiting. Press Start and everything is set up.`, url: "./?go=train" });
+  // bedtime: the app works out the next 7 wind-down times from the person's sleep data and saves them in reminders.sleep.plan (date → {at, title, body})
+  const SL = R.sleep && R.sleep.on && R.sleep.plan ? R.sleep.plan[L.date] : null;
+  if (SL && SL.at && L.mins >= toMins(SL.at) && L.mins < toMins(SL.at) + 60 && !o.sent.has("sleep|" + L.date))
+    out.push({ kind: "sleep", key: L.date, title: SL.title || "Wind down for bed 🌙", body: SL.body || "Time to start winding down for bed.", url: "./?go=sleep" });
   if (R.idle && R.idle.on && o.active && o.active.last && o.now.getTime() - o.active.last > (+R.idle.mins || 45) * 60000 && !o.sent.has("idle|" + o.active.started))
     out.push({ kind: "idle", key: String(o.active.started), title: "Still training?", body: `Your workout has had no activity for ${Math.round((o.now.getTime() - o.active.last) / 60000)} min. Tap to finish and save it, or keep going.`, url: "./?go=train" });
   return out;
