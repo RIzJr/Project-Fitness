@@ -1,0 +1,20 @@
+import { createRequire } from 'module';const { chromium } = createRequire(import.meta.url)('playwright');
+const b=await chromium.launch();const errs=[];const ctx=await b.newContext({viewport:{width:390,height:844}});await ctx.addInitScript(()=>{try{localStorage.setItem('pf-rdpopoff','1')}catch(e){}});
+await ctx.route('**/fonts.googleapis.com/**',r=>r.abort());await ctx.route('**/cdn.jsdelivr.net/**',r=>r.abort());
+const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));await p.goto('http://localhost:8767/');await p.waitForTimeout(800);
+if(await p.locator('[data-act=gateLocal]').count())await p.click('[data-act=gateLocal]');
+if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][data-k=name]').fill('Riz');await p.click('[data-act=obSkip]')}
+const P='.player ';
+await p.click('[data-tab=train]');await p.click('[data-act=newWo][data-v=gym]');await p.waitForTimeout(150);
+await p.click(P+'[data-act=wpOpen][data-i="1"]');await p.waitForTimeout(100);
+console.log('drills:',await p.locator(P+'.drill').count(),'| advice:',await p.locator(P+'.wp-opts .hint').innerText());
+await p.click(P+'[data-act=wuSel][data-k="World\'s greatest stretch"]');
+for(let i=0;i<4;i++)await p.click(P+'[data-act=wuReps][data-k="World\'s greatest stretch"][data-d="1"]');
+console.log('one picked advice:',await p.locator(P+'.wp-opts .hint').innerText());
+console.log('over-range note:',await p.locator(P+'.drill.on .small').first().innerText());
+await p.click(P+'[data-act=wuDemo][data-k="World\'s greatest stretch"]');console.log('video link:',await p.locator(P+'.drill-open .vidlink').count());
+await p.screenshot({path:'tests/shots/drills.png',fullPage:true});
+console.log('card subtitle:',(await p.locator(P+'.wp-card').nth(1).locator('.wp-item').innerText()).replace(/\n/g,' / '));
+await p.click(P+'[data-act=wuStart]');await p.waitForTimeout(150);
+console.log('run:',(await p.locator(P+'.wp-body').innerText()).replace(/\n/g,' | ').slice(0,300));
+console.log('errors',errs);await b.close();

@@ -1,0 +1,20 @@
+import { createRequire } from 'module';const { chromium } = createRequire(import.meta.url)('playwright');
+const b=await chromium.launch();const errs=[];const ctx=await b.newContext({viewport:{width:390,height:844}});await ctx.addInitScript(()=>{try{localStorage.setItem('pf-rdpopoff','1')}catch(e){}});
+await ctx.route('**/fonts.googleapis.com/**',r=>r.abort());await ctx.route('**/cdn.jsdelivr.net/**',r=>r.abort());
+const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));await p.goto('http://localhost:8767/');await p.waitForTimeout(800);
+if(await p.locator('[data-act=gateLocal]').count())await p.click('[data-act=gateLocal]');
+if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][data-k=name]').fill('Riz');await p.click('[data-act=obSkip]')}
+const docs=async()=>Object.values(await p.evaluate(()=>{for(const k of Object.keys(localStorage))if(k.startsWith('hpc-docs:'))return JSON.parse(localStorage.getItem(k))}));
+const sched=async()=>(await docs()).filter(d=>d.type==='mplan').sort((a,b)=>a.date<b.date?-1:1).slice(0,7).map(d=>d.date.slice(5)+' '+d.name.split(' ·')[0]).join(' | ');
+await p.click('[data-tab=train]');await p.click('[data-act=progOpenTrain]');
+const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('[data-act=progImport]')]);await fc.setFiles('/tmp/claude-0/-home-claude/378cc395-20d5-56b4-9104-1fc428cea4c0/scratchpad/t/old.json');await p.waitForTimeout(300);await p.click('[data-act=pgSave]');await p.waitForTimeout(200);
+await p.click('[data-act=assignNew]');await p.selectOption('[data-act=asF][data-k=clientUid]','me');await p.click('[data-act=assignGo]');await p.waitForTimeout(300);
+console.log('OLD:',await sched());
+const pan=p.locator('section.panel:has(h2:text("Your programme"))');console.log('card:',(await pan.innerText()).replace(/\n/g,' | '));
+await pan.locator('[data-act=myProgUpdate]').click();await p.waitForTimeout(600);console.log('toast:',await p.innerText('#toast'));console.log('UPDATED:',await sched());
+console.log('card:',(await p.locator('section.panel:has(h2:text("Your programme"))').innerText()).replace(/\n/g,' | '));
+await p.locator('section.panel:has(h2:text("Your programme")) [data-act=myProgToday]').click();await p.waitForTimeout(400);console.log('toast:',await p.innerText('#toast'));console.log('TODAY:',await sched());
+console.log('card:',(await p.locator('section.panel:has(h2:text("Your programme"))').innerText()).replace(/\n/g,' | ').slice(0,200));
+await p.click('[data-tab=today]');console.log('Today tab:',(await p.locator('.hero').innerText()).replace(/\n/g,' | ').slice(0,120));
+await p.screenshot({path:'tests/shots/myprog.png'});
+console.log('errors',errs);await b.close();

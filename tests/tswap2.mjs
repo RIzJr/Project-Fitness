@@ -1,0 +1,36 @@
+import { createRequire } from 'module';const { chromium } = createRequire(import.meta.url)('playwright');
+import fs from 'fs';
+const mock=fs.readFileSync('tests/mocksb.js','utf8');
+const b=await chromium.launch();const errs=[];
+async function device(seed){const ctx=await b.newContext({viewport:{width:390,height:844}});await ctx.addInitScript(()=>{try{localStorage.setItem('pf-rdpopoff','1')}catch(e){}});
+  if(seed)await ctx.addInitScript(db=>{if(!localStorage.getItem('MOCKDB'))localStorage.setItem('MOCKDB',db)},seed);
+  await ctx.route('**/supabase-js@2.116.0/**',r=>r.fulfill({body:mock,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'}}));
+  await ctx.route('**/fonts.googleapis.com/**',r=>r.abort());
+  const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));await p.goto('http://localhost:8767/');await p.waitForTimeout(700);return p}
+const signup=async(p,email,name)=>{await p.click('[data-act=gateMode][data-v=up]');await p.fill('#au_email',email);await p.click('.gate-next');await p.fill('#au_pw','password1');await p.check('#au_consent');await p.click('.gate-next');await p.waitForTimeout(1800);
+  if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][data-k=name]').fill(name);await p.click('[data-act=obSkip]')}await p.waitForTimeout(300)};
+const settings=async p=>{await p.click('[data-tab=you]');await p.click('[data-act=openSettings], [data-tab=settings]').catch(()=>{})};
+const sync=async(from,to)=>{const db=await from.evaluate(()=>localStorage.getItem('MOCKDB'));await to.evaluate(d=>localStorage.setItem('MOCKDB',d),db);await to.reload();await to.waitForTimeout(2500)};
+const A=await device();A.on('console',m=>{if(m.text().startsWith('DEL'))console.log(m.text())});await signup(A,'coach@x.com','Riz');await settings(A);
+await A.click('[data-act=setPage][data-v=profile]');await A.check('[data-act=coachMode]');await A.click('.back');await A.click('[data-act=setPage][data-v=cloud]');await A.waitForTimeout(600);
+await A.click('[data-act=newCode]');await A.waitForTimeout(500);const code=await A.textContent('.code');
+const B=await device(await A.evaluate(()=>localStorage.getItem('MOCKDB')));await signup(B,'siham@x.com','Siham');await settings(B);
+await B.click('[data-act=setPage][data-v=cloud]');await B.fill('#lk_code',code);await B.click('#linkForm button');await B.waitForTimeout(1500);
+await sync(B,A);await A.click('[data-tab=you]');await A.click('[data-act=youView][data-v=clients]').catch(()=>{});await A.waitForTimeout(1500);
+await A.click('[data-act=progOpen]');await A.waitForTimeout(100);
+const [fc]=await Promise.all([A.waitForEvent('filechooser'),A.click('[data-act=progImport]')]);await fc.setFiles('/mnt/user-data/outputs/siham-upper-lower-programme.json');await A.waitForTimeout(400);
+await A.click('[data-act=pgSave]');await A.waitForTimeout(200);
+// make it look like the old copy
+await A.evaluate(()=>{for(const k of Object.keys(localStorage))if(k.startsWith('hpc-docs:')){const d=JSON.parse(localStorage.getItem(k));for(const id in d)if(d[id].type==='cprog'){d[id].name='Siham · Upper/Lower build & tone';d[id].days[0].exercises[0].name='Dumbbell bench press'}localStorage.setItem(k,JSON.stringify(d))}});
+await A.reload();await A.waitForTimeout(2000);await A.click('[data-tab=you]');await A.click('[data-act=youView][data-v=clients]').catch(()=>{});await A.waitForTimeout(300);await A.click('[data-act=progOpen]');await A.waitForTimeout(200);
+await A.click('[data-act=assignNew]');await A.selectOption('[data-act=asF][data-k=clientUid]',{label:'Siham'});await A.click('[data-act=assignGo]');await A.waitForTimeout(1200);console.log('assigned:',await A.innerText('#toast'));
+console.log('update panel:',await A.locator('section.panel:has-text("Update available")').innerText().then(t=>t.replace(/\n/g,' | ')).catch(()=>'none'));
+await A.click('section.panel:has-text("Update available") [data-act=libAdd]');await A.waitForTimeout(300);console.log('toast:',await A.innerText('#toast'));
+console.log('row:',(await A.locator('.assignees').first().innerText()).replace(/\n/g,' | '));
+await A.click('[data-act=progSwap]');await A.waitForTimeout(1200);console.log('toast:',await A.innerText('#toast'));
+console.log('after swap server plans:',JSON.parse(await A.evaluate(()=>localStorage.getItem('MOCKDB'))).plans.length,'queue:',await A.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('pf-pdel')).map(k=>localStorage.getItem(k).slice(0,80))),'local cplans:',await A.evaluate(()=>{for(const k of Object.keys(localStorage))if(k.startsWith('hpc-docs:'))return Object.values(JSON.parse(localStorage.getItem(k))).filter(d=>d.type==='cplan').length}));console.log('assign panel days:',await A.locator('[data-act=asDay], select[data-act=asF]').evaluateAll(a=>a.map(x=>x.value).join(',')).catch(()=>'?'));
+await A.click('[data-act=assignGo]');await A.waitForTimeout(1500);console.log('toast:',await A.innerText('#toast'));
+const db=JSON.parse(await A.evaluate(()=>localStorage.getItem('MOCKDB')));const pls=db.plans.map(r=>r.data).filter(d=>d.type==='plan');
+console.log('server sessions:',pls.length,'| first ex:',pls.sort((a,b)=>a.date<b.date?-1:1)[0].exercises[0].name,'| dates',pls.map(d=>d.date).sort().slice(0,4).join(','),'| old left:',pls.filter(d=>d.exercises[0].name==='Dumbbell bench press').length);
+console.log('row after:',(await A.locator('.assignees').first().innerText()).replace(/\n/g,' | '));
+console.log('errors',errs);await b.close();

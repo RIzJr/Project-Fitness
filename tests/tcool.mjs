@@ -1,0 +1,23 @@
+import { createRequire } from 'module';const { chromium } = createRequire(import.meta.url)('playwright');
+const b=await chromium.launch();const errs=[];const ctx=await b.newContext({viewport:{width:390,height:844}});await ctx.addInitScript(()=>{try{localStorage.setItem('pf-rdpopoff','1')}catch(e){}});
+await ctx.route('**/fonts.googleapis.com/**',r=>r.abort());await ctx.route('**/cdn.jsdelivr.net/**',r=>r.abort());
+const p=await ctx.newPage();await p.clock.install();p.on('pageerror',e=>errs.push(e.message));await p.goto('http://localhost:8767/');await p.clock.runFor(1500);
+if(await p.locator('[data-act=gateLocal]').count())await p.click('[data-act=gateLocal]');
+if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][data-k=name]').fill('Riz');await p.click('[data-act=obSkip]')}
+await p.evaluate(()=>{const k=Object.keys(localStorage).find(k=>k.startsWith('hpc-docs:'));const D=JSON.parse(localStorage.getItem(k));const d=new Date(),t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  D.mpc={type:'mplan',pid:'ppc',name:'Lower',date:t,kind:'gym',exercises:[{name:'Hip thrust',sets:[{reps:8}]}],warmup:[{name:'Bike',detail:'5 min'}],cooldown:[{name:'Calf stretch',detail:'20 s'},{name:"Child's pose",detail:'20 s'},{name:'Hamstring stretch',detail:'20 s'}]};localStorage.setItem(k,JSON.stringify(D))});
+await p.reload();await p.clock.runFor(1500);
+await p.click('.startpill[data-act=planStart]');await p.clock.runFor(300);
+await p.evaluate(()=>{const x=document.createElement('button');x.dataset.act='wpGo';x.dataset.v='2';document.body.appendChild(x);x.click();x.remove()});await p.clock.runFor(200);
+await p.click('[data-act=cdRun]');await p.clock.runFor(300);
+const body=async()=>(await p.locator('.wp-body').first().innerText()).replace(/\n/g,' | ').slice(0,170);
+console.log('1:',await body());
+await p.clock.runFor(21000);console.log('after 21s (switch sides gap):',await body());
+await p.clock.runFor(5500);console.log('after gap:',await body());
+await p.click('[data-act=cdNext]');await p.clock.runFor(300);console.log('next tapped -> gap:',await body());
+await p.click('[data-act=cdHold]');await p.clock.runFor(15000);console.log('held 15s:',await body());
+await p.screenshot({path:'tests/shots/cdgap.png'});
+await p.click('[data-act=cdGo]');await p.clock.runFor(300);console.log('start:',await body());
+await p.click('[data-act=cdNext]');await p.clock.runFor(300);console.log('manual remembered:',await body());
+await p.click('[data-act=cdAuto]');await p.clock.runFor(10500);console.log('auto again:',await body());
+console.log('errors',errs);await b.close();

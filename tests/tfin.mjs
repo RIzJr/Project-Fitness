@@ -1,0 +1,21 @@
+import { createRequire } from 'module';const { chromium } = createRequire(import.meta.url)('playwright');
+const b=await chromium.launch();const errs=[];const ctx=await b.newContext({viewport:{width:390,height:844}});await ctx.addInitScript(()=>{try{localStorage.setItem('pf-rdpopoff','1')}catch(e){}});
+await ctx.route('**/fonts.googleapis.com/**',r=>r.abort());await ctx.route('**/cdn.jsdelivr.net/**',r=>r.abort());
+const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));await p.goto('http://localhost:8767/');await p.waitForTimeout(800);
+if(await p.locator('[data-act=gateLocal]').count())await p.click('[data-act=gateLocal]');
+if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][data-k=name]').fill('Riz');await p.click('[data-act=obSkip]')}
+const docs=()=>p.evaluate(()=>{for(const k of Object.keys(localStorage))if(k.startsWith('hpc-docs:'))return JSON.parse(localStorage.getItem(k))});
+await p.click('[data-tab=train]');await p.click('[data-act=progOpenTrain]');await p.click('[data-act=libAdd][data-k=ul-build-tone]');await p.waitForTimeout(150);
+await p.click('[data-act=assignNew]');await p.selectOption('[data-act=asF][data-k=clientUid]','me');await p.fill('[data-act=asF][data-k=start]','2026-09-14');await p.dispatchEvent('[data-act=asF][data-k=start]','change');await p.click('[data-act=assignGo]');await p.waitForTimeout(300);
+const pl=Object.values(await docs()).filter(d=>d.type==='mplan').sort((a,b)=>a.date<b.date?-1:1);console.log('sessions',pl.length,'last',pl.at(-1).date);
+const doneIds=pl.filter((x,i)=>i!==5&&i!==11).map(x=>[x.pid,x.date]);
+await p.evaluate(ids=>{for(const k of Object.keys(localStorage))if(k.startsWith('hpc-docs:')){const d=JSON.parse(localStorage.getItem(k));ids.forEach(([pid,date],i)=>d['w_t'+i]={type:'workout',date,name:'x',kind:'gym',planId:pid,exercises:[]});localStorage.setItem(k,JSON.stringify(d))}},doneIds);
+await p.reload();await p.waitForTimeout(900);await p.click('[data-tab=today]');
+console.log('FINISHED:',(await p.locator('section.done-prog').innerText().catch(()=>'-')).replace(/\n/g,' | '));
+console.log('STREAK:',(await p.locator('header.top .sub').innerText().catch(()=>'-')).replace(/\n/g,' | '));
+console.log('missed card (old misses >7 days):',await p.locator('section.missed').count());
+await p.locator('section.done-prog').screenshot({path:'tests/shots/finished.png'});
+await p.click('section.done-prog [data-act=newWo][data-v=bodyweight]');await p.waitForTimeout(200);console.log('bodyweight started:',await p.locator('.player .wp-title b').innerText().catch(()=>'-'));
+await p.click('.player [data-act=wpEnd]');await p.click('.player [data-act=wpDiscard]');await p.click('.player [data-act=wpDiscard]').catch(()=>{});await p.waitForTimeout(200);await p.click('[data-tab=today]');
+await p.click('section.done-prog [data-act=progAck]');await p.waitForTimeout(200);console.log('after dismiss:',await p.locator('section.done-prog').count());
+console.log('errors',errs);await b.close();
