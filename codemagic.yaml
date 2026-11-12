@@ -42,4 +42,7 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+        # every build goes to the external TestFlight group "Test" (Apple may run a short beta review first)
+        beta_groups:
+          - Test
         submit_to_app_store: false
