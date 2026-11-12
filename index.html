@@ -16,7 +16,7 @@
 :root{
   --bg:#F3F4F5; --surface:#FFFFFF; --sunk:#EBEDEF; --fg:#0D0E10; --muted:#5A6169; --line:#E0E3E6;
   --accent:#3F6212; --accent-ink:#FFFFFF;
-  --protein:#C2410C; --veg:#3E8A3A; --carb:#B7791F; --fat:#6D28D9;
+  --protein:#C2410C; --veg:#2F7A2B; --carb:#8A5A12; --fat:#6D28D9;
   --display:"Archivo","Arial",system-ui,sans-serif;
   --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
@@ -755,7 +755,7 @@ function renderToday(){
   <section class="panel" id="logPanel"><h2>Log food</h2>
     <div class="mealpick" role="group" aria-label="Add to meal">${MEALS.map(([k,l])=>`<button data-act="addTo" data-m="${k}" aria-pressed="${(S.addTo||(S.addTo=defaultMeal()))===k}">${l}</button>`).join("")}</div>
     <div class="chiprow srctabs" role="tablist" aria-label="Search in">${SEARCH_SRC.map(([k,l])=>`<button class="qchip" role="tab" data-act="srcTab" data-v="${k}" aria-pressed="${(S.searchSrc||"all")===k}">${l}</button>`).join("")}</div>
-    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" placeholder="${({world:"Dish or cuisine, e.g. jollof, adobo, korean",menu:"e.g. Nando's chicken wrap, Big Mac",shop:"Product, brand or barcode",basic:"e.g. chicken breast, rice, banana"})[S.searchSrc]||"Food, restaurant item, brand or barcode"}" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""} style="min-width:92px">${S.searching?'<span class="spin dark" aria-hidden="true"></span>':"Search"}</button></form>
+    <form class="row" id="searchForm" style="flex-wrap:nowrap"><input id="q" aria-label="Search foods" placeholder="${({world:"Dish or cuisine, e.g. jollof, adobo, korean",menu:"e.g. Nando's chicken wrap, Big Mac",shop:"Product, brand or barcode",basic:"e.g. chicken breast, rice, banana"})[S.searchSrc]||"Food, restaurant item, brand or barcode"}" autocomplete="off" enterkeyhint="search"><button class="btn primary" type="submit" ${S.searching?"disabled":""} style="min-width:92px">${S.searching?'<span class="spin dark" aria-hidden="true"></span>':"Search"}</button></form>
     <div class="row"><button class="btn" data-act="photo" ${S.searching?"disabled":""}>Scan barcode or label</button><button class="btn" data-act="newFood">Add manually</button></div>
     ${quick}
     ${mealCard()}
@@ -897,17 +897,29 @@ function sessionEditor(){const dw=S.draftWorkout,bw=dw.kind!=="gym";
     <span class="small muted"><b>RIR</b> = reps in reserve: how many more good reps you could have done. 0 = nothing left, 2–3 suits most sets.${bw?" <b>+kg</b> = extra weight (vest, belt or dumbbell); leave blank for bodyweight.":""}</span></div>
     ${partEditor("cooldown","Cool-down",COOL_IDEAS)}
     <div class="row"><button class="btn primary" data-act="saveWo">Save session</button><button class="btn ghost" data-act="tplFromDraft">Save as template</button></div></section>`}
-function renderStrength(){const wo=ofType("workout"),dw=S.draftWorkout;
-  const hist=wo.slice(0,S.woAll?wo.length:15).map(w=>{const sets=w.exercises.reduce((s,e)=>s+e.sets.length,0);const vol=w.exercises.reduce((s,e)=>s+e.sets.reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0),0);
+/* session history: collapsible like Exercise history; each session opens to its sets and actions */
+function woMatches(w,q){if(!q)return true;q=q.toLowerCase();return [w.name,kindName(w.kind),...w.exercises.map(e=>e.name)].some(x=>String(x||"").toLowerCase().includes(q))}
+function renderSessionHist(wo){
+  if(!S.woHistOpen)return `<section class="panel"><button class="exhead" data-act="tgl" data-k="woHistOpen" aria-expanded="false"><h2 style="margin:0">Session history</h2><span class="small muted">${wo.length?`${wo.length} session${wo.length===1?"":"s"} · last ${fmtDay(wo[0].date)} ▾`:"None yet ▾"}</span></button></section>`;
+  const q=String(S.woFilter||"").trim(),list=wo.filter(w=>woMatches(w,q)),shown=list.slice(0,S.woAll||q?list.length:15);
+  const rows=shown.map(w=>{const sets=w.exercises.reduce((s,e)=>s+e.sets.length,0),vol=w.exercises.reduce((s,e)=>s+e.sets.reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0),0),open=S.openWo===w.id;
     const wu=(w.warmup||[]).length,cd=(w.cooldown||[]).length;
-    return `<div class="item"><div class="spread"><b>${esc(w.name||"Session")}</b><span class="small muted">${fmtDay(w.date)}</span></div>
-    <div class="small muted" style="font-variant-numeric:tabular-nums"><span class="kbadge">${kindName(w.kind)}</span>${w.coachLogged?` <span class="kbadge">With ${esc(firstName(w.coachName||"your coach"))}</span>`:""} ${w.exercises.length} exercises · ${sets} sets${vol?` · ${Math.round(vol).toLocaleString("en-GB")} kg volume`:""}${wu||cd?` · warm-up ${wu?"✓":"–"} · cool-down ${cd?"✓":"–"}`:""}${w.prs&&w.prs.length?` · 🏆 ${w.prs.length} PB${w.prs.length===1?"":"s"}`:""}${w.hr&&w.hr.avg?` · ♥ ${w.hr.avg} avg, ${w.hr.max} max`:""}</div>
-    <div class="small">${w.exercises.map(e=>`${esc(e.name)} ${fmtSets(e.sets)}`).join("<br>")}</div>${w.coachMsg?`<div class="small">💬 ${esc(w.coachName||"Your coach")}: ${esc(w.coachMsg)}</div>`:""}
-    <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="woSum" data-id="${w.id}">Summary</button><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="tplFromWo" data-id="${w.id}">Save as template</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`}).join("");
+    return `<div class="item"><button class="exhead" data-act="openWo" data-k="${esc(w.id)}" aria-expanded="${open}">
+      <span style="min-width:0"><b>${esc(w.name||"Session")}</b><span class="small muted" style="display:block">${fmtDay(w.date)} · ${kindName(w.kind)} · ${w.exercises.length} exercise${w.exercises.length===1?"":"s"} · ${sets} set${sets===1?"":"s"}</span></span>
+      <span class="small" style="text-align:right;font-variant-numeric:tabular-nums;flex:none;max-width:45%">${vol?Math.round(vol).toLocaleString("en-GB")+" kg":""}${w.prs&&w.prs.length?`<span class="muted" style="display:block">🏆 ${w.prs.length} PB${w.prs.length===1?"":"s"}</span>`:""}</span></button>
+      ${open?`<div class="exdetail">
+        <div class="small muted" style="font-variant-numeric:tabular-nums">${w.coachLogged?`<span class="kbadge">With ${esc(firstName(w.coachName||"your coach"))}</span> `:""}${wu||cd?`warm-up ${wu?"✓":"–"} · cool-down ${cd?"✓":"–"}`:""}${w.hr&&w.hr.avg?`${wu||cd?" · ":""}♥ ${w.hr.avg} avg, ${w.hr.max} max`:""}</div>
+        ${w.exercises.map(e=>`<div class="spread small" style="padding:4px 0;border-top:1px solid var(--line)"><span>${esc(e.name)}</span><span style="font-variant-numeric:tabular-nums;text-align:right">${fmtSets(e.sets)}</span></div>`).join("")}
+        ${w.coachMsg?`<div class="small">💬 ${esc(w.coachName||"Your coach")}: ${esc(w.coachMsg)}</div>`:""}
+        <div class="row" style="margin-top:4px"><button class="btn ghost" data-act="woSum" data-id="${w.id}">Summary</button><button class="btn ghost" data-act="repeatWo" data-id="${w.id}">Repeat</button><button class="btn ghost" data-act="tplFromWo" data-id="${w.id}">Save as template</button><button class="btn ghost" data-act="delWo" data-id="${w.id}">Delete</button></div></div>`:""}</div>`}).join("");
+  return `<section class="panel"><button class="exhead" data-act="tgl" data-k="woHistOpen" aria-expanded="true"><h2 style="margin:0">Session history</h2><span class="small muted">Hide ▴</span></button>
+    ${wo.length>5?`<input id="woFilter" data-act="woFilter" placeholder="Find a session or exercise" value="${esc(S.woFilter||"")}" autocomplete="off">`:""}
+    <div class="hist">${rows||(wo.length?'<p class="muted small" style="margin:0">No match.</p>':'<p class="muted small" style="margin:0">No sessions yet. Pick a session type above to log your first workout.</p>')}</div>${!q&&wo.length>15?`<button class="btn ghost" style="align-self:flex-start" data-act="woAll">${S.woAll?"Show fewer":"Show all "+wo.length}</button>`:""}</section>`}
+function renderStrength(){const wo=ofType("workout"),dw=S.draftWorkout;
   return `${dw?"":`<div class="label" style="margin-bottom:6px">Start your own session</div><div class="row" style="margin-bottom:8px">${KINDS.map(([k,l])=>`<button class="btn${k==="gym"?" primary":""}" data-act="newWo" data-v="${k}">+ ${l}</button>`).join("")}</div>
     <button class="btn ghost" style="margin-bottom:14px;padding-left:0" data-act="progOpenTrain">📋 Programmes: plan several weeks for yourself</button>`}
   <datalist id="exlib">${exOptions(dw&&dw.kind)}</datalist>
-  <div class="stack">${dw?sessionEditor():(typeof renderInsights==="function"?renderInsights():"")+renderTemplates()}${renderExercises()}<section class="panel"><h2>Session history</h2><div class="hist">${hist||'<p class="muted small" style="margin:0">No sessions yet. Pick a session type above to log your first workout.</p>'}</div>${wo.length>15?`<button class="btn ghost" style="align-self:flex-start" data-act="woAll">${S.woAll?"Show fewer":"Show all "+wo.length}</button>`:""}</section></div>`}
+  <div class="stack">${dw?sessionEditor():(typeof renderInsights==="function"?renderInsights():"")+renderTemplates()}${renderExercises()}${renderSessionHist(wo)}</div>`}
 function renderTrain(){if(S.woSum&&!S.draftWorkout&&S.docs[S.woSum])return renderWoSummary({id:S.woSum,...S.docs[S.woSum]});
   if(S.progView&&!S.draftWorkout&&S.tab==="train")return `<header class="top"><div><h1>Programmes</h1><div class="sub">Multi-week plans, ready to start</div></div></header>${renderProgrammes()}`;const v=S.draftWorkout?"strength":(S.trainView||"strength");
   return `${exampleBanner()}<header class="top"><div><h1>Train</h1><div class="sub">${v==="cardio"?"Cardio and activity minutes":"Strength, bodyweight, functional and calisthenics"}</div></div></header>
@@ -1175,7 +1187,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-11-5";
+const APP_VERSION="2026-11-11-6";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -2137,7 +2149,7 @@ function wpPicker(dw,ex){const pool=stylePool(dw.kind),groups=[...new Set(pool.m
   return `<div class="picker">
     <div class="spread"><span class="label">${ex.name?"Change exercise":"Choose an exercise"} · ${esc(kindName(dw.kind))}</span>${ex.name?`<button class="btn ghost" data-act="wpRenameNo">Cancel</button>`:""}</div>
     ${swapPanel(dw,ex)}
-    <form id="wpPickForm" class="row" style="flex-wrap:nowrap"><input id="wpPickQ" class="pick-q" placeholder="Search, or type your own" autocomplete="off" enterkeyhint="done" value="${esc(S.pick.q)}"></form>
+    <form id="wpPickForm" class="row" style="flex-wrap:nowrap"><input aria-label="Search exercises" id="wpPickQ" class="pick-q" placeholder="Search, or type your own" autocomplete="off" enterkeyhint="done" value="${esc(S.pick.q)}"></form>
     <div class="chiprow pick-tabs" ${S.pick.q?"hidden":""}>${tabs.map(([k,l])=>`<button class="qchip" data-act="pickTab" data-v="${esc(k)}" aria-pressed="${S.pick.g===k}">${esc(l)}</button>`).join("")}</div>
     <div class="pick-list" id="pickList">${pickResults(dw,ex)}</div>
     ${ex.name&&ex.sets.some(x=>x.done)?`<span class="small muted">Sets you've already done move to the new exercise.</span>`:""}</div>`}
@@ -3995,11 +4007,12 @@ function setData(){const me=activeProf(),n=Object.values(S.docs).filter(d=>d&&d.
   <section class="panel"><h2>Start over</h2><p class="small" style="margin:0">Deletes all of ${esc(me.name)}'s logs, targets and details on this phone. Other users aren't affected.</p>
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="wipeData">${S.confirmWipe?"Tap again to delete everything":"Delete my data"}</button></section>`}
 function setAbout(){return `<section class="panel">${PF_LOCKUP()}
-  <p class="small" style="margin:0">Your data is stored in this browser on this device. There's no account or server, so nobody else can see it, but clearing your browser data or losing the phone loses it. Keep a backup from Data & backup.</p>
-  <p class="small" style="margin:0">Users on one phone are kept separate. For clients to log on their own phones while you see their progress, the app would need real accounts and an online database. That's a later upgrade.</p>
+  <p class="small" style="margin:0">Without an account, your data is stored only on this phone, so clearing your browser data or losing the phone loses it: keep a backup from Data & backup. With an account (Settings › Cloud account), it's also stored securely online and syncs between your phones. Only you can read it, and a coach only sees the weekly summaries you choose to share.</p>
+  <p class="small" style="margin:0">Several people can use one phone, and their data is kept separate.</p>
   ${NATIVE?"":`<h2 style="margin-top:6px">Install as an app</h2>
   <p class="small" style="margin:0"><b>iPhone:</b> open the app's web address in Safari, tap Share, then Add to Home Screen.<br><b>Android:</b> open it in Chrome, tap ⋮, then Install app (or Add to Home screen).<br>It then opens full screen with its own icon and works offline.</p>`}
-  <a class="btn" style="align-self:flex-start;text-decoration:none" href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">Read the privacy notice</a>
+  <div class="row"><a class="btn" style="text-decoration:none;color:var(--fg)" href="${NATIVE?WEB_URL:""}privacy.html" target="_blank" rel="noopener">Privacy notice</a><a class="btn" style="text-decoration:none;color:var(--fg)" href="${NATIVE?WEB_URL:""}terms.html" target="_blank" rel="noopener">Terms of use</a><a class="btn" style="text-decoration:none;color:var(--fg)" href="${NATIVE?WEB_URL:""}support.html" target="_blank" rel="noopener">Help</a></div>
+  <p class="small muted" style="margin:0">Project Fitness is run by Rizalito Jr Mangilit, personal trainer, UK · <a style="color:var(--accent)" href="mailto:rizalitojrmangilit@yahoo.com">rizalitojrmangilit@yahoo.com</a></p>
   <p class="small muted" style="margin:0">Food data: built-in UK list and Open Food Facts. Calorie suggestions: Mifflin-St Jeor.</p></section>`}
 function renderLock(){const L=S.lock,p=PROF.list.find(x=>x.id===L.id)||{},others=PROF.list.filter(x=>x.id!==L.id);
   return `<div class="stack" style="max-width:340px;margin:10vh auto 0"><div style="text-align:center"><span class="avatar big" style="margin:0 auto">${esc(initials(p.name))}</span><h1 style="margin-top:12px">${esc(p.name)}</h1><div class="sub">Enter PIN to open this profile</div></div>
@@ -4487,6 +4500,7 @@ document.addEventListener("click",e=>{
     case "cancelWo":if(HRL.state!=="off")hrStop();S.wu=null;S.draftWorkout=null;S.wp=null;stopRest();wakeOff();render();break;
     case "useLast":{const ex=S.draftWorkout.exercises[+ds.ei],h=exHistory(ex.name);if(h.length){ex.sets=h[0].sets.map(s=>({kg:s.kg,reps:s.reps,secs:s.secs}));render();toast("Copied. Add a rep or a little weight to progress")}break}
     case "openEx":S.openEx=S.openEx===ds.k?null:ds.k;render();break;
+    case "openWo":S.openWo=S.openWo===ds.k?null:ds.k;render();break;
     case "addEx":S.draftWorkout.exercises.push({name:"",sets:[{kg:"",reps:""}]});render();break;
     case "delEx":S.draftWorkout.exercises.splice(+ds.ei,1);render();break;
     case "addSet":{const ex=S.draftWorkout.exercises[+ds.ei];const last=ex.sets[ex.sets.length-1]||{};ex.sets.push({kg:last.kg??"",reps:last.reps??"",secs:last.secs??""});render();break}
@@ -4594,6 +4608,7 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="ob"){S.onboard.d[ds.k]=t.value}
   if(ds.act==="obT"){S.onboard.d.targets[ds.k]=t.value;if(ds.k==="kcal"){const w=document.getElementById("obWarn");if(w)w.innerHTML=lowKcalWarn(t.value,S.onboard.d.sex)}}
   if(ds.act==="exFilter"){S.exFilter=t.value;render()}
+  if(ds.act==="woFilter"){S.woFilter=t.value;render()}
   if(ds.act==="rtbName"&&S.rtDraft)S.rtDraft.name=t.value;
   if(ds.act==="rtbStep"&&S.rtDraft)S.rtDraft.steps[+ds.i][+ds.k]=t.value;
   if(ds.act==="amtQty"||ds.act==="amtG"){const f=dayDoc(S.day).foods[S.editFood];if(!f||!f.base)return;

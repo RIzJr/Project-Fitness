@@ -58,7 +58,7 @@ console.log('SESSIONS PANEL:',await txt(A,'section.panel:has(h2:text("Sessions w
 const dA=await docs(A);console.log('coach own workouts:',Object.values(dA).filter(d=>d.type==='workout').length,'| csessions',Object.values(dA).filter(d=>d.type==='csession').length);
 // client receives
 await sync(A,B);await B.waitForTimeout(800);console.log('B TOAST:',await B.innerText('#toast'));
-await B.click('[data-tab=train]');await B.waitForTimeout(200);console.log('B HISTORY TOP:',await txt(B,'.hist .item'));
+await B.click('[data-tab=train]');await B.waitForTimeout(200);await B.click('[data-act=tgl][data-k=woHistOpen]');await B.waitForTimeout(150);console.log('B HISTORY TOP:',await txt(B,'.hist .item'));
 await B.click('[data-tab=today]');console.log('B TODAY planned card:',(await txt(B,'section.panel:has(h2:text("Planned for you"))')).slice(0,120));
 const dB=await docs(B);const cw=Object.values(dB).filter(d=>d.type==='workout'&&d.coachLogged);console.log('B coach-logged:',cw.length,'planId set',!!(cw[0]&&cw[0].planId),'prs',JSON.stringify(cw[0]&&cw[0].prs||[]));
 // coach sees plan done
