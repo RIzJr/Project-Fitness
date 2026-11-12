@@ -2,7 +2,13 @@ import { createRequire } from 'module';const { chromium } = createRequire(import
 const b=await chromium.launch();const errs=[];const ctx=await b.newContext({viewport:{width:375,height:812}});
 await ctx.addInitScript(()=>{try{localStorage.setItem('pf-rdpopoff','1')}catch(e){}
   const calls=window.__c=[];const L={};let iv=null,bpm=96;
-  const BluetoothLe={initialize:async()=>{calls.push('init')},requestDevice:async o=>{calls.push('request:'+JSON.stringify(o.services));return {deviceId:'DEV-'+(calls.filter(c=>c.startsWith('request')).length),name:'Venu 3'}},
+  // nearby devices: the plugin's own scan filter (services) is honoured like on a real iPhone
+  const NEAR=[{device:{deviceId:'DEV-1'},localName:'Venu 4',rssi:-58,uuids:['0000180d-0000-1000-8000-00805f9b34fb']},{device:{deviceId:'STRAP'},localName:'Polar H10 1234',rssi:-80,uuids:['0000180d-0000-1000-8000-00805f9b34fb']},
+    {device:{deviceId:'PODS',name:"Riz's AirPods"},rssi:-50,uuids:[]},{device:{deviceId:'X1'},rssi:-70,uuids:[]},{device:{deviceId:'X2'},rssi:-90,uuids:[]}];
+  let scanT=[];
+  const BluetoothLe={initialize:async()=>{calls.push('init')},requestDevice:async()=>{calls.push('PICKER OPENED');return {deviceId:'BAD'}},
+    requestLEScan:async o=>{calls.push('scan:'+JSON.stringify(o.services||'all'));const want=o.services&&o.services.length;NEAR.filter(r=>!want||r.uuids.some(u=>/180d/.test(u))).forEach((r,i)=>scanT.push(setTimeout(()=>(L.onScanResult||[]).forEach(cb=>cb(r)),150+i*120)))},
+    stopLEScan:async()=>{calls.push('stopScan');scanT.forEach(clearTimeout);scanT=[]},
     getDevices:async o=>{calls.push('getDevices:'+o.deviceIds[0]);return {devices:[]}},connect:async o=>{calls.push('connect:'+o.deviceId)},disconnect:async o=>{calls.push('disconnect');clearInterval(iv)},stopNotifications:async()=>{},
     startNotifications:async o=>{calls.push('notify:'+o.deviceId);clearInterval(iv);iv=setInterval(()=>{bpm=Math.min(175,bpm+3);const h='00'+bpm.toString(16).padStart(2,'0');const k='notification|'+o.deviceId+'|180d|2a37';(L[k]||[]).forEach(cb=>cb({value:h}))},250)}};
   const noop=new Proxy({},{get:(t,k)=>k==='then'?undefined:async()=>({display:'granted'})});
@@ -20,7 +26,9 @@ const run=async(label)=>{await p.click('.player [data-act=wpGo]');await p.waitFo
   if(await p.locator('#wpPickQ').count()){await p.fill('#wpPickQ','Kettlebell swing');await p.press('#wpPickQ','Enter');await p.waitForTimeout(150)}
   await p.click('.player [data-act=hrOpen]');await p.waitForTimeout(150);console.log(label,'SHEET:',await txt('.hrsheet'));
   if(await p.locator('#hrAgeIn').count()){await p.fill('#hrAgeIn',label==='ME'?'24':'45');await p.click('[data-act=hrAgeSave]');await p.waitForTimeout(150);console.log(label,'ZONES:',await txt('.hrzbar'))}
-  await p.click('[data-act=hrGo]');await p.waitForTimeout(1500);console.log(label,'CONNECTED:',await txt('.hrsheet'));await p.screenshot({path:`tests/shots/hr-${label}.png`});
+  await p.click('[data-act=hrGo]');await p.waitForTimeout(900);console.log(label,'LIST:',await txt('#hrScanList'));await p.screenshot({path:`tests/shots/hr-list-${label}.png`});
+  if(label==='ME'){await p.click('[data-act=hrAll]').catch(()=>{});await p.waitForTimeout(1000);console.log(label,'ALL DEVICES:',await txt('#hrScanList'))}
+  await p.click('[data-act=hrPick]');await p.waitForTimeout(1500);console.log(label,'CONNECTED:',await txt('.hrsheet'));await p.screenshot({path:`tests/shots/hr-${label}.png`});
   await p.click('[data-act=hrClose]');await p.waitForTimeout(4000);console.log(label,'HEADER CHIP:',await txt('.wp-hr'));
   await p.locator('.player .wp-chip.add').first().click().catch(()=>{});await p.waitForTimeout(150);const k=p.locator('.player .wp-num[data-f=kg]');await k.click();await k.fill('');await p.keyboard.type('20');await p.keyboard.press('Enter');const r=p.locator('.player .wp-num[data-f=reps]');await r.click();await r.fill('');await p.keyboard.type('15');await p.keyboard.press('Enter');
   await p.click('.player [data-act=wpDone]');await p.waitForTimeout(1200);console.log(label,'REST LINE:',await txt('.player span:has(#hrDown)'));await p.screenshot({path:`tests/shots/hr-rest-${label}.png`});
@@ -35,4 +43,4 @@ await p.reload();await p.waitForTimeout(900);await p.click('[data-tab=you]');awa
 await run('CLIENT');
 d=await docs();const cs=Object.values(d).find(x=>x.type==='csession');console.log('CLIENT SAVED hr:',JSON.stringify(cs.hr),'| client age',d.client_ljo.age,'| saved devices',await p.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('pf-hrdev')).join(',')));
 console.log('SESSIONS PANEL:',await txt('section.panel:has(h2:text("Sessions with you")) .item'));
-console.log('CALLS:',JSON.stringify(await p.evaluate(()=>window.__c)));console.log('errors',errs);await b.close();
+console.log('CALLS:',JSON.stringify(await p.evaluate(()=>window.__c)));console.log('BLE calls:',JSON.stringify(await p.evaluate(()=>window.__c.filter(c=>!c.startsWith('notify')).slice(0,30))));console.log('errors',errs);await b.close();

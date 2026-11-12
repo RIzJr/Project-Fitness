@@ -532,6 +532,7 @@ section.panel{border-radius:22px}
 @media (prefers-reduced-motion:no-preference){.fdot.live{animation:fpulse 1.6s infinite}}@keyframes fpulse{0%{box-shadow:0 0 0 0 rgba(61,220,132,.6)}100%{box-shadow:0 0 0 8px rgba(61,220,132,0)}}
 .coachcall{border-left:4px solid var(--accent);padding:8px 0 8px 12px;display:flex;flex-direction:column;gap:4px}.coachlist{margin:2px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
 .sleepnow{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;background:var(--sunk)}.sleepnow b{font-size:18px;font-variant-numeric:tabular-nums}
+.hrpick{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;width:100%}.hrpick>span:first-child,.hrpick>span:first-child b{text-align:left;display:block}
 .hkok{display:flex;gap:12px;align-items:center;border:1.5px solid var(--veg);border-radius:14px;padding:10px 12px;background:color-mix(in srgb,var(--veg) 10%,transparent)}.hkck{flex:none;width:30px;height:30px;border-radius:50%;background:var(--veg);color:#000;display:flex;align-items:center;justify-content:center;font-weight:900}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}.trio>div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
 .wring{position:relative;width:88px;height:88px}.wring svg{display:block}.wring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
@@ -1187,7 +1188,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-11-6";
+const APP_VERSION="2026-11-12-1";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1224,14 +1225,36 @@ function hrPaint(){const n=hrNow(),max=hrMaxFor(S.draftWorkout&&S.draftWorkout.f
 const hrDrop=()=>{if(!S.rest||!HRL.bpm)return null;const pk=Math.max(0,...HRL.ls.filter(x=>x[0]>=(S.rest.t0||0)-30000&&x[0]<=(S.rest.t0||0)+8000).map(x=>x[1]));return pk?pk-HRL.bpm:null};
 async function hrStart(dev){const B=NPlug("BluetoothLe");if(!B){toast("Live heart rate needs the latest version of the app");return false}
   if(HRL.dev)await hrStop(true);HRL.state="connecting";HRL.err="";HRL.who=hrWho();render();
-  try{await B.initialize({});if(!dev){dev=await B.requestDevice({services:S.hrAll?[]:[HR_SVC]});if(!dev||!dev.deviceId)throw new Error("No device chosen")}
-    else{try{await B.getDevices({deviceIds:[dev.deviceId]})}catch(e){}}
+  try{await B.initialize({});if(!dev||!dev.deviceId)throw new Error("No device chosen");
+    try{await B.getDevices({deviceIds:[dev.deviceId]})}catch(e){}
     HRL.dev={deviceId:dev.deviceId,name:dev.name||"Heart-rate monitor"};
     HRL.subs.push(B.addListener("disconnected|"+dev.deviceId,()=>{if(HRL.dev&&HRL.dev.deviceId===dev.deviceId&&HRL.state!=="off"){HRL.state="lost";hrPaint();render();setTimeout(()=>{if(HRL.state==="lost"&&S.draftWorkout)hrStart(HRL.dev)},3000)}}));
     ["0000180d-0000-1000-8000-00805f9b34fb|00002a37-0000-1000-8000-00805f9b34fb","180d|2a37"].forEach(k=>HRL.subs.push(B.addListener("notification|"+dev.deviceId+"|"+k,hrOnValue)));
     await B.connect({deviceId:dev.deviceId,timeout:15000});await B.startNotifications({deviceId:dev.deviceId,service:HR_SVC,characteristic:HR_CHR});
     HRL.state="on";lsSet(hrDevKey(HRL.who),JSON.stringify(HRL.dev));render();toast("Connected to "+HRL.dev.name);return true}
   catch(e){HRL.state="off";const m=(e&&e.message)||"";HRL.err=/cancel|No device/i.test(m)?"":/powered off|unauthori/i.test(m)?"Turn on Bluetooth and allow Project Fitness to use it (iPhone Settings › Project Fitness)":"Couldn't connect. Check it's broadcasting and close to your phone, then try again";render();return false}}
+// our own search list instead of the plugin's picker, which lists every nearby Bluetooth device (AirPods, unnamed gadgets) with overlapping labels.
+// Scans only for devices advertising the standard heart-rate service (chest straps, Garmin Broadcast Heart Rate), named ones only, closest first, for 20 s.
+const HRS={on:false,list:[],all:false,timer:null,sub:null,done:false};
+const hrSig=r=>r>=-60?"very close":r>=-75?"nearby":"further away";
+function hrScanInner(){const L=HRS.list.slice().sort((a,b)=>(b.hr-a.hr)||(b.rssi-a.rssi));
+  return `${HRS.on?`<span class="small"><span class="spin dark" aria-hidden="true"></span> Searching${HRS.all?" all nearby devices":" for heart-rate monitors"}…</span>`:""}
+    ${L.length?`<div class="stack" style="gap:6px">${L.map(x=>`<button class="pick-row hrpick" data-act="hrPick" data-id="${esc(x.id)}" data-name="${esc(x.name)}"><span><b>${esc(x.name)}</b><span class="small muted" style="display:block">${x.hr?"♥ heart-rate monitor · ":""}${hrSig(x.rssi)}</span></span><span style="color:var(--accent);font-weight:800">Connect</span></button>`).join("")}</div>`
+      :HRS.on?`<span class="small muted">Start Broadcast Heart Rate on your watch (or put your strap on) now. It appears here within a few seconds.</span>`
+      :HRS.done?`<span class="small"><b>Nothing found.</b> <span class="muted">Check Broadcast Heart Rate is on and the watch is within a few metres, then search again.</span></span>`:""}
+    ${HRS.on?"":`<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="hrGo">Search again</button>${HRS.all?"":`<button class="linkbtn small" data-act="hrAll">Not listed? Show all nearby devices</button>`}</div>`}`}
+const hrScanPaint=()=>{const el=document.getElementById("hrScanList");if(el)el.innerHTML=hrScanInner();else render()};
+async function hrScan(all){const B=NPlug("BluetoothLe");if(!B){toast("Live heart rate needs the latest version of the app");return}
+  await hrScanStop();Object.assign(HRS,{on:true,all:!!all,list:[],done:false});HRL.err="";render();
+  try{await B.initialize({});
+    HRS.sub=B.addListener("onScanResult",r=>{const d=(r&&r.device)||{},name=String((r&&r.localName)||d.name||"").trim();if(!d.deviceId||!name||!HRS.on)return;
+      const hr=!HRS.all||((r.uuids||[]).some(u=>/180d/i.test(String(u)))),it={id:d.deviceId,name,rssi:+r.rssi||-100,hr},i=HRS.list.findIndex(x=>x.id===it.id);
+      if(i<0)HRS.list.push(it);else HRS.list[i]={...HRS.list[i],...it};hrScanPaint()});
+    await B.requestLEScan(all?{allowDuplicates:false}:{services:[HR_SVC],allowDuplicates:false});
+    HRS.timer=setTimeout(()=>{hrScanStop().then(()=>{HRS.done=true;hrScanPaint()})},20000)}
+  catch(e){await hrScanStop();const m=(e&&e.message)||"";HRL.err=/powered off|unauthori|denied|not enabled/i.test(m)?"Turn on Bluetooth and allow Project Fitness to use it (iPhone Settings › Project Fitness)":"Couldn't search for monitors. Try again in a moment";render()}}
+async function hrScanStop(){clearTimeout(HRS.timer);HRS.timer=null;const B=NPlug("BluetoothLe"),sub=HRS.sub,was=HRS.on;HRS.sub=null;HRS.on=false;
+  if(sub)Promise.resolve(sub).then(x=>x&&x.remove&&x.remove()).catch(()=>{});if(was&&B){try{await B.stopLEScan()}catch(e){}}}
 async function hrStop(quiet){const B=NPlug("BluetoothLe"),d=HRL.dev;HRL.state="off";HRL.bpm=null;const subs=HRL.subs;HRL.subs=[];subs.forEach(p=>Promise.resolve(p).then(x=>x&&x.remove&&x.remove()).catch(()=>{}));if(B&&d){try{await B.stopNotifications({deviceId:d.deviceId,service:HR_SVC,characteristic:HR_CHR})}catch(e){}try{await B.disconnect({deviceId:d.deviceId})}catch(e){}}if(!quiet){HRL.dev=null;render()}}
 const hrSaved=w=>{try{return JSON.parse(lsGet(hrDevKey(w))||"null")}catch(e){return null}};
 // summary of a recorded session: average, max and seconds in each zone
@@ -1253,8 +1276,8 @@ function hrSheet(){const dw=S.draftWorkout,fc=dw&&dw.forClient,who=fc?esc(firstN
     :`${HRL.err?`<div class="hint small"><b>${esc(HRL.err)}</b></div>`:""}
       ${!fc&&hkOn()?`<div class="hint small"><b>From your watch via Apple Health${HKL.bpm&&Date.now()-HKL.at<=120000?`: <span class="hrlive">${HKL.bpm}</span> bpm <span class="hrsrc"></span>`:""}</b><span>${HKL.bpm&&HKL.at?`Latest reading ${ago(Date.now()-HKL.at)}${HKL.src?" from "+esc(HKL.src):""}. `:"No heart rate from your watch in the last 15 minutes. "}Apple Watch sends it every few seconds while a workout is running on the watch. Garmin only sends it when Garmin Connect syncs, so for live heart rate on a Garmin use Broadcast Heart Rate (below).</span></div>`:""}
       <ol class="small" style="margin:0;padding-left:18px"><li><b>Garmin watch:</b> press and hold the top button (A), then choose Broadcast Heart Rate.</li><li><b>Chest strap:</b> wet the sensor pads and put it on. It wakes up by itself.</li><li>Keep it within a few metres of this phone.</li></ol>
-      <div class="row">${saved?`<button class="btn primary" data-act="hrGo" data-v="saved">Reconnect ${esc(saved.name||"monitor")}</button>`:""}<button class="btn ${saved?"":"primary"}" data-act="hrGo">${saved?"Another monitor":"Find a heart-rate monitor"}</button></div>
-      <label class="habit"><input type="checkbox" data-act="hrAll" ${S.hrAll?"checked":""}><span class="small">Can't see it? Show all Bluetooth devices</span></label>`}
+      ${HRS.on||HRS.list.length||HRS.done?`<div id="hrScanList" class="stack" style="gap:8px">${hrScanInner()}</div>`
+        :`<div class="row">${saved?`<button class="btn primary" data-act="hrGo" data-v="saved">Reconnect ${esc(saved.name||"monitor")}</button>`:""}<button class="btn ${saved?"":"primary"}" data-act="hrGo">${saved?"Another monitor":"Find a heart-rate monitor"}</button></div>`}`}
     <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="label">Zones${max?` · max ${max} bpm`:""}</span>
       ${max?`<div class="hrzbar">${ZONES.map(([lo,l,c],i)=>`<span style="background:${c}" title="${l}">${Math.round(lo*max)}+</span>`).join("")}</div>`
       :`<label class="field"><span class="label">${fc?esc(firstName(fc.name))+"'s age":"Your age"} (sets the zones)</span><input type="number" inputmode="numeric" id="hrAgeIn" placeholder="e.g. 24"></label><button class="btn" style="align-self:flex-start" data-act="hrAgeSave">Save age</button>`}</div></div>`}
@@ -4224,10 +4247,11 @@ document.addEventListener("click",e=>{
     case "gymTime":case "gymDay":{const st=clone(settings()),R=remCfg();if(ds.act==="gymTime")R.gym.time=ds.v;else{const d=+ds.v,cur=gymDays();R.gym.days=cur.includes(d)?cur.filter(x=>x!==d):[...cur,d]}
       R.plan={...R.plan,on:R.gym.on,time:R.gym.time};st.reminders=R;save("settings",st);nativeDaily();break}
     case "hrOpen":S.hrSheet=!S.hrSheet;render();setTimeout(hrPaint,0);break;
-    case "hrClose":S.hrSheet=false;render();break;
-    case "hrGo":hrStart(ds.v==="saved"?hrSaved(hrWho()):null);break;
+    case "hrClose":S.hrSheet=false;hrScanStop();HRS.list=[];HRS.done=false;render();break;
+    case "hrGo":if(ds.v==="saved")hrStart(hrSaved(hrWho()));else hrScan(false);break;
+    case "hrAll":hrScan(true);break;
+    case "hrPick":hrScanStop().then(()=>{HRS.list=[];HRS.done=false;hrStart({deviceId:ds.id,name:ds.name})});break;
     case "hrOff":hrStop();break;
-    case "hrAll":S.hrAll=!S.hrAll;break;
     case "hrAgeSave":{const a=+(document.getElementById("hrAgeIn")||{}).value;if(!(a>=8&&a<=95)){toast("Enter an age between 8 and 95");break}const fc=S.draftWorkout&&S.draftWorkout.forClient;if(fc){const c=S.docs[fc.id];if(c)save(fc.id,{...c,age:a})}else save("profile",{...(S.docs.profile||{type:"profile"}),hrAge:a});toast("Zones set");break}
     case "watchDev":S.watchDev=ds.v;render();break;
     case "watchOff":lsSet("pf-watchoff:"+PROF.active,"1");render();toast("Hidden. Find the guide any time in Settings › Connect your watch");break;
