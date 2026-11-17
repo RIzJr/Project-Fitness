@@ -1199,7 +1199,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-17-1";
+const APP_VERSION="2026-11-17-2";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -2938,9 +2938,14 @@ function coolBottom(dw,L){return L.some(x=>!x.done)?`<button class="wp-big" data
   <span class="small muted" style="text-align:center">Each one runs with a timer and a demo. Tap ▶ on a single one to do just that.</span><button class="btn ghost" data-act="wpGo" data-v="${S.wp.step+1}">Skip, finish workout ›</button>`
   :`<button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Finish workout</button>`}
 let actx=null;
-function unlockAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume()}catch(e){}}
-// boxing-ring bell: ding-ding-ding, three strikes of a brass bell (inharmonic partials, each decaying) plus a short strike click. Same recipe as ios/App/App/bell.wav
-function bell(delay){if(!actx)return null;try{const f0=760,P=[[.5,.22,2.2],[1,1,1.5],[2,.32,.9],[2.76,.48,.8],[4.07,.28,.5],[5.4,.2,.35],[6.8,.1,.25]],out=actx.createGain();out.gain.value=.32;out.connect(actx.destination);
+function unlockAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state!=="running")actx.resume().catch(()=>{});loadBell()}catch(e){}}
+// the boxing bell is a real sound file (bell.wav, made by scripts/make-bell.py; the same file plays in the iPhone's rest-over notification),
+// decoded once so it can be booked on the audio clock with no delay. Until it has loaded, bell() synthesises a stand-in.
+let bellBuf=null,bellLoading=false;
+function loadBell(){if(bellBuf||bellLoading||!actx)return;bellLoading=true;fetch("bell.wav").then(r=>{if(!r.ok)throw 0;return r.arrayBuffer()}).then(b=>new Promise((ok,no)=>actx.decodeAudioData(b,ok,no))).then(buf=>{bellBuf=buf}).catch(()=>{bellLoading=false})}
+// boxing-ring bell: ding-ding-ding. Plays bell.wav when loaded; otherwise three synthesised strikes (inharmonic partials plus a strike click)
+function bell(delay){if(!actx)return null;if(bellBuf){try{const out=actx.createGain(),src=actx.createBufferSource();out.gain.value=.9;src.buffer=bellBuf;src.connect(out);out.connect(actx.destination);src.start(actx.currentTime+Math.max(0,delay||0));return out}catch(e){}}
+  try{const f0=760,P=[[.5,.22,2.2],[1,1,1.5],[2,.32,.9],[2.76,.48,.8],[4.07,.28,.5],[5.4,.2,.35],[6.8,.1,.25]],out=actx.createGain();out.gain.value=.32;out.connect(actx.destination);
   [0,.36,.72].forEach(t=>{const st=actx.currentTime+Math.max(0,delay||0)+t;P.forEach(([r,a,d])=>[-1.2,1.2].forEach(det=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f0*r+det;o.connect(g);g.connect(out);
       g.gain.setValueAtTime(.0001,st);g.gain.exponentialRampToValueAtTime(a*.5,st+.003);g.gain.exponentialRampToValueAtTime(.0001,st+d*4.5);o.start(st);o.stop(st+d*4.6)}));
     const n=actx.createBufferSource(),b=actx.createBuffer(1,Math.round(actx.sampleRate*.03),actx.sampleRate),ch=b.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=(Math.random()*2-1)*Math.exp(-i/(actx.sampleRate*.004))*.35;n.buffer=b;n.connect(out);n.start(st)});return out}catch(e){return null}}
@@ -2949,11 +2954,16 @@ const restSound=d=>{const c=restCfg();if(!c.sound)return null;return c.tone==="b
    and the audio engine is woken 1.5 s early. Changing the rest re-books it; leaving the app cancels it (the notification takes over). */
 let restArmed=null;
 function restDisarm(){if(restArmed&&restArmed.out){try{restArmed.out.disconnect()}catch(e){}}restArmed=null}
-function restArm(){restDisarm();const R=S.rest;if(!R||R.fired||document.hidden||!actx||actx.state!=="running")return;const d=(R.end-Date.now())/1000;if(d<.05)return;const out=restSound(d);if(out)restArmed={out,end:R.end}}
+function restArm(){restDisarm();const R=S.rest;if(!R||R.fired||document.hidden||!actx||actx.state!=="running")return;const d=(R.end-Date.now())/1000;if(d<.05)return;const out=restSound(d);if(out)restArmed={out,end:R.end,at:actx.currentTime+d}}
 function restTimers(){clearTimeout(restTimers._f);clearTimeout(restTimers._w);const R=S.rest;if(!R||R.fired)return;const ms=R.end-Date.now();
   restTimers._w=setTimeout(()=>{unlockAudio();setTimeout(()=>{if(S.rest===R&&!(restArmed&&restArmed.end===R.end))restArm()},60)},Math.max(0,ms-1500));
   restTimers._f=setTimeout(tickRest,Math.max(0,ms))}
-function restFire(R){const c=restCfg();if(c.vibrate)haptic();if(!(restArmed&&restArmed.end===R.end))restSound();restArmed=null}
+// at the end of rest: vibrate, then make sure the bell really rings. A booked bell only counts if the audio engine kept running up to its time;
+// if iOS paused the engine during the rest (a notification, Siri, another app's audio), the booking is dropped and the bell rings now instead.
+function restFire(R){const c=restCfg();if(c.vibrate)haptic();const A=restArmed;restArmed=null;
+  const played=A&&A.end===R.end&&actx&&actx.state==="running"&&actx.currentTime>=A.at-.15;if(played||!c.sound)return;
+  if(A&&A.out){try{A.out.disconnect()}catch(e){}}unlockAudio();if(!actx)return;
+  if(actx.state==="running")restSound();else actx.resume().then(()=>restSound(),()=>restSound())}
 function beep(delay){if(!actx)return null;try{const out=actx.createGain();out.connect(actx.destination);[0,0.32,0.64].forEach(t=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=t>0.6?1175:880;o.connect(g);g.connect(out);
   const st=actx.currentTime+Math.max(0,delay||0)+t;g.gain.setValueAtTime(0.0001,st);g.gain.exponentialRampToValueAtTime(0.35,st+0.005);g.gain.exponentialRampToValueAtTime(0.0001,st+0.25);o.start(st);o.stop(st+0.27)});return out}catch(e){return null}}
 /* workout list view: the whole session on one screen, set table for the open exercise */
