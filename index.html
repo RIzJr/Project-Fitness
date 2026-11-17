@@ -533,6 +533,17 @@ section.panel{border-radius:22px}
 .coachcall{border-left:4px solid var(--accent);padding:8px 0 8px 12px;display:flex;flex-direction:column;gap:4px}.coachlist{margin:2px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
 .sleepnow{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;background:var(--sunk)}.sleepnow b{font-size:18px;font-variant-numeric:tabular-nums}
 .hrpick{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;width:100%}.hrpick>span:first-child,.hrpick>span:first-child b{text-align:left;display:block}
+.pulsewrap{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;padding-top:var(--sat);max-width:560px;margin:0 auto}
+.pulsehead{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}.pbtn{background:none;border:0;color:var(--fg);font-size:20px;min-width:40px;min-height:40px;cursor:pointer}
+.pulsebody{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.pmsg{max-width:85%;display:flex;flex-direction:column}.pmsg>span{padding:10px 13px;border-radius:18px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}
+.pmsg.u{align-self:flex-end}.pmsg.u>span{background:var(--accent);color:#0D0E10;border-bottom-right-radius:6px}
+.pmsg.a{align-self:flex-start}.pmsg.a>span{background:var(--sunk);border-bottom-left-radius:6px}.pmsg.safety>span{border:1.5px solid var(--protein)}.pmsg.err>span{color:var(--protein)}
+.pmsg a.btn{text-decoration:none;color:var(--fg)}
+.pulsefoot{border-top:1px solid var(--line);padding:10px 16px calc(10px + var(--sab));display:flex;flex-direction:column;gap:8px;background:var(--bg)}.pulsefoot input{flex:1;min-width:0}
+.pchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}.pchips .qchip{white-space:nowrap}
+.dots{display:inline-flex;gap:4px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:pdot 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+@keyframes pdot{0%,80%,100%{opacity:.3}40%{opacity:1}}
 .hkok{display:flex;gap:12px;align-items:center;border:1.5px solid var(--veg);border-radius:14px;padding:10px 12px;background:color-mix(in srgb,var(--veg) 10%,transparent)}.hkck{flex:none;width:30px;height:30px;border-radius:50%;background:var(--veg);color:#000;display:flex;align-items:center;justify-content:center;font-weight:900}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}.trio>div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
 .wring{position:relative;width:88px;height:88px}.wring svg{display:block}.wring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
@@ -1188,7 +1199,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-16-1";
+const APP_VERSION="2026-11-17-1";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1582,7 +1593,7 @@ function recoveryCard(){if(!hkOn()&&!hasWatchData()){return NATIVE?`<button clas
       <div>${ringSvg(R&&!R.building?R.score/100:0,R&&!R.building?recToneColor(R.tone):"var(--line)",R&&!R.building?R.score+"%":"—","Recovery "+(R&&!R.building?R.score+" percent":"not ready yet"))}<span class="label">Recovery</span></div>
       <div>${ringSvg(x.strain!=null?x.strain/21:0,STRAIN_C,x.strain!=null?fmtM(x.strain,1):"—","Strain "+(x.strain!=null?x.strain:"not measured"))}<span class="label">Strain</span></div>
       <div>${ringSvg(perf!=null?perf/100:0,SLEEP_C,perf!=null?perf+"%":"—","Sleep "+(perf!=null?perf+" percent of what you needed":"not measured"))}<span class="label">Sleep</span></div></div>
-    ${CC?coachCallHtml(CC):""}
+    ${CC?coachCallHtml(CC):""}${CC&&pulseReady()?`<button class="linkbtn small" style="align-self:flex-start" data-act="pulseOpen">Talk today through with Pulse ›</button>`:""}
     ${R&&!R.building?`<div class="small"><b>Today's target strain: ${strainTargetTxt(T)}</b>${x.strain!=null?` · so far ${fmtM(x.strain,1)}`:""}</div>
       <details class="small"><summary>What went into your recovery</summary>${R.parts.map(p=>`<div class="spread" style="padding:3px 0"><span>${p.l}</span><span style="text-align:right"><b style="color:${p.good?"var(--fg)":"var(--carb)"}">${esc(p.v)}</b>${p.n?` <span class="muted">· normal ${esc(p.n)}</span>`:""}</span></div>`).join("")}</details>`
     :R&&R.days>=4?`<p class="small muted" style="margin:0">Your normal is ready. Today's score appears once last night's sleep or this morning's heart rate reaches Apple Health.${(()=>{for(let i=1;i<=7;i++){const d=addDays(t,-i),r=recoveryFor(d);if(r&&!r.building)return ` Your latest recovery was <b style="color:${recToneColor(r.tone)}">${r.score}%</b> on ${fmtDay(d)}.`}return""})()}</p>`
@@ -1650,7 +1661,7 @@ const appUrl=()=>NATIVE?WEB_URL:location.origin+location.pathname;
 let nPerm=null;
 async function nativePermCheck(){const L=NPlug("LocalNotifications");if(!L)return null;try{nPerm=(await L.checkPermissions()).display}catch(e){}return nPerm}
 async function nativePermAsk(){const L=NPlug("LocalNotifications");if(!L)return "unsupported";try{nPerm=(await L.requestPermissions()).display;if(nPerm==="granted"){nativeDaily();return "on"}return "denied"}catch(e){return "error"}}
-const N_ID={rest:9001,idle:9002,food:1000,ready:1100,plan:1200,gym:1300,sleep:1400};
+const N_ID={rest:9001,idle:9002,food:1000,ready:1100,plan:1200,gym:1300,sleep:1400,pulse:1500};
 async function nCancel(ids){const L=NPlug("LocalNotifications");if(!L||!ids.length)return;try{await L.cancel({notifications:ids.map(id=>({id}))})}catch(e){}}
 async function nSchedule(list){const L=NPlug("LocalNotifications");if(!L||nPerm!=="granted"||!list.length)return;
   try{await L.schedule({notifications:list.map(n=>({id:n.id,title:n.title,body:n.body,schedule:{at:new Date(n.at),allowWhileIdle:true},...(n.sound?{sound:n.sound}:{}),extra:{go:n.go||""}}))})}catch(e){}}
@@ -1663,7 +1674,7 @@ async function nativeBgSync(){if(!NATIVE)return;await nCancel([N_ID.rest,N_ID.id
 async function nativeDaily(){if(!NATIVE||nPerm!=="granted"||S.lock||S.example)return;const R=remCfg(),now=Date.now(),t=todayKey(),ids=[],L=[];
   const at=(day,tm)=>{const [h,m]=String(tm).split(":").map(Number),d=new Date(day+"T12:00:00");d.setHours(h||0,m||0,0,0);return d.getTime()};
   const ups=upcomingPlans(),trained=ofType("workout").some(w=>w.date===t);
-  const SB=R.sleep.on?sleepBase():null;
+  const SB=R.sleep.on?sleepBase():null,PN=pulseNudge();ids.push(N_ID.pulse);if(PN&&PN.at>now)L.push({id:N_ID.pulse,title:PN.title,body:PN.body,at:PN.at,go:"pulse"});
   for(let i=0;i<7;i++){const day=addDays(t,i);ids.push(N_ID.food+i,N_ID.ready+i,N_ID.plan+i,N_ID.gym+i,N_ID.sleep+i);
     if(R.sleep.on){const N=sleepNight(day,SB),w=nightDate(N,N.wind).getTime(),m=sleepMsg(N,day,i===0?sleepTip(day):null);if(w>now)L.push({id:N_ID.sleep+i,title:m.title,body:m.body,at:w,go:"sleep"})}
     if(R.food.on){const d=S.docs["day_"+day];if(!(d&&d.foods&&d.foods.length)&&at(day,R.food.time)>now)L.push({id:N_ID.food+i,title:"Log today's food 🍽️",body:"Nothing logged yet today. A quick log keeps you on track.",at:at(day,R.food.time),go:"food"})}
@@ -1797,7 +1808,7 @@ function todayBody(){const I=heroInfo(),t=todayKey(),ws=weekStart(),G=myGoals()[
   return `${coachNote(I.cp)}${I.act}${gb}
     <div class="wkstats"><div><b>${done}${planned?"/"+planned:""}</b><span>Sessions this week</span></div>${NUM()?`<div><b>${pd}/${days}</b><span>Protein days</span></div>`:`<div><b>${(settings().habits||[]).filter(h=>(dayDoc(t).habits||{})[h]).length}/${(settings().habits||[]).length}</b><span>Habits today</span></div>`}<div><b>${planStreak().n?"🔥 "+planStreak().n:planStreak().best||0}</b><span>${planStreak().n?"In a row":"Best streak"}</span></div></div>
     ${!G?`<button class="btn ghost" style="align-self:flex-start;padding:2px 0" data-act="goGoals">+ Set a goal</button>`:""}
-    ${recoveryRow()}${watchPrompt()}
+    ${recoveryRow()}${watchPrompt()}${pulseRow()}
     ${isCoach()?trainClientRow():""}
     ${aheadInfo()?`<button class="duerow" data-tab="train"><span><b>You're ahead of schedule</b><span class="small muted" style="display:block">Bring your programme forward so it carries on from when you train</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}
     ${ciDue?`<button class="duerow" data-act="goCheckin"><span><b>Weekly check-in due Sunday</b><span class="small muted" style="display:block">Weight, photos and how the week felt · 2 min</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`:""}`}
@@ -2383,7 +2394,7 @@ function render(){bumpDocs();
   if(S.onboard){tb.hidden=true;const fe=document.activeElement,fid=fe&&fe.id;document.getElementById("app").innerHTML=renderOnboard();if(fid){const el=document.getElementById(fid);if(el)el.focus()}return}
   tb.hidden=false;
   if(S.tab==="body"||S.tab==="checkin"){S.youView=S.tab==="body"?"body":"checkin";S.tab="you"}
-  document.getElementById("sheetRoot").innerHTML=S.rdPop?rdPopup():S.sheet?quickSheet():"";
+  document.getElementById("sheetRoot").innerHTML=S.pulse?pulseView():S.rdPop?rdPopup():S.sheet?quickSheet():"";
   if(playerOn()){tb.hidden=true;const vr=document.getElementById("viewerRoot"),op=vr.querySelector(".player"),fe=document.activeElement,fk=op&&fe&&op.contains(fe)?wpFocusKey(fe):null,sel=fk?fe.selectionStart:null;
     S._wpScroll=S._wpScroll||{};if(op&&S._wpKey)S._wpScroll[S._wpKey]=op.scrollTop;
     vr.innerHTML=workoutPlayer();const np=vr.querySelector(".player"),key=wpScreenKey();S._wpKey=key;
@@ -3032,7 +3043,7 @@ function sharePanel(){if(S.example)return"";const sh=S.share||(S.share={weeks:8,
 function buildReport(n,notes,shareId){const pr=S.docs.profile||{},ws0=weekStart(),weeks=[];for(let i=n-1;i>=0;i--)weeks.push(weekSummary(addDays(ws0,-7*i),notes));
   const health=pr.shareHealth?{...(pr.health?{date:pr.health.date,flagged:pr.health.flagged,yes:HEALTH_Q.filter(([k])=>pr.health.answers[k]==="yes").map(([,q])=>q)}:{}),
     pain:ofType("pain").filter(x=>x.status!=="resolved").map(x=>({area:x.area,side:x.side,since:x.date,score:(x.log&&x.log.length?x.log[x.log.length-1].score:x.score),kind:x.kind,flags:(x.flags||[]).length}))}:null;
-  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,...(e.swapFrom?{from:e.swapFrom}:{}),sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:pr.shareWatch?recoveryReport():null,watch:pr.shareWatch?watchReport():null,age:ageFromDob(pr.dob)||+pr.hrAge||null,maxHR:+pr.maxHR||null}}
+  return {app:"Project Fitness",kind:"progress-report",v:1,shareId:shareId||pr.shareId||"",name:pr.name||activeProf().name,goal:pr.goal||"",targets:pr.habitsOnly?null:settings().targets,habitsOnly:!!pr.habitsOnly,habits:settings().habits||[],health,generated:new Date().toISOString(),weeks,planDone:ofType("workout").filter(w=>w.planId).slice(0,80).map(w=>({id:w.planId,date:w.date,sets:(w.exercises||[]).map(e=>({name:e.name,...(e.swapFrom?{from:e.swapFrom}:{}),sets:e.sets.map(x=>[x.kg,x.reps??x.secs])}))})),recent:recentActivity(),goals:goalsReport(),lifts:liftsReport(),recovery:pr.shareWatch?recoveryReport():null,watch:pr.shareWatch?watchReport():null,pulseFlags:pulseFlagsReport(),age:ageFromDob(pr.dob)||+pr.hrAge||null,maxHR:+pr.maxHR||null}}
 function liftsReport(){const o={};let n=0;for(const [k,L] of exIndex(0)){if(n++>=80)break;o[k]=L.slice(0,3).map(h=>({date:h.date,sets:(h.sets||[]).map(x=>x.secs!=null&&(x.reps==null||x.reps==="")?{kg:+x.kg||0,secs:+x.secs||0}:{kg:+x.kg||0,reps:+x.reps||0})}))}return o}
 function recentActivity(){const days=Object.keys(S.docs).filter(k=>k.startsWith("day_")&&S.docs[k]&&(S.docs[k].foods||[]).length).map(k=>k.slice(4)).sort();
   const ready=[];for(let i=0;i<7;i++){const d=addDays(todayKey(),-i),r=S.docs["ready_"+d];if(r)ready.push({d,s:readinessScore(r)})}
@@ -3049,7 +3060,7 @@ function coachSeg(){return `<div class="seg" role="tablist" aria-label="Check-in
 function importReport(file){const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j||j.kind!=="progress-report"||!Array.isArray(j.weeks))throw 0;
     const id="client_"+String(j.shareId||j.name).replace(/[^a-z0-9_-]/gi,""),old=S.docs[id]||{};
     const byWeek={};(old.weeks||[]).forEach(w=>byWeek[w.week]=w);j.weeks.forEach(w=>byWeek[w.week]=w);
-    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],lifts:j.lifts||old.lifts||null,recovery:j.recovery||old.recovery||null,watch:j.watch||old.watch||null,hcNotes:old.hcNotes||{},age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
+    save(id,{type:"client",date:todayKey(),shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],lifts:j.lifts||old.lifts||null,recovery:j.recovery||old.recovery||null,watch:j.watch||old.watch||null,pulseFlags:j.pulseFlags||old.pulseFlags||null,hcNotes:old.hcNotes||{},age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,weeks:Object.values(byWeek).sort((a,b)=>a.week<b.week?-1:1)});
     S.clientOpen=id;render();toast((old.name?"Updated ":"Added ")+j.name)}catch(e){toast("That file isn't a progress report")}};r.readAsText(file)}
 const CLIENT_COLS=[["week","Week",w=>fmtDay(w.week)],["weight","Weight kg"],["daysLogged","Days logged"],["kcal","Avg kcal"],["protein","Avg protein g"],["onTarget","Days on target"],["habitsPct","Habits %"],["sessions","Sessions"],["cardioMins","Cardio min"],["readiness","Readiness"],["recovery","Recovery sessions"],["volume","Volume kg"],["adherence","Adherence /5"],["motivation","Motivation /5"],["energy","Energy /5"],["sleep","Sleep /5"],["stress","Stress /5"],["hunger","Cravings /5"],["foodrel","Food & body /5"]];
 function chartSVG(weeks,series,o={}){const W=320,H=150,L=36,R=8,T=10,B=22,n=weeks.length;
@@ -3268,6 +3279,7 @@ function clientDetail(id,c){const wk=c.weeks,t=c.targets||{},hasNotes=wk.some(w=
   ${plansSection(c)}
   ${clientSessionsPanel(id,c)}
   ${watchPanel(id,c)}
+  ${(c.pulseFlags||[]).length?`<section class="panel"><div class="spread"><h2>Notes from Pulse</h2><span class="label">sent by ${esc(firstName(c.name))}</span></div>${c.pulseFlags.slice().reverse().map(f=>`<div class="item small"><b>${fmtDay(f.date)}</b> · ${esc(f.text)}</div>`).join("")}<span class="small muted">${esc(firstName(c.name))} chose to send these from their Pulse chats. Their conversations stay private.</span></section>`:""}
   ${coachSetPanel(c)}
   ${feedbackPanel(c)}
   <section class="panel"><h2>Bodyweight</h2>${chartSVG(wk,[{key:"weight",label:"Weight (kg)",color:"var(--accent)"}],{label:"Weekly average bodyweight"})}</section>
@@ -3298,6 +3310,7 @@ function hcOut(D,ws){const rk=rhrKey(D),ds=wkKeys(ws);return HM.map(([k,l,u,dp,b
 // three things worth talking about, most important first. Trends only: never a diagnosis
 function hcPoints(c,D,ws){const nm=esc(firstName(c.name)),A=hcStats(D,ws),B=hcStats(D,addDays(ws,-7)),O=hcOut(D,ws),P=[],add=(pri,tone,txt)=>P.push({pri,tone,txt});
   const el=Math.min(7,Math.floor((new Date(todayKey())-new Date(ws))/864e5)+1);
+  (c.pulseFlags||[]).filter(f=>f.date>=ws&&f.date<=addDays(ws,6)).slice(-2).forEach(f=>add(0.5,"amber",`${nm} sent you a note through Pulse on ${DOW[(new Date(f.date+"T12:00:00").getDay()+6)%7]}: "${esc(f.text)}"`));
   if(el>=4&&A.n<el/2){add(0,"amber",`Not much watch data this week (${A.n} day${A.n===1?"":"s"}). Remind ${nm} to wear their watch to sleep and open the app each morning so it syncs.`)}
   O.filter(o=>["resp","temp","spo2"].includes(o.k)&&o.out>=2).forEach(o=>add(1,"low",`${o.l} was outside ${nm}'s normal on ${o.out} nights. This often goes with a cold coming on, poor sleep, alcohol or stress. Ask how they feel, and if it carries on or they feel unwell, suggest they check with a GP.`));
   const rh=O.find(o=>o.k==="rhr"||o.k==="hrMin");if(rh&&rh.R&&rh.hi>=3)add(2,"amber",`${rh.l} ran above ${nm}'s normal on ${rh.hi} days (average ${fmtM(rh.avg,0)} vs a normal ${fmtM(rh.R.m,0)} bpm). Usually tiredness, stress, poor sleep, alcohol or something coming on. Ask how they've felt and ease off if it continues.`);
@@ -3388,6 +3401,83 @@ function watchPanel(id,c){const W=c.watch;if((!W||!W.days)&&c.recovery&&c.recove
     ${coachCallHtml(coachCall(D,last,{}),firstName(c.name))}
     ${c.recovery&&c.recovery.length>1?chartSVG(c.recovery,[{key:"score",label:"Recovery",color:"var(--accent)"}],{min:0,max:100,label:"Daily recovery score out of 100"}):""}
     <button class="btn primary" style="align-self:flex-start" data-act="hcOpen" data-id="${id}">Weekly health check ›</button></section>`}
+/* ---------- Pulse: the in-app motivator (text chat) ----------
+   Replies come from the "companion" server function, which calls an AI service (Anthropic) with the person's messages and, only if they allow it,
+   a short training summary (pulseContext). Consent first (Apple 5.1.2(i)), 18+, chats and remembered notes live in the pulsechat doc (their account),
+   safety answers for crisis, urgent symptoms and eating-disorder signs are fixed on the server. "Tell my coach" sends a note only after a tap. */
+const PULSE_FN=()=>CLOUD_URL?CLOUD_URL+"/functions/v1/companion":"";
+const pulseDoc=()=>S.docs.pulsechat||{type:"pulsechat",msgs:[],mem:[],flags:[]};
+const pulseOK=()=>!!((S.docs.profile||{}).pulse||{}).ok;
+// Pulse only shows once the server function is deployed with its AI key (checked once at start-up, remembered between launches)
+const pulseReady=()=>S.pulseReady!=null?S.pulseReady:lsGet("pf-pulseready")==="1";
+async function pulseProbe(){if(!PULSE_FN())return;try{const r=await fetch(PULSE_FN(),{headers:{apikey:CLOUD_KEY}}),j=r.ok?await r.json():{};const was=pulseReady();S.pulseReady=!!j.ready;lsSet("pf-pulseready",S.pulseReady?"1":"0");if(was!==S.pulseReady)render()}catch(e){}}
+setTimeout(pulseProbe,2000);
+const coachName=()=>{const l=(CL.links||[])[0];return l&&l.coach_name?firstName(l.coach_name):""};
+const PULSE_CHIPS=["I can't be bothered today","I'm short on time","Something's aching","I've had a bad week","Help me plan this week","I hit a PB!"];
+function pulseContext(){const out=[],t=todayKey(),pr=S.docs.profile||{},add=f=>{try{const v=f();if(v)out.push(v)}catch(e){}};
+  add(()=>`Today: ${new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}, ${new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening"}`);
+  add(()=>pr.goal&&`Goal: ${GOALS[pr.goal]||pr.goal}`);
+  add(()=>{const C=hasWatchData()?myCoachCall(t):null;return C&&`App's training call today: ${C.title}. ${C.why.slice(0,3).map(w=>w.t).join("; ")}`});
+  add(()=>{const R=hasWatchData()?recoveryFor(t):null,x=((S.docs.hkdays||{}).days||{})[t]||{};return [R&&!R.building?`recovery ${R.score}%`:"",x.sleep!=null?`slept ${fmtHM(x.sleep)}`:"",x.strain!=null?`strain so far ${fmtM(x.strain,1)}`:""].filter(Boolean).join(", ")});
+  add(()=>{const r=readinessScore(S.docs["ready_"+t]);return r!=null&&`Morning check-in: ${r}/100`});
+  add(()=>{const W=[...ofType("workout"),...ofType("cardio")].sort((a,b)=>a.date<b.date?1:-1);if(!W.length)return "No sessions logged yet";const last=W[0],d=daysSince(last.date),wk=W.filter(w=>w.date>addDays(t,-7)).length;
+    return `Sessions in the last 7 days: ${wk}. Last session: ${last.name||last.activity||"session"} ${d===0?"today":d===1?"yesterday":d+" days ago"}. Recent: ${W.slice(0,5).map(w=>`${fmtDay(w.date)} ${w.name||w.activity||"session"}${w.mins?" "+w.mins+" min":""}`).join("; ")}`});
+  add(()=>{const U=upcomingPlans().slice(0,3);return U.length&&`Coming up from their coach: ${U.map(p=>`${planDayLabel(p.date)} ${p.name||p.title||"session"}`).join("; ")}`});
+  add(()=>{const S1=planStreak();return S1&&S1.n?`Plan streak: ${S1.n} sessions in a row`:""});
+  add(()=>{if(!remCfg().sleep.on)return"";const N=sleepNight(t);return `Bedtime plan tonight: lights out ${hm(N.bed)}, wake ${hm(N.wake)}`});
+  add(()=>{const d=dayDoc(t),tot=totals(d),tg=settings().targets||{};return tot.kcal>0&&tg.kcal?`Food logged today: ${Math.round(tot.kcal)} of ${tg.kcal} kcal, protein ${Math.round(tot.protein||0)} of ${tg.protein||"?"} g`:""});
+  return out.join("\n").slice(0,3000)}
+function pulseView(){const P=pulseDoc(),pr=S.docs.profile||{},cn=coachName();
+  const head=`<div class="pulsehead"><button class="pbtn" data-act="pulseClose" aria-label="Close">✕</button><div style="flex:1;min-width:0"><b>Pulse</b><span class="small muted" style="display:block">Your motivator${cn?" · set up by "+esc(cn):""}</span></div><button class="pbtn" data-act="setPage" data-v="pulse" aria-label="Pulse settings">⚙</button></div>`;
+  if(!CL.user)return `<div class="pulsewrap" role="dialog" aria-label="Pulse">${head}<div class="pulsebody"><div class="panel"><h2>Sign in to chat</h2><p class="small">Pulse replies come from our server, so it needs your free Project Fitness account. Your training stays on your phone until you sign in.</p><button class="btn primary" data-act="setPage" data-v="cloud">Sign in or create an account</button></div></div></div>`;
+  if(!pulseOK())return `<div class="pulsewrap" role="dialog" aria-label="Pulse">${head}<div class="pulsebody"><div class="panel stack">
+      <h2>Meet Pulse</h2><p class="small">Pulse helps you stay consistent: talk through what's getting in the way, plan a short session on a busy day, or share a win. It's an AI, not a person, and it doesn't replace ${cn?esc(cn):"your coach"}.</p>
+      <div class="hint small"><b>How your data is used</b><span>To write each reply, your messages are sent to Anthropic, the AI company that runs Pulse's replies. Under Anthropic's terms for business customers, it doesn't use them to train its AI. Your chat and the notes Pulse remembers are saved to your account; you can delete them any time in Settings › Pulse.</span></div>
+      <label class="habit" style="align-items:flex-start"><input type="checkbox" id="pulseCtx" checked><span class="small"><b>Let Pulse see my training summary</b><span class="muted" style="display:block">Today's training call, recent sessions, sleep, check-in, goal and what's planned, so its advice fits your day. Untick to only share what you type.</span></span></label>
+      <label class="habit" style="align-items:flex-start"><input type="checkbox" id="pulseAge"><span class="small"><b>I'm 18 or over</b></span></label>
+      <p class="small muted" style="margin:0">Pulse isn't medical advice. For pain, illness or how you're feeling, it will point you to a GP, NHS 111 or a helpline.</p>
+      <div class="row"><button class="btn primary" data-act="pulseAgree">Agree and start</button><button class="btn ghost" data-act="pulseClose">Not now</button></div></div></div></div>`;
+  const msgs=P.msgs.slice(-60),busy=S.pulseBusy;
+  const first=!msgs.length?`<div class="pmsg a"><span>Hi${pr.name?" "+esc(firstName(pr.name)):""}! I'm Pulse. What's on your mind about training today? Pick one below or just type.</span></div>`:"";
+  return `<div class="pulsewrap" role="dialog" aria-label="Pulse">${head}
+    <div class="pulsebody" id="pulseList" aria-live="polite">${first}${msgs.map((m,i)=>`<div class="pmsg ${m.r}${m.safety?" safety":""}"><span>${esc(m.t)}</span>${m.safety?pulseSafety(m.safety):""}</div>`).join("")}
+      ${S.pulseFlag?`<div class="pmsg a flagask"><span><b>Tell ${cn?esc(cn):"your coach"}?</b><br>"${esc(S.pulseFlag)}"</span><div class="row" style="gap:6px;margin-top:6px"><button class="btn primary" data-act="pulseFlagSend">Send to ${cn?esc(cn):"coach"}</button><button class="btn ghost" data-act="pulseFlagNo">Not now</button></div></div>`:""}
+      ${busy?`<div class="pmsg a"><span class="dots" aria-label="Pulse is typing"><i></i><i></i><i></i></span></div>`:""}
+      ${S.pulseErr?`<div class="pmsg a err"><span>${esc(S.pulseErr)}</span>${S.pulseRetry?`<button class="linkbtn small" data-act="pulseRetry">Try again</button>`:""}</div>`:""}</div>
+    <div class="pulsefoot">${!busy&&(msgs.length<2||!msgs.length)?`<div class="pchips">${PULSE_CHIPS.map(c=>`<button class="qchip" data-act="pulseChip" data-v="${esc(c)}">${esc(c)}</button>`).join("")}</div>`:""}
+      <form class="row" data-form="pulse" style="gap:8px"><input id="pulseIn" autocomplete="off" maxlength="1500" placeholder="Message Pulse" value="${esc(S.pulseDraft||"")}" aria-label="Message Pulse"><button class="btn primary" ${busy?"disabled":""} aria-label="Send">Send</button></form>
+      <span class="small muted" style="text-align:center">Pulse is an AI and can get things wrong. Not medical advice.</span></div></div>`}
+function pulseSafety(k){const b=(n,l)=>`<a class="btn" href="tel:${n}">${l}</a>`;
+  return `<div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">${k==="crisis"?b("116123","Call Samaritans 116 123")+b("999","Call 999"):k==="urgent"?b("999","Call 999")+b("111","Call NHS 111"):k==="eating"?b("08088010677","Call Beat 0808 801 0677"):""}</div>`}
+function pulseSave(f){const P=clone(pulseDoc());f(P);P.msgs=P.msgs.slice(-200);P.mem=(P.mem||[]).slice(-30);save("pulsechat",P)}
+async function pulseSend(text){text=String(text||"").trim();if(!text||S.pulseBusy)return;S.pulseDraft="";S.pulseErr="";S.pulseRetry=false;
+  pulseSave(P=>P.msgs.push({r:"u",t:text,at:Date.now()}));S.pulseBusy=true;render();pulseScroll();await pulseAsk()}
+async function pulseAsk(){const P=pulseDoc(),pr=S.docs.profile||{};S.pulseBusy=true;
+  try{const c=await sbClient(),{data}=await c.auth.getSession(),tok=data&&data.session&&data.session.access_token;if(!tok)throw new Error("Sign in again to chat with Pulse.");
+    const r=await fetch(PULSE_FN(),{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:CLOUD_KEY,"content-type":"application/json"},
+      body:JSON.stringify({messages:P.msgs.slice(-12).map(m=>({role:m.r==="u"?"user":"assistant",content:m.t})),context:(pr.pulse||{}).ctx===false?"":pulseContext(),memory:P.mem||[],name:firstName(pr.name||activeProf().name||""),coach:coachName()})});
+    const j=await r.json().catch(()=>({}));if(!r.ok||j.error){S.pulseRetry=!j.limit;throw new Error(j.error||"Pulse is having a rest. Try again in a minute.")}
+    pulseSave(Q=>{Q.msgs.push({r:"a",t:j.reply,at:Date.now(),...(j.safety?{safety:j.safety}:{})});(j.remember||[]).forEach(f=>{if(!Q.mem.includes(f))Q.mem.push(f)})});
+    if(j.flag&&(CL.links||[]).length)S.pulseFlag=j.flag;S.pulseLeft=j.left}
+  catch(e){S.pulseErr=(e&&e.message)||"Pulse couldn't reply. Check your connection.";if(S.pulseRetry==null)S.pulseRetry=true}
+  finally{S.pulseBusy=false;render();pulseScroll()}}
+const pulseScroll=()=>setTimeout(()=>{const L=document.getElementById("pulseList");if(L)L.scrollTop=L.scrollHeight},30);
+function pulseRow(){if(!CLOUD_URL||!pulseReady())return"";const W=[...ofType("workout"),...ofType("cardio")].sort((a,b)=>a.date<b.date?1:-1),gap=W.length?daysSince(W[0].date):null;
+  return `<button class="duerow" data-act="pulseOpen"><span><b>Talk to Pulse</b><span class="small muted" style="display:block">${gap!=null&&gap>=4?`${gap} days since your last session. Talk it through and plan a short one`:"Your motivator for the days you're not feeling it"}</span></span><span style="color:var(--accent);font-weight:800">›</span></button>`}
+function setPulse(){const pr=S.docs.profile||{},pu=pr.pulse||{},P=pulseDoc();
+  return `<section class="panel"><h2>Pulse</h2><p class="small">Your AI motivator: talk through what's getting in the way of training and plan the next step. Replies are written by Anthropic's AI from your messages${pu.ctx===false?"":" and your training summary"}.</p>
+    ${pu.ok?`<label class="habit" style="align-items:flex-start"><input type="checkbox" data-act="pulseCtxSet" ${pu.ctx===false?"":"checked"}><span class="small"><b>Let Pulse see my training summary</b><span class="muted" style="display:block">Today's training call, recent sessions, sleep, check-in, goal and what's planned.</span></span></label>
+      <label class="habit" style="align-items:flex-start"><input type="checkbox" data-act="pulseNudge" ${pu.nudge===false?"":"checked"}><span class="small"><b>Check in when I've been away</b><span class="muted" style="display:block">A friendly message if you haven't trained for 3 days.</span></span></label>`:`<button class="btn primary" style="align-self:flex-start" data-act="pulseOpen">Meet Pulse</button>`}</section>
+  ${(P.mem||[]).length?`<section class="panel"><h2>What Pulse remembers</h2>${P.mem.map((m,i)=>`<div class="spread small" style="padding:3px 0;gap:8px"><span>${esc(m)}</span><button class="linkbtn small" data-act="pulseForget" data-i="${i}" aria-label="Forget this">Forget</button></div>`).join("")}</section>`:""}
+  ${pu.ok||P.msgs.length?`<section class="panel"><h2>Your chats</h2><p class="small muted" style="margin:0">${P.msgs.length} messages saved to your account.${(P.flags||[]).length?` ${P.flags.length} note${P.flags.length>1?"s":""} sent to your coach.`:""}</p>
+    <div class="row"><button class="btn ghost" style="color:var(--protein)" data-act="pulseWipe">${S.pulseWipe?"Tap again to delete everything":"Delete chats and notes"}</button>${pu.ok?`<button class="btn ghost" data-act="pulseOff">Stop using Pulse</button>`:""}</div></section>`:""}`}
+// a nudge when someone has been away: tomorrow at 18:00 if the last session was 3+ days ago (iPhone notification; the web shows the Today row)
+function pulseNudge(){const pu=(S.docs.profile||{}).pulse||{};if(!pu.ok||pu.nudge===false)return null;const W=[...ofType("workout"),...ofType("cardio")].sort((a,b)=>a.date<b.date?1:-1);if(!W.length)return null;
+  const gap=daysSince(W[0].date);if(gap<2)return null;const at=new Date(addDays(todayKey(),gap>=3?0:1)+"T18:00:00");if(at.getTime()<Date.now())at.setDate(at.getDate()+1);
+  const L=["Not seen you in the gym for a few days. No guilt, just checking in: want to plan a short one?","Pulse here 👋 Busy week? Even 20 minutes counts. Tell me what's going on and we'll make a plan.","It's been a few days. What's one small thing you could do tomorrow? I can help you fit it in."];
+  return {at:at.getTime(),title:"Pulse",body:L[W.length%L.length]}}
+// the coach sees notes the client chose to send from Pulse
+function pulseFlagsReport(){const F=(pulseDoc().flags||[]).filter(f=>f.at>Date.now()-21*864e5);return F.length?F.map(f=>({date:hkLocalDate(new Date(f.at)),text:f.text})):null}
 /* ---------- coach-led sessions: train a client in person and log it for them ---------- */
 const firstName=n=>String(n||"").trim().split(/\s+/)[0]||"them";
 const csOf=cid=>ofType("csession").filter(x=>x.clientId===cid).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:String(b.id).localeCompare(String(a.id)));
@@ -3679,7 +3769,7 @@ async function pushReports(force){if(!CL.user||!CL.links||!CL.links.length)retur
   const c=await sbClient();if(!c)return;for(const l of CL.links){await c.from("reports").upsert({client_id:CL.user.id,coach_id:l.coach_id,data:buildReport(12,!!l.include_notes,"u_"+CL.user.id)},{onConflict:"client_id,coach_id"})}}
 async function fetchClientReports(){const c=await sbClient();if(!c||!CL.user)return;const {data,error}=await c.from("reports").select("client_id,data,updated_at").eq("coach_id",CL.user.id);if(error||!data)return;
   let changed=false;data.forEach(r=>{const id="client_"+r.client_id,old=S.docs[id]||{},j=r.data||{};if(old.received===j.generated)return;
-    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,recovery:j.recovery||null,watch:j.watch||null,hcNotes:old.hcNotes||{},age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,_t:Date.now()};Cloud.queue(id);changed=true});
+    S.docs[id]={type:"client",date:todayKey(),clientUid:r.client_id,cloud:true,shareId:j.shareId,name:j.name,goal:j.goal,goals:j.goals||[],targets:j.targets,received:j.generated,health:j.health||null,habitsOnly:!!j.habitsOnly,notes:old.notes||"",measures:old.measures||[],weeks:j.weeks||[],planDone:j.planDone||[],recent:j.recent||null,habits:j.habits||null,lifts:j.lifts||null,recovery:j.recovery||null,watch:j.watch||null,pulseFlags:j.pulseFlags||null,hcNotes:old.hcNotes||{},age:j.age||old.age||null,maxHR:j.maxHR||old.maxHR||null,_t:Date.now()};Cloud.queue(id);changed=true});
   if(changed){saveLocal();render()}}
 /* ---------- coach-planned sessions ---------- */
 // The coach's copies live in their own synced data as "cplan_<id>"; the client receives them through the plans table.
@@ -3957,7 +4047,7 @@ function setCloud(){const coach=!!(S.docs.profile&&S.docs.profile.coach);if(coac
     <button class="btn" style="color:var(--protein);align-self:flex-start" data-act="deleteAccount">${CL.confirmDel?"Tap again to delete for good":"Delete my account"}</button></section>`}
 
 /* ---------- settings ---------- */
-const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["reminders","Reminders","Food, morning check-in, coach's session, workout left running"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["watch","Connect your watch","Apple Watch, Garmin, WHOOP, Oura, Fitbit, Polar: step by step"],["health","Apple Health","Save workouts and weigh-ins, read steps, sleep, heart rate"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
+const SET_PAGES=[["profile","Profile & account","Name, contact details, body stats and goal"],["cloud","Cloud account","Back up online, sync phones, share with a coach"],["users","Users","Add friends or clients, each with their own data"],["targets","Targets & habits","Calories, macros and daily habits"],["reminders","Reminders","Food, morning check-in, coach's session, workout left running"],["rest","Rest timer","Rest length, sound, vibration and notifications"],["watch","Connect your watch","Apple Watch, Garmin, WHOOP, Oura, Fitbit, Polar: step by step"],["health","Apple Health","Save workouts and weigh-ins, read steps, sleep, heart rate"],["pulse","Pulse","Your AI motivator: chats, what it remembers, privacy"],["look","Appearance","App colour, quote backdrop, light or dark"],["data","Data & backup","Save a backup or move data to a new phone"],["about","About","How your data is stored"]];
 const GOALS={lose:"Lose fat",maintain:"Maintain",gain:"Build muscle",perform:"Performance"};
 const ACT=[["1.2","Mostly sitting, little exercise"],["1.375","Light: 1–3 sessions a week"],["1.55","Moderate: 3–5 sessions a week"],["1.725","Very active: 6–7 sessions or a physical job"]];
 const initials=n=>String(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()||"?";
@@ -3975,9 +4065,9 @@ function renderSettings(){const pg=S.setPage,me=activeProf(),pr=S.docs.profile||
   if(!pg)return `<header class="top"><div><button class="btn ghost back" data-tab="you">‹ You</button><h1>Settings</h1><div class="sub">Using as ${esc(me.name)}</div></div></header>
     <div class="stack"><section class="panel"><div class="who-row"><span class="avatar big">${esc(initials(me.name))}</span><div style="min-width:0"><b style="font-size:17px">${esc(me.name)}</b><div class="small muted">${esc([GOALS[pr.goal],pr.email].filter(Boolean).join(" · ")||"Add your details in Profile & account")}</div></div></div>
       ${PROF.list.length>1?`<button class="btn" style="align-self:flex-start" data-act="setPage" data-v="users">Switch user</button>`:""}</section>
-    <section class="panel" style="padding:2px 16px">${SET_PAGES.filter(x=>x[0]!=="health"||NATIVE).map(([k,l,d])=>`<button class="setrow" data-act="setPage" data-v="${k}"><span style="min-width:0"><b>${l}</b><span class="small muted" style="display:block">${k==="users"?PROF.list.length+" user"+(PROF.list.length===1?"":"s")+" on this phone":(k==="health"||k==="watch")&&hkOn()?`<b class="good">Connected ✓</b> · ${k==="health"?"see what's coming in":"set-up guide"}`:d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</section></div>`;
+    <section class="panel" style="padding:2px 16px">${SET_PAGES.filter(x=>(x[0]!=="health"||NATIVE)&&(x[0]!=="pulse"||pulseReady()||pulseOK())).map(([k,l,d])=>`<button class="setrow" data-act="setPage" data-v="${k}"><span style="min-width:0"><b>${l}</b><span class="small muted" style="display:block">${k==="users"?PROF.list.length+" user"+(PROF.list.length===1?"":"s")+" on this phone":(k==="health"||k==="watch")&&hkOn()?`<b class="good">Connected ✓</b> · ${k==="health"?"see what's coming in":"set-up guide"}`:d}</span></span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</section></div>`;
   const title=(SET_PAGES.find(x=>x[0]===pg)||[0,""])[1];
-  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="reminders"?setReminders():pg==="look"?lookPanel():pg==="health"?setHealth():pg==="watch"?setWatch():pg==="data"?setData():setAbout();
+  const body=pg==="profile"?setProfile():pg==="users"?setUsers():pg==="targets"?setTargets():pg==="cloud"?setCloud():pg==="rest"?setRest():pg==="reminders"?setReminders():pg==="look"?lookPanel():pg==="health"?setHealth():pg==="pulse"?setPulse():pg==="watch"?setWatch():pg==="data"?setData():setAbout();
   return `<header class="top"><div><button class="btn ghost back" data-act="setPage" data-v="">‹ Settings</button><h1>${title}</h1></div></header><div class="stack">${body}</div>`}
 function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??"");
   const sel=(id,opts,cur)=>`<select id="${id}">${opts.map(([val,l])=>`<option value="${val}" ${String(cur??"")===String(val)?"selected":""}>${l}</option>`).join("")}</select>`;
@@ -4258,7 +4348,18 @@ document.addEventListener("click",e=>{
     case "hkOff":{lsSet(hkKey(),"0");const st=clone(settings());st.health={...(st.health||{}),on:false};save("settings",st);toast("Apple Health turned off here");break}
     case "hkPull":hkPull(true).then(()=>toast("Updated from Apple Health"));break;
     case "hkCheck":S.hkSeen=0;hkCheckNow().then(()=>{render();const F=hkFreshState();toast(F.k==="live"?"Data is coming in live ✓":F.k==="recent"?"Up to date. Latest data "+ago(Date.now()-hkFreshGet().at):"No new data yet. Open your watch's app so it syncs")});break;
-    case "setPage":S.setPage=ds.v||null;if(ds.v&&S.tab!=="settings"){S.tab="settings"}S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
+    case "pulseOpen":S.pulse=true;S.pulseErr="";render();pulseScroll();break;
+    case "pulseClose":S.pulse=false;render();break;
+    case "pulseAgree":{const ag=document.getElementById("pulseAge"),cx=document.getElementById("pulseCtx");if(!ag||!ag.checked){toast("Pulse is for adults: tick that you're 18 or over");break}
+      save("profile",{...(S.docs.profile||{type:"profile"}),pulse:{ok:true,at:Date.now(),ctx:!!(cx&&cx.checked),nudge:true}});render();break}
+    case "pulseChip":pulseSend(ds.v);break;
+    case "pulseRetry":S.pulseErr="";S.pulseRetry=false;render();pulseAsk();break;
+    case "pulseFlagSend":{const txt=S.pulseFlag;S.pulseFlag=null;pulseSave(P=>{P.flags=[...(P.flags||[]),{at:Date.now(),text:txt}];P.msgs.push({r:"a",t:`Sent to ${coachName()||"your coach"}. They'll see it on your page.`,at:Date.now()})});CL.user&&pushReports(true);render();pulseScroll();break}
+    case "pulseFlagNo":S.pulseFlag=null;render();break;
+    case "pulseForget":pulseSave(P=>{P.mem.splice(+ds.i,1)});render();break;
+    case "pulseWipe":if(!S.pulseWipe){S.pulseWipe=true;render();setTimeout(()=>{S.pulseWipe=false;render()},6000);break}S.pulseWipe=false;save("pulsechat",{type:"pulsechat",msgs:[],mem:[],flags:[]});toast("Pulse chats and notes deleted");render();break;
+    case "pulseOff":save("profile",{...(S.docs.profile||{type:"profile"}),pulse:{ok:false}});S.pulse=false;toast("Pulse is off. Your chats stay until you delete them");render();break;
+    case "setPage":S.pulse=false;S.setPage=ds.v||null;if(ds.v&&S.tab!=="settings"){S.tab="settings"}S.confirmDel=null;S.confirmWipe=false;S.editHabits=null;render();window.scrollTo(0,0);break;
     case "switchUser":case "lockSwitch":switchUser(ds.id);break;
     case "lockCancel":S.lock=null;render();break;
     case "delUser":{if(S.confirmDel!==ds.id){S.confirmDel=ds.id;render();break}const u=PROF.list.find(x=>x.id===ds.id);PROF.list=PROF.list.filter(x=>x.id!==ds.id);
@@ -4582,6 +4683,7 @@ document.addEventListener("change",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="delLocal"){CL.delLocal=t.checked}
   if(ds.act==="linkNotes"){setNotes(ds.id,t.checked)}
   if(ds.act==="hqConsent"){const h=ds.p==="ob"?(S.onboard.d.health||(S.onboard.d.health={})):S.healthDraft;h.consent=t.checked}
+  if(ds.act==="pulseCtxSet"||ds.act==="pulseNudge"){const pr=S.docs.profile||{type:"profile"};save("profile",{...pr,pulse:{...(pr.pulse||{}),[ds.act==="pulseCtxSet"?"ctx":"nudge"]:t.checked}});if(ds.act==="pulseNudge")nativeDaily()}
   if(ds.act==="shareWatch"){save("profile",{...(S.docs.profile||{type:"profile"}),shareWatch:t.checked});toast(t.checked?"Your coach will see your watch data":"Watch data no longer shared");window.Cloud&&CL.user&&pushReports(true)}
   if(ds.act==="shareHealth"){save("profile",{...(S.docs.profile||{}),shareHealth:t.checked});window.Cloud&&CL.user&&pushReports(true)}
   if(ds.act==="habitsOnly"){const p=S.docs.profile||{type:"profile",name:activeProf().name};if(p.minor&&!t.checked){t.checked=true;toast("Numbers stay hidden for under-18s");return}save("profile",{...p,habitsOnly:t.checked});toast(t.checked?"Numbers hidden. Focus on habits and portions":"Calorie and macro numbers shown")}
@@ -4614,6 +4716,7 @@ document.addEventListener("focusin",e=>{if(e.target.classList&&e.target.classLis
 document.addEventListener("beforeinput",e=>{if(e.target.classList&&e.target.classList.contains("wp-num"))e.target._typed=true});
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList&&e.target.classList.contains("wp-num")){e.preventDefault();e.target.blur()}});
 document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
+  if(t.id==="pulseIn"){S.pulseDraft=t.value;return}
   if(ds.act==="csNote"&&S.draftWorkout){S.draftWorkout.csNote=t.value;return}
   if(S.csDraft&&ds.act==="csF"){S.csDraft.targets[ds.k]=t.value;const T=S.csDraft.targets,el=document.getElementById("csSum");if(el)el.textContent=Math.round((+T.protein||0)*4+(+T.carbs||0)*4+(+T.fat||0)*9).toLocaleString("en-GB");return}
   if(S.csDraft&&ds.act==="csHab"){S.csDraft.habits=t.value.split("\n");return}
@@ -4651,6 +4754,7 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
   if(ds.act==="habName")S.editHabits[+ds.i].name=t.value;
 });
 document.addEventListener("submit",e=>{e.preventDefault();
+  if(e.target.dataset.form==="pulse"){const el=document.getElementById("pulseIn");pulseSend(el&&el.value);return}
   if(e.target.dataset.form==="food"){const g=id=>document.getElementById(id).value;const name=g("ef_name").trim();if(!name){toast("Give the food a name");return}
     const old=e.target.dataset.i!=="new"?dayDoc(S.day).foods[+e.target.dataset.i]:null;
     const f={...(old&&old.base?{base:old.base,unit:old.unit,unitG:old.unitG,qty:old.qty}:{}),name,protein:+g("ef_protein")||0,carbs:+g("ef_carbs")||0,fat:+g("ef_fat")||0};f.kcal=g("ef_kcal")!==""?Math.round(+g("ef_kcal")):macroKcal(f);
@@ -4715,7 +4819,7 @@ if(!NATIVE&&"serviceWorker" in navigator&&window.isSecureContext&&location.proto
   if(!S.gateMode)S.gateMode="up";setTimeout(()=>{if(CL.user&&CL.syncedOnce)acceptInvite()},1500)})();
 async function acceptInvite(){const code=lsGet("pf-invite");if(!code||!CL.user)return;try{localStorage.removeItem("pf-invite")}catch(e){}if(CL.links&&CL.links.length)return;await linkCoach(code)}
 // opened from a reminder: jump to the right place
-function goTo(go){if(S.lock||S.onboard)return;if(go==="food"){S.tab="today";render();setTimeout(()=>{document.getElementById("logPanel")?.scrollIntoView({behavior:"smooth"});document.getElementById("q")?.focus()},150)}else if(go==="ready"||go==="sleep"||go==="recover"){S.tab="recover";render()}else if(go==="train"){S.tab="train";render()}}
+function goTo(go){if(S.lock||S.onboard)return;if(go==="food"){S.tab="today";render();setTimeout(()=>{document.getElementById("logPanel")?.scrollIntoView({behavior:"smooth"});document.getElementById("q")?.focus()},150)}else if(go==="ready"||go==="sleep"||go==="recover"){S.tab="recover";render()}else if(go==="pulse"){S.pulse=true;render();pulseScroll()}else if(go==="train"){S.tab="train";render()}}
 (()=>{const go=new URLSearchParams(location.search).get("go");if(!go)return;try{history.replaceState(null,"",location.pathname)}catch(e){}setTimeout(()=>goTo(go),400)})();
 render();
 (async function connect(){

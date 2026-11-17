@@ -179,9 +179,22 @@ The app code is already done. Before the next build, turn HealthKit on for the a
 5. Start a new build (Step 5). When it's in TestFlight, update the app, open **Settings › Apple Health › Connect Apple Health** and allow access on Apple's screen.
 
 **For App Review**, add this to the review notes:
-> Apple Health is optional (Settings › Apple Health). It saves finished workouts and weigh-ins to Health, reads steps to tick the user's steps habit, reads sleep to pre-fill the morning check-in, and reads weight to add weigh-ins from a smart scale. Health data is only used for these features, never for advertising.
+> Apple Health is optional (Settings › Apple Health). It saves finished workouts and weigh-ins to Health. It reads steps (to tick the steps habit), sleep with stages (sleep card, bedtime reminder, morning check-in), weight (smart-scale weigh-ins), heart rate (heart rate in workouts and daily training load), resting heart rate, heart rate variability, breathing rate, blood oxygen, wrist temperature and VO2 max (a daily recovery score, a "health monitor" comparing each reading with the person's own 30-day normal, and a daily training suggestion). Readings come from the user's watch via Apple Health, not the phone's sensors, and the app labels them as coaching guidance, not medical advice. If the user turns on "Share my watch data with my coach", a 30-day daily summary goes to the personal trainer they linked with. Health data isn't used for advertising or stored in iCloud. Bluetooth is used only to connect a heart-rate monitor (chest strap, or a watch broadcasting heart rate) during a workout; the reviewer can see the search screen from a workout via the heart icon.
 
 **App Privacy**: nothing new to tick. Health & Fitness › Health and Fitness are already declared.
+
+## Pulse, the AI motivator (version 1.1)
+
+Pulse is a text chat that helps clients stay consistent. The app code is done; it needs three things on the server before it works, and the App Store notes below when you submit it.
+
+1. **API key.** Go to console.anthropic.com, create an account (add a payment card; usage is pennies per conversation), then **API Keys › Create key**. Copy it. Don't paste it anywhere else.
+2. **Database.** Supabase dashboard › SQL Editor › New query › paste all of `supabase-update-5.sql` › Run.
+3. **Server function.** Supabase › Edge Functions › **Deploy a new function** › name it `companion` › paste `supabase/functions/companion/index.ts` › Deploy. Turn **Verify JWT off**, like reminders (the code checks who is signed in itself). Pulse stays hidden in the app until this step is done. Then Project Settings › Edge Functions › **Secrets** › add `ANTHROPIC_API_KEY` with the key from step 1. Optional: `COMPANION_DAILY_LIMIT` (default 40 messages a person a day).
+
+**App Privacy:** nothing new to tick (Health & Fitness and Other User Content are already declared). Apple's rule 5.1.2(i) needs a clear permission before data goes to a third-party AI: the app shows a consent screen naming Anthropic before the first chat.
+
+**For App Review**, add to the review notes:
+> Pulse (Today › Talk to Pulse) is an optional AI motivator for adults. Before the first chat it explains that messages, and optionally a short training summary, are sent to Anthropic to write replies, and asks the user to agree and confirm they're 18 or over. It needs a free account: use the demo account below. Replies are coaching only; messages about self-harm, chest pain or eating-disorder signs get fixed answers with UK helplines (Samaritans, 999/111, Beat) and never go to the AI. Users can delete their chats in Settings › Pulse.
 
 ## Updating the app later
 

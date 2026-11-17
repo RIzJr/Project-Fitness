@@ -6,8 +6,8 @@ export function createClient(url,key,opt){
   const sk=opt.auth.storageKey;let session=null;try{session=JSON.parse(localStorage.getItem(sk))}catch(e){}
   const listeners=[];const setS=(s,ev)=>{session=s;if(s)localStorage.setItem(sk,JSON.stringify(s));else localStorage.removeItem(sk);listeners.forEach(f=>f(ev,s))};
   const auth={getSession:async()=>({data:{session}}),onAuthStateChange:f=>{listeners.push(f);return{data:{subscription:{unsubscribe(){}}}}},
-    signUp:async({email,password})=>{if(DB.users.find(u=>u.email===email))return{error:{message:"User already registered"}};const u={id:crypto.randomUUID(),email,password};DB.users.push(u);persist();const s={user:{id:u.id,email}};setS(s,"SIGNED_IN");return{data:{user:s.user,session:s},error:null}},
-    signInWithPassword:async({email,password})=>{const u=DB.users.find(u=>u.email===email&&u.password===password);if(!u)return{data:{},error:{message:"Invalid login credentials"}};const s={user:{id:u.id,email}};setS(s,"SIGNED_IN");return{data:{user:s.user,session:s},error:null}},
+    signUp:async({email,password})=>{if(DB.users.find(u=>u.email===email))return{error:{message:"User already registered"}};const u={id:crypto.randomUUID(),email,password};DB.users.push(u);persist();const s={user:{id:u.id,email},access_token:"tok-"+u.id};setS(s,"SIGNED_IN");return{data:{user:s.user,session:s},error:null}},
+    signInWithPassword:async({email,password})=>{const u=DB.users.find(u=>u.email===email&&u.password===password);if(!u)return{data:{},error:{message:"Invalid login credentials"}};const s={user:{id:u.id,email},access_token:"tok-"+u.id};setS(s,"SIGNED_IN");return{data:{user:s.user,session:s},error:null}},
     signOut:async()=>{setS(null,"SIGNED_OUT");return{}},resetPasswordForEmail:async()=>({error:null}),updateUser:async()=>({data:{},error:null})};
   const uid=()=>session&&session.user.id;
   function from(t){const st={filters:[],op:"select"};
