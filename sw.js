@@ -1,5 +1,5 @@
 // Project Fitness service worker: works offline, always tries for the newest version first.
-const CACHE = "pf-v13";
+const CACHE = "pf-v14";
 const CORE = ["./", "./index.html", "./privacy.html", "./terms.html", "./manifest.json", "./demos.js", "./foods.js", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png", "./bell.wav"];
 
 self.addEventListener("install", e => {

@@ -1,0 +1,12 @@
+// New-style demos: the squat, seated dumbbell press and hip flexor stretch use the 3D figure, animate smoothly, still thumbnails stay still, others keep the stick figure.
+import { createRequire } from 'module';const { chromium } = createRequire(import.meta.url)('playwright');
+const b=await chromium.launch();const errs=[];
+for(const scheme of ['light','dark']){const ctx=await b.newContext({viewport:{width:390,height:844},colorScheme:scheme});const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));
+  await ctx.route('**/fonts.googleapis.com/**',r=>r.abort());await p.goto('http://localhost:8767/');await p.waitForFunction(()=>window.PFDEMO,null,{timeout:15000}).catch(()=>{});
+  await p.evaluate(()=>{const D=window.PFDEMO,box=document.createElement('div');box.id='ndtest';box.style.cssText='position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;flex-wrap:wrap;gap:6px;padding:8px;align-content:flex-start';
+    box.innerHTML=["Barbell back squat","Seated dumbbell shoulder press","Kneeling hip flexor stretch","Bench press"].map(n=>`<div style="background:var(--sunk);border-radius:10px">${D.demoSVG(n,180)}</div>`).join('')+["Barbell back squat","Seated dumbbell shoulder press","Kneeling hip flexor stretch"].map(n=>`<div style="background:var(--surface)">${D.demoSVG(n,40,1)}</div>`).join('');document.body.appendChild(box)});
+  const snap=()=>p.evaluate(()=>[...document.querySelectorAll('#ndtest svg')].map(s=>s.innerHTML.length+':'+s.innerHTML.slice(200,260)));
+  const a=await snap();await p.waitForTimeout(1600);const c=await snap();
+  console.log(scheme,'| new style:',await p.locator('#ndtest svg.nfig').count(),'| animating:',await p.locator('#ndtest svg[data-nd]').count(),'| changed after 1.6 s:',a.map((x,i)=>x!==c[i]?'yes':'no').join(','));
+  await p.screenshot({path:`tests/shots/newdemo-${scheme}.png`});await ctx.close()}
+console.log('errors',errs);await b.close();

@@ -51,7 +51,131 @@ function demoKey(name){const n=String(name||"").toLowerCase();const m=DEMO_MATCH
 const DEMO_PROPS={step:`<rect x="64" y="77" width="20" height="15" rx="2" class="dp"/>`,wall:`<line x1="83" y1="8" x2="83" y2="92" class="dl"/>`,door:`<path d="M60 4V92M60 4H84V92" class="dl" fill="none"/>`,post:`<line x1="81" y1="10" x2="81" y2="92" class="dl" style="stroke-width:3"/>`,
   chair:`<path d="M36 64H64M38 64V92M62 64V92M64 64V34" class="dl" fill="none"/>`,bar:`<line x1="30" y1="10" x2="70" y2="10" class="dl" style="stroke-width:3"/>`};
 const anyDemoKey=name=>{if(typeof name==="string"&&DEMOS[name])return name;const st=/stretch|pose|cat.?cow|breath|mobility/i.test(String(name||""));return st?(demoKey(name)||(typeof exDemoKey==="function"&&exDemoKey(name))):((typeof exDemoKey==="function"&&exDemoKey(name))||demoKey(name))};
-function demoSVG(name,size,still){const key=anyDemoKey(name);const D=key&&DEMOS[key];if(!D)return"";
+/* ---------- new-style demos (2026-11): a small 3D figure with real equipment, drawn in code (posed from free-exercise-db reference photos, public domain) ----------
+   Joints are solved with two-bone IK so limbs keep their length; each exercise keeps one fixed layering so nothing flickers.
+   Patterns redone so far live in ND_MAP; every other exercise keeps its stick figure until it's redrawn. */
+const ND=(function(){
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],len=a=>Math.sqrt(dot(a,a)),norm=a=>{const l=len(a)||1;return mul(a,1/l)};
+const lerp=(a,b,t)=>a+(b-a)*t,rad=d=>d*Math.PI/180,ease=t=>.5-.5*Math.cos(Math.PI*t);
+const L={thigh:44,shin:43,upper:29,fore:25,trunk:50};
+function ik(A,T,L1,L2,pole){const d=sub(T,A);let D=len(d);const u=norm(d);D=Math.min(D,L1+L2-.05);D=Math.max(D,Math.abs(L1-L2)+.05);
+  let p=sub(pole,mul(u,dot(pole,u)));p=norm(p);const a=(L1*L1-L2*L2+D*D)/(2*D),h=Math.sqrt(Math.max(0,L1*L1-a*a));
+  return [add(add(A,mul(u,a)),mul(p,h)),add(A,mul(u,D))]}
+function cam(o){const th=rad(o.yaw),be=rad(o.pitch),ct=Math.cos(th),st=Math.sin(th),cb=Math.cos(be),sb=Math.sin(be);
+  const P=p=>{const X=p[0]*ct+p[2]*st,Dp=-p[0]*st+p[2]*ct,Y=p[1]*cb-Dp*sb;return{x:o.cx+o.s*X,y:o.cy-o.s*Y,d:Dp}};
+  P.view=[-st*cb,sb,ct*cb];P.s=o.s;return P}
+const f1=n=>Math.round(n*10)/10;
+// drawing primitives → {d,svg}
+function capsule(P,a,b,ra,rb,cls,extra){const A=P(a),B=P(b),s=P.s;ra*=s;rb*=s;const dx=B.x-A.x,dy=B.y-A.y,l=Math.hypot(dx,dy);
+  if(l<.5)return{d:(A.d+B.d)/2,svg:`<circle class="${cls}" cx="${f1(A.x)}" cy="${f1(A.y)}" r="${f1(Math.max(ra,rb))}"${extra||""}/>`};
+  const ux=dx/l,uy=dy/l,nx=-uy,ny=ux;
+  const p=`M${f1(A.x+nx*ra)} ${f1(A.y+ny*ra)}L${f1(B.x+nx*rb)} ${f1(B.y+ny*rb)}A${f1(rb)} ${f1(rb)} 0 0 0 ${f1(B.x-nx*rb)} ${f1(B.y-ny*rb)}L${f1(A.x-nx*ra)} ${f1(A.y-ny*ra)}A${f1(ra)} ${f1(ra)} 0 0 0 ${f1(A.x+nx*ra)} ${f1(A.y+ny*ra)}Z`;
+  return{d:(A.d+B.d)/2,svg:`<path class="${cls}" d="${p}"${extra||""}/>`}}
+function ball(P,c,r,cls,extra){const C=P(c);return{d:C.d,svg:`<circle class="${cls}" cx="${f1(C.x)}" cy="${f1(C.y)}" r="${f1(r*P.s)}"${extra||""}/>`}}
+function ring(c,axis,r,n){axis=norm(axis);const t=norm(Math.abs(axis[1])<.9?[axis[2],0,-axis[0]]:[1,0,0]),u=[axis[1]*t[2]-axis[2]*t[1],axis[2]*t[0]-axis[0]*t[2],axis[0]*t[1]-axis[1]*t[0]];
+  const out=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;out.push(add(c,add(mul(t,Math.cos(a)*r),mul(u,Math.sin(a)*r))))}return out}
+function hull(pts){pts=pts.slice().sort((a,b)=>a.x-b.x||a.y-b.y);const cr=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);const lo=[],up=[];
+  for(const p of pts){while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p)}
+  for(const p of pts.reverse()){while(up.length>1&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p)}return lo.slice(0,-1).concat(up.slice(0,-1))}
+const poly=(pts,cls)=>`<path class="${cls}" d="M${pts.map(p=>f1(p.x)+" "+f1(p.y)).join("L")}Z"/>`;
+// a disc with thickness (weight plate, dumbbell head): outer face toward +axis
+function disc(P,c,axis,r,th,cls){const a=norm(axis),i=ring(add(c,mul(a,-th/2)),a,r,28).map(P),o=ring(add(c,mul(a,th/2)),a,r,28).map(P);
+  const near=dot(a,P.view)>0?o:i,far=near===o?i:o,C=P(c);const hub=ring(add(c,mul(a,(near===o?1:-1)*th/2)),a,r*.22,14).map(P);
+  return{d:C.d,svg:poly(hull(i.concat(o)),cls+" side")+poly(far,cls+" side")+poly(near,cls)+poly(hub,cls+" hub")}}
+function box(P,x0,x1,y0,y1,z0,z1,cls){const v=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
+  const F=[[[0,3,2,1],[0,0,-1]],[[4,5,6,7],[0,0,1]],[[0,4,7,3],[-1,0,0]],[[1,2,6,5],[1,0,0]],[[3,7,6,2],[0,1,0],"top"],[[0,1,5,4],[0,-1,0]]];
+  const out=[];for(const [ix,n,t] of F){if(dot(n,P.view)<=0)continue;const pts=ix.map(k=>P(v[k]));out.push({d:pts.reduce((s,p)=>s+p.d,0)/4,svg:poly(pts,cls+(t?" "+t:" sd"))})}return out}
+// the person
+function body(P,J,hl){const out=[],side=z=>z>0?"n":"f";
+  const limb=(a,b,ra,rb,s,k)=>{out.push(capsule(P,a,b,ra,rb,"bd "+s));if(hl&&k in hl){const c=capsule(P,a,b,ra*.84,rb*.84,"mu",` style="opacity:${(.9*hl[k]).toFixed(3)}"`);c.d+=.02;out.push(c)}};
+  for(const z of [1,-1]){const s=side(z),k=z>0?"L":"R",S=J["sh"+k],E=J["el"+k],W=J["wr"+k],H=J["hp"+k],K=J["kn"+k],A=J["an"+k];
+    limb(S,E,5.3,4.3,s,"upper"+k);limb(E,W,4.2,3.2,s,"fore"+k);out.push(ball(P,W,3.6,"bd "+s));
+    limb(H,K,8.4,6,s,"thigh"+k);limb(K,A,5.8,4,s,"shin"+k);
+    const fw=J["ft"+k];limb(add(A,[...mul(fw,-4).slice(0,1),-4,mul(fw,-4)[2]]),add(A,add(mul(fw,17),[0,-5.5,0])),3.6,2.6,s,"foot"+k);
+    if(hl&&("delt"+k) in hl){const b=ball(P,S,6.6,"mu",` style="opacity:${(.9*hl["delt"+k]).toFixed(3)}"`);b.d+=.03;out.push(b);}
+    out.push(ball(P,S,6.2,"bd "+s)); // deltoid cap
+  }
+  const pc=J.pelvis,mid=J.mid,ch=J.chest;
+  out.push(capsule(P,J.hpL,J.hpR,11,11,"bd t"));out.push(capsule(P,pc,mid,12.2,12.8,"bd t"));out.push(capsule(P,mid,ch,13.4,14.2,"bd t"));
+  if(hl&&"glute" in hl){const g=ball(P,add(pc,mul(J.back,7)),9.5,"mu",` style="opacity:${(.9*hl.glute).toFixed(3)}"`);g.d=P(pc).d+.03;out.push(g)}
+  if(hl&&"hipflexL" in hl){const g=capsule(P,add(J.hpL,mul(J.fwd,5)),add(lerp3(J.hpL,J.knL,.38),mul(J.fwd,3)),5.6,4.6,"mu",` style="opacity:${(.9*hl.hipflexL).toFixed(3)}"`);g.d=P(J.hpL).d+.6;out.push(g)}
+  // torso pieces share one depth so the trunk never splits around a limb
+  const td=P(mid).d;for(const o of out)if(o.svg.includes('class="bd t"'))o.d=td;
+  out.push(capsule(P,ch,J.neck,5,4.6,"bd t"));const hd=ball(P,J.head,10.2,"bd t hd");hd.d=Math.max(P(J.head).d,td)+.01;out.push(hd);
+  return out}
+const lerp3=(a,b,t)=>[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)];
+// common: build trunk from pelvis centre + lean (deg, + = forward) and head pitch
+function trunk(J,pc,lean,headLean,yLift){const a=rad(lean),u=[Math.sin(a),Math.cos(a),0],b=[-Math.cos(a),Math.sin(a),0];
+  J.pelvis=pc;J.mid=add(pc,mul(u,25));J.chest=add(pc,mul(u,L.trunk));J.up=u;J.back=b;J.fwd=[Math.cos(a),-Math.sin(a),0];
+  J.shL=add(J.chest,[0,-2+(yLift||0),18]);J.shR=add(J.chest,[0,-2+(yLift||0),-18]);J.hpL=add(pc,[0,0,9.5]);J.hpR=add(pc,[0,0,-9.5]);
+  const h=rad(headLean),hu=[Math.sin(h),Math.cos(h),0];J.neck=add(J.chest,mul(u,6));J.head=add(J.neck,mul(hu,12));J.look=[Math.cos(h),-Math.sin(h),0]}
+const toe=(deg,z)=>{const a=rad(deg)*Math.sign(z);return[Math.cos(a),0,Math.sin(a)]};
+// ---------- exercises ----------
+const EX={
+squat:{cam:{yaw:-48,pitch:9,s:1.0,cx:102,cy:190},
+  tl:[[.7,0,"Brace"],[1.9,1,"Sit down and back, 2 s"],[.35,1,"Bottom: knees out"],[1.15,0,"Drive up through mid-foot"]],
+  hlFor:(t,dir)=>({thighL:t,thighR:t,glute:t}),
+  pose(t){const J={};const e=t;
+    const pc=[lerp(-3,-21,e),lerp(95,43,e),0];trunk(J,pc,lerp(5,42,Math.pow(e,.9)),lerp(4,20,e));
+    for(const z of [1,-1]){const k=z>0?"L":"R",A=[0,9,15*z];J["an"+k]=A;J["ft"+k]=toe(16,z);
+      const [K]=ik(J["hp"+k],A,L.thigh,L.shin,[1,0,.42*z]);J["kn"+k]=K;
+      const bar=add(add(J.chest,mul(J.back,7.5)),mul(J.up,1));J.bar=bar;const W=add(bar,[0,0,31*z]);
+      const [E,W2]=ik(J["sh"+k],W,L.upper,L.fore,add(J.back,mul(J.up,-1.1)));J["el"+k]=E;J["wr"+k]=W2}
+    return J},
+  gear(P,J){const o=[],bar=J.bar,ax=[0,0,1];for(let i=0;i<16;i++)o.push(capsule(P,add(bar,[0,0,-64+i*8]),add(bar,[0,0,-56+i*8]),1.3,1.3,"metal"));
+    for(const z of [1,-1]){o.push(disc(P,add(bar,[0,0,47*z]),ax,22.5,5.5,"plate"));o.push(disc(P,add(bar,[0,0,42.6*z]),ax,3.2,2.4,"metal"))}return o},
+  floor(P){return box(P,-62,62,-2,0,-50,50,"plat")}},
+press:{cam:{yaw:-70,pitch:8,s:1.04,cx:104,cy:190},
+  tl:[[.6,0,"Elbows under wrists"],[1.25,1,"Press up and slightly in"],[.3,1,"Soft elbows at the top"],[1.9,0,"Lower with control, 2 s"]],
+  hlFor:t=>({deltL:.25+.75*t,deltR:.25+.75*t,upperL:t*.8,upperR:t*.8}),
+  pose(t){const J={};const e=t;trunk(J,[-3,52,0],-5,-2);
+    for(const z of [1,-1]){const k=z>0?"L":"R",A=[42,9,19*z];J["an"+k]=A;J["ft"+k]=toe(10,z);
+      const [K]=ik(J["hp"+k],A,L.thigh,L.shin,[1,1.2,.15*z]);J["kn"+k]=K;
+      const W=[lerp(3,2,e),lerp(102,149,e)+Math.sin(e*Math.PI)*2,lerp(35,14,Math.pow(e,1.1))*z];
+      const [E,W2]=ik(J["sh"+k],W,L.upper,L.fore,[.25,-.55,1.1*z]);J["el"+k]=E;J["wr"+k]=W2}
+    return J},
+  gear(P,J){const o=[];for(const k of ["L","R"]){const w=J["wr"+k],ax=[0,0,1];o.push(capsule(P,add(w,[0,0,-7.5]),add(w,[0,0,7.5]),1.6,1.6,"metal"));
+    for(const z of [1,-1])o.push(disc(P,add(w,[0,0,10.5*z]),ax,6.8,5.5,"plate"))}return o},
+  floor(P){return [...box(P,-60,60,-1,0,-46,46,"flr"),...box(P,-26,26,0,3,-15,15,"bench"),...box(P,-3,3,3,40,-4,4,"bench"),...box(P,-20,24,40,46,-13,13,"pad"),
+    ...box(P,-30,-24,30,46,-3,3,"bench"),...box(P,-34,-26,46,120,-12.5,12.5,"pad")]}},
+hip:{cam:{yaw:-24,pitch:11,s:1.18,cx:108,cy:182},
+  tl:[[.8,0,"Tall kneel, squeeze the back glute"],[2.1,1,"Shift hips forward, 2 s"],[2.6,1,"Hold: feel the front of the back hip"],[1.7,0,"Ease back"]],
+  hlFor:t=>({hipflexL:t,glute:t*.5}),
+  pose(t){const J={};const e=t;const ph=rad(lerp(5,27,e)),K=[-12,6.5,11];
+    const hipL=add(K,[L.thigh*Math.sin(ph),L.thigh*Math.cos(ph),-1.5]);const pc=add(hipL,[0,0,-9.5]);trunk(J,pc,lerp(1,-4,e),lerp(2,-2,e));
+    J.knL=K;J.anL=[-54,8.5,11];J.ftL=[-1,0,0];
+    const A=[40,9,-13];J.anR=A;J.ftR=toe(6,-1);const [KR]=ik(J.hpR,A,L.thigh,L.shin,[1,.9,0]);J.knR=KR;
+    for(const z of [1,-1]){const k=z>0?"L":"R";const W=add(pc,[3,9,20.5*z]);const [E,W2]=ik(J["sh"+k],W,L.upper,L.fore,[-1,0,.9*z]);J["el"+k]=E;J["wr"+k]=W2}
+    return J},
+  gear(){return[]},
+  floor(P){return [...box(P,-80,70,-1,0,-46,46,"flr"),...box(P,-74,60,0,1.6,-24,24,"mat")]}}
+};
+// rear foot in the kneel lies on its laces: patch drawing via pose (ankle height ok)
+const ORDER={};
+function frame(name,t){const X=EX[name],P=cam(X.cam),build=t=>{const J=X.pose(t);return{J,items:[...body(P,J,X.hlFor(t)),...X.gear(P,J)]}};
+  if(!ORDER[name]){const mid=build(.5).items;ORDER[name]=mid.map((o,i)=>[o.d,i]).sort((a,b)=>a[0]-b[0]).map(x=>x[1])}
+  const B=build(t),J=B.J,bg=X.floor(P),items=ORDER[name].map(i=>B.items[i]);
+  const pc=J.pelvis,sh=P([pc[0]+4,0,0]);
+  return `<ellipse class="shadow" cx="${f1(sh.x)}" cy="${f1(sh.y)}" rx="${f1(48*P.s)}" ry="${f1(9*P.s)}"/>`.replace(/^/,bg.sort((a,b)=>a.d-b.d).map(o=>o.svg).join(""))+items.map(o=>o.svg).join("")}
+function timeline(name,clock){const tl=EX[name].tl,tot=tl.reduce((s,x)=>s+x[0],0);let c=clock%tot,prev=tl[tl.length-1][1];
+  for(const [dur,to,cue] of tl){if(c<dur){return{t:lerp(prev,to,ease(c/dur)),cue}}c-=dur;prev=to}return{t:prev,cue:tl[0][2]}}
+return{frame,timeline,EX};
+})();
+// which demos use the new drawing (fits = names the drawing really shows, e.g. dumbbells not a Smith machine)
+const ND_MAP={"ex:squat":{k:"squat",fits:n=>!/pendulum|v-squat|belt|machine|box|hack/i.test(n)},
+  "ex:ohpSeated":{k:"press",fits:n=>/dumbbell/i.test(n)&&!/standing|single|one-arm/i.test(n)},
+  "hip flexor stretch":{k:"hip",fits:()=>true}};
+const ND_STILL={squat:.8,press:.75,hip:1};
+let ndRun=false,ndLast=0;const ndT0=performance.now(),ndReduce=window.matchMedia?window.matchMedia("(prefers-reduced-motion: reduce)"):{matches:false};
+function ndTick(now){const els=document.querySelectorAll("svg[data-nd]");if(!els.length){ndRun=false;return}
+  if(now-ndLast>=32){ndLast=now;const c=(now-ndT0)/1000,vh=window.innerHeight||800;let drawn=0;
+    for(const el of els){if(drawn>=6)break;const r=el.getBoundingClientRect();if(!r.width||r.bottom<0||r.top>vh)continue;drawn++;const k=el.dataset.nd;el.innerHTML=ND.frame(k,ND.timeline(k,c).t)}}
+  requestAnimationFrame(ndTick)}
+function ndStart(){if(!ndRun&&!ndReduce.matches&&typeof requestAnimationFrame==="function"){ndRun=true;requestAnimationFrame(ndTick)}}
+function ndSVG(k,name,size,still){const anim=!still&&!ndReduce.matches;const t=anim?ND.timeline(k,(performance.now()-ndT0)/1000).t:ND_STILL[k];if(anim)ndStart();
+  return `<svg class="demo nfig" viewBox="0 0 200 200" width="${size||200}" height="${size||200}" aria-label="${anim?"Animated demo":"Demo"}: ${esc(String(name))}" role="img"${anim?` data-nd="${k}"`:""}>${ND.frame(k,t)}</svg>`}
+function demoSVG(name,size,still){const key=anyDemoKey(name);const nd=key&&ND_MAP[key];if(nd&&nd.fits(String(name||"")))return ndSVG(nd.k,name,size,still);const D=key&&DEMOS[key];if(!D)return"";
   const label=`aria-label="Animated demo: ${esc(String(name))}" role="img"`;
   if(D.breath){const tot=D.breath.reduce((a,x)=>a+x[1],0);let t=0;const kt=[0],rv=[];const r0=24,r1=42;let r=r0;rv.push(r0);
     D.breath.forEach(([l,d])=>{t+=d;kt.push(+(t/tot).toFixed(4));r=/in/i.test(l)?r1:/out/i.test(l)?r0:r;rv.push(r)});
