@@ -96,6 +96,7 @@ function obox(P,c,ax,ay,az,hx,hy,hz,cls){const A=[norm(ax),norm(ay),norm(az)],h=
 // equipment
 function barbell(P,c,o,r){r=r||22.5;for(let i=0;i<16;i++)o.push(capsule(P,add(c,[0,0,-64+i*8]),add(c,[0,0,-56+i*8]),1.3,1.3,"metal"));
   for(const z of [1,-1]){o.push(disc(P,add(c,[0,0,47*z]),[0,0,1],r,5.5,"plate"));o.push(disc(P,add(c,[0,0,42.6*z]),[0,0,1],3.2,2.4,"metal"))}return o}
+function kettlebell(P,c,o){o.push(ball(P,add(c,[0,-12,0]),8.5,"plate"));o.push(capsule(P,add(c,[-5,-7,0]),add(c,[-4,0,0]),1.4,1.4,"metal"));o.push(capsule(P,add(c,[-4,0,0]),add(c,[4,0,0]),1.4,1.4,"metal"));o.push(capsule(P,add(c,[4,0,0]),add(c,[5,-7,0]),1.4,1.4,"metal"));return o}
 function dumbbell(P,w,ax,o){ax=norm(ax);o.push(capsule(P,add(w,mul(ax,-7.5)),add(w,mul(ax,7.5)),1.6,1.6,"metal"));for(const s of [1,-1])o.push(disc(P,add(w,mul(ax,10.5*s)),ax,6.8,5.5,"plate"));return o}
 // the person
 function body(P,J,hl){const out=[],side=z=>z>0?"n":"f",H=hl||{};
@@ -148,9 +149,9 @@ function twist(J,a){const c=Math.cos(a),s=Math.sin(a),ch=J.chest;for(const k of 
 const mid2=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2,0];
 const flr=(P,x0=-62,x1=62)=>box(P,x0,x1,-1,0,-46,46,"flr");
 // hinge (deadlift / RDL): bar height b, shoulder x sx, bar x bx, trunk angle al, grip half-width gz → hips placed so the arms hang straight
-function hinge(J,b,sx,bx,al,gz){const dz=Math.abs(18-gz),reach=L.upper+L.fore+L.grip-.6,dx=bx-sx;
+function hinge(J,b,sx,bx,al,gz,st){const dz=Math.abs(18-gz),reach=L.upper+L.fore+L.grip-.6,dx=bx-sx;
   const Sy=b+Math.sqrt(Math.max(1,reach*reach-dx*dx-dz*dz)),a=rad(al);const pc=[sx-L.trunk*Math.sin(a)+2*Math.sin(a),Sy+2*Math.cos(a)-L.trunk*Math.cos(a),0];
-  trunk(J,pc,al,al*.55);legs(J,[0,9,14],8,[1,0,.3]);const g=[];for(const z of [1,-1])g.push(grip(J,z>0?"L":"R",[bx,b,gz*z],[-.3,0,z]));return g}
+  trunk(J,pc,al,al*.55);legs(J,[0,9,(st&&st.w)||14],(st&&st.toe)||8,(st&&st.pole)||[1,0,.3]);const g=[];for(const z of [1,-1])g.push(grip(J,z>0?"L":"R",[bx,b,gz*z],(st&&st.arm)?[st.arm[0],st.arm[1],st.arm[2]*z]:[-.3,0,z]));return g}
 // ---------- exercises ----------
 const EX={
 squat:{cam:{yaw:-48,pitch:9,s:1.0,cx:102,cy:190},
@@ -743,6 +744,146 @@ inchworm:{cam:{yaw:-20,pitch:12,s:.8,cx:52,cy:186},
       const S=J["sh"+k];if(a<1)grip(J,k,[S[0]+lerp(3,6,a),Math.max(4,S[1]-62),lerp(24,24,a)*z],[-1,0,.3*z]);else grip(J,k,[lerp(36,122,b),4,24*z],[-1,.2,.9*z])}return J},
   gear(){return[]},floor(P){return flr(P,-40,150)}}
 };
+//after: variants built on earlier drawings
+const SEAT=P=>[...flr(P,-60,60),...box(P,-26,26,0,3,-15,15,"bench"),...box(P,-3,3,3,40,-4,4,"bench"),...box(P,-20,24,40,46,-13,13,"pad"),...box(P,-30,-24,30,46,-3,3,"bench"),...box(P,-34,-26,46,120,-12.5,12.5,"pad")];
+const FLAT=P=>[...flr(P,-80,80),...box(P,-50,-44,0,38,-9,9,"bench"),...box(P,36,42,0,38,-9,9,"bench"),...box(P,-58,48,38,44,-13,13,"pad")];
+function pressPath(J,t,one){const S0=mid2(J.shL,J.shR);J.g=[];for(const z of [1,-1]){const k=z>0?"L":"R";if(one&&z<0){continue}
+  const W=[S0[0]+lerp(6,5,t),S0[1]+lerp(4,57,t)+Math.sin(t*Math.PI)*2,lerp(35,14,Math.pow(t,1.1))*z];const [E,W2]=ik(J["sh"+k],W,L.upper,L.fore,[.25,-.55,1.1*z]);J["el"+k]=E;J["wr"+k]=W2;J.g.push(W2)}}
+Object.assign(EX,{
+pressStand:{...EX.press,cam:{yaw:-66,pitch:8,s:.9,cx:100,cy:190},
+  pose(t,v){const J={};stand(J,-2,-2);pressPath(J,t,v==="one");if(v==="one"){const [E,W]=ik(J.shR,add(add(J.pelvis,mul(J.up,9)),[3,0,-20.5]),L.upper,L.fore,add(J.back,[0,0,-.9]));J.elR=E;J.wrR=W}return J},
+  gear(P,J){const o=[];for(const g of J.g)dumbbell(P,g,[0,0,1],o);return o},floor(P){return flr(P)}},
+pressSmith:{...EX.press,
+  pose(t){const J={};trunk(J,[-3,52,0],-5,-2);legs(J,[42,9,19],10,[1,1.2,.15]);const S=J.shL,x=J.chest[0]+12;J.g=[];
+    for(const z of [1,-1])J.g.push(grip(J,z>0?"L":"R",[x,lerp(S[1]+4,S[1]+58,t),27*z],[.3,-.6,1*z]));J.bar=mid2(J.g[0],J.g[1]);return J},
+  gear(P,J,v){const o=[];if(v==="machine"){for(const g of J.g){o.push(capsule(P,add(g,[-5,0,0]),add(g,[6,0,0]),1.8,1.8,"metal"));o.push(capsule(P,add(g,[-5,0,0]),[-30,J.g[0][1]+12,g[2]],1.6,1.6,"metal"))}return o}
+    return barbell(P,J.bar,o,18)},
+  floor(P,J,v){const o=SEAT(P);if(v!=="machine"){const x=J.chest[0]+12;o.push(...box(P,x-3,x+3,0,180,56,62,"bench"),...box(P,x-3,x+3,0,180,-62,-56,"bench"))}return o}},
+zPress:{...EX.ohp,cam:{yaw:-52,pitch:10,s:.95,cx:96,cy:186},
+  pose(t){const J={};trunk(J,[-10,12,0],lerp(2,-3,t),-14*bump(.12,.62,t));for(const z of [1,-1]){const k=z>0?"L":"R",H=J["hp"+k];J["kn"+k]=add(H,[44,-2,3*z]);J["an"+k]=add(J["kn"+k],[43,-1,0]);J["ft"+k]=[0,1,0]}
+    const c=J.chest,G=[c[0]+lerp(15,2,ss(.4,1,t)),c[1]+lerp(0,60,t),0];const g=[];for(const z of [1,-1])g.push(grip(J,z>0?"L":"R",[G[0],G[1],25*z],[lerp(1,.4,t),lerp(-1,-.6,t),lerp(.6,1,t)*z]));J.bar=mid2(g[0],g[1]);return J},
+  floor(P){return [...flr(P,-60,100),...box(P,-56,96,0,1.6,-26,26,"mat")]}},
+latSeated:{...EX.lateral,
+  pose(t){const J={};trunk(J,[-6,52,0],5,5);legs(J,[38,9,16],8,[1,1,.15]);const th=rad(lerp(4,82,t));J.g=[];
+    for(const z of [1,-1]){const k=z>0?"L":"R",S=J["sh"+k];J.g.push(grip(J,k,[S[0]+5,Math.max(48,S[1]-60*Math.cos(th)),z*(24+60*Math.sin(th))],[-.3,1,0]))}return J},
+  floor(P){return [...flr(P),...box(P,-28,22,40,46,-15,15,"pad"),...box(P,-14,8,0,40,-12,12,"bench")]}},
+latCable:{...EX.lateral,cam:{yaw:-70,pitch:8,s:.88,cx:110,cy:190},
+  hlFor:t=>({deltL:.3+.7*t}),
+  pose(t){const J={};stand(J,4);const S=J.shL,th=rad(lerp(-12,82,t));J.G=grip(J,"L",[S[0]+8,S[1]-60*Math.cos(th),18+60*Math.sin(th)],[-.3,1,0]);
+    grip(J,"R",[4,120,-52],[0,-1,-1]);return J},
+  gear(P,J){const o=[ball(P,J.G,2.6,"metal")];const c=capsule(P,J.G,[4,10,-58],.6,.6,"metal");c.d=P(J.G).d-.3;o.push(c);return o},
+  floor(P){return [...flr(P,-60,60),...box(P,-6,10,0,190,-70,-58,"bench")]}},
+boxSquat:{...EX.squat,tl:[[.7,0,"Brace"],[1.9,1,"Sit back to the box, 2 s"],[.35,1,"Tap the box, stay tight"],[1.15,0,"Drive up"]],
+  pose(t){return EX.squat.pose(t*.86)},floor(P){return [...box(P,-62,62,-2,0,-50,50,"plat"),...box(P,-48,-10,0,38,-20,20,"pad")]}},
+hack:{cam:{yaw:-34,pitch:10,s:.92,cx:96,cy:188},
+  tl:[[.6,0,"Back and shoulders on the pads"],[1.8,1,"Lower under control, 2 s"],[.3,1,"Knees track over the toes"],[1.1,0,"Drive through the whole foot"]],
+  hlFor:t=>({thighL:.3+.7*t,thighR:.3+.7*t,glute:.2+.6*t}),
+  pose(t){const J={},a=rad(-22),d=[Math.sin(a),Math.cos(a),0],pc=add([-8,96,0],mul(d,-48*t));trunk(J,pc,-22,-16);legs(J,[24,22,16],14,[1,.2,.35]);
+    for(const z of [1,-1])grip(J,z>0?"L":"R",add(J["sh"+(z>0?"L":"R")],[8,6,-4*z]),[0,-1,.5*z]);return J},
+  gear(P,J){const o=[];for(const z of [1,-1]){const S=J["sh"+(z>0?"L":"R")];o.push(capsule(P,add(S,[-2,7,-6*z]),add(S,[-2,7,6*z]),4.5,4.5,"pad"))}return o},
+  floor(P,J){const a=rad(-22),u=[Math.sin(a),Math.cos(a),0],b=[-Math.cos(a),Math.sin(a),0],c=add(add([-8,96-24,0],mul(u,30)),mul(b,16));
+    return [...flr(P,-70,70),...box(P,4,48,0,13,-26,26,"bench"),...obox(P,c,u,mul(b,-1),[0,0,1],62,3,14,"pad"),...box(P,-70,-60,0,160,-20,20,"bench")]}},
+beltSquat:{cam:{yaw:-40,pitch:9,s:.98,cx:100,cy:192},
+  tl:[[.6,0,"Belt on the hips, hold the rail"],[1.8,1,"Sit straight down, 2 s"],[.3,1,"Chest up"],[1.1,0,"Stand tall"]],
+  hlFor:t=>({thighL:.3+.7*t,thighR:.3+.7*t,glute:.2+.6*t}),
+  pose(t){const J={};trunk(J,[lerp(-2,-8,t),lerp(110,62,t),0],lerp(3,12,t),3);legs(J,[0,24,20],18,[1,0,.5]);
+    for(const z of [1,-1])grip(J,z>0?"L":"R",[46,108,22*z],[0,-1,.5*z]);return J},
+  gear(P,J){const pc=J.pelvis,w=[pc[0],lerp(18,0,(J.pelvis[1]-62)/48)+2,0];return [capsule(P,add(pc,[0,0,-12]),add(pc,[0,0,12]),2.4,2.4,"metal"),capsule(P,pc,add(w,[0,8,0]),.8,.8,"metal"),...box(P,w[0]-7,w[0]+7,w[1]-2,w[1]+8,-7,7,"plate")]},
+  floor(P){return [...flr(P,-60,70),...box(P,-24,24,0,15,10,34,"bench"),...box(P,-24,24,0,15,-34,-10,"bench"),...box(P,42,48,0,110,28,34,"bench"),...box(P,42,48,0,110,-34,-28,"bench"),...box(P,44,48,104,110,-34,34,"bench")]}},
+sumo:{...EX.deadlift,
+  pose(t){const J={};const al=40*(1-ss(.3,1,t)),g=hinge(J,lerp(22.5,80.6,t),lerp(7,2,ss(.45,1,t)),lerp(8,12,ss(.4,1,t)),al,13,{w:30,toe:35,pole:[.4,0,1],arm:[0,0,.2]});J.bar=mid2(g[0],g[1]);return J},
+  hlFor:t=>({glute:.5+.5*t,thighL:.3+.6*(1-t),thighR:.3+.6*(1-t)})},
+trap:{...EX.deadlift,
+  pose(t){const J={};const al=45*(1-ss(.25,1,t)),g=hinge(J,lerp(26,86,t),lerp(4,0,t),lerp(1,1,t),al,29,{w:13,arm:[0,0,.1]});J.g=g;J.bar=mid2(g[0],g[1]);return J},
+  gear(P,J){const o=[],c=J.bar,hx=[[34,0],[17,-29],[-17,-29],[-34,0],[-17,29],[17,29]].map(p=>add(c,[p[0],0,p[1]]));
+    for(let i=0;i<6;i++)o.push(capsule(P,hx[i],hx[(i+1)%6],1.4,1.4,"metal"));for(const g of J.g)o.push(capsule(P,add(g,[-7,0,0]),add(g,[7,0,0]),1.6,1.6,"metal"));
+    for(const z of [1,-1]){o.push(capsule(P,add(c,[0,0,29*z]),add(c,[0,0,64*z]),1.4,1.4,"metal"));o.push(disc(P,add(c,[0,0,50*z]),[0,0,1],22.5,5.5,"plate"))}return o}},
+kbDead:{...EX.deadlift,cam:{yaw:-48,pitch:9,s:1.0,cx:100,cy:190},
+  pose(t){const J={};const al=48*(1-ss(.25,1,t)),g=hinge(J,lerp(26,72,t),lerp(6,2,ss(.45,1,t)),lerp(4,6,t),al,5,{w:22,toe:20,pole:[1,0,.5]});J.G=mid2(g[0],g[1]);return J},
+  gear(P,J){return kettlebell(P,J.G,[])},floor(P){return flr(P)}},
+rackPull:{...EX.deadlift,tl:[[.6,0,"Bar on the pins just below the knees"],[1.0,1,"Drive the hips through"],[.5,1,"Stand tall"],[1.2,0,"Lower to the pins"]],
+  pose(t){return EX.deadlift.pose(lerp(.42,1,t))},
+  floor(P){const J=EX.deadlift.pose(.42),y=J.bar[1]-2,x=J.bar[0];return [...box(P,-62,62,-2,0,-50,50,"plat"),...box(P,x-14,x-8,0,140,52,58,"bench"),...box(P,x-14,x-8,0,140,-58,-52,"bench"),...box(P,x-16,x+10,y-3,y,52,58,"bench"),...box(P,x-16,x+10,y-3,y,-58,-52,"bench")]}},
+rdlOne:{...EX.rdl,cam:{yaw:-24,pitch:9,s:.92,cx:104,cy:190},
+  tl:[[.6,0,"Stand on one leg, soft knee"],[1.9,1,"Hinge, back leg in line with the body"],[.4,1,"Hips square"],[1.3,0,"Stand back up"]],
+  hlFor:t=>({thighR:.2+.7*t,glute:.4+.5*t}),
+  pose(t){const J={},al=lerp(2,78,t);trunk(J,[lerp(-2,-8,t),lerp(92,88,t),0],al,al*.6);const AR=[0,9,-11];J.anR=AR;J.ftR=toe(6,-1);J.knR=ik(J.hpR,AR,L.thigh,L.shin,[1,0,0])[0];
+    const d=mul(J.up,-1);J.knL=add(J.hpL,mul(d,44));J.anL=add(J.knL,mul(d,43));J.ftL=J.fwd;J.g=[];
+    for(const z of [1,-1]){const k=z>0?"L":"R",S=J["sh"+k];J.g.push(grip(J,k,[S[0]+3,Math.max(14,S[1]-62),16*z],[-1,0,.3*z]))}return J},
+  gear(P,J){const o=[];for(const g of J.g)dumbbell(P,g,[1,0,0],o);return o},floor(P){return flr(P)}},
+rdlB:{...EX.rdl,
+  pose(t,v){const J=EX.rdl.pose(t,v),B=[-26,13,12];J.anL=B;J.knL=ik(J.hpL,B,L.thigh,L.shin,[1,0,.2])[0];J.fpL=[add(B,[-3,1,0]),add(B,[10,-10,0])];return J}},
+kbRdl:{...EX.rdl,
+  pose(t){const J={};const g=hinge(J,lerp(76,30,t),lerp(2,13,t),lerp(8,9,t),lerp(2,68,t),5,{w:16});J.G=mid2(g[0],g[1]);return J},
+  gear(P,J){return kettlebell(P,J.G,[])}},
+floorPress:{...EX.benchDb,cam:{yaw:-40,pitch:20,s:.98,cx:96,cy:176,dy:1},
+  pose(t){const J={};trunk(J,[22,12,0],-90,-96);legs(J,[54,9,18],8,[.2,1,.3]);const c=J.chest;J.g=[];
+    for(const z of [1,-1]){const k=z>0?"L":"R",S=J["sh"+k];J.g.push(grip(J,k,lerp3([S[0]+1,S[1]+58,17*z],[c[0]+10,32,34*z],t),[.3,-1,1.2*z]))}return J},
+  floor(P){return [...flr(P,-80,90),...box(P,-76,86,0,1.6,-26,26,"mat")]}},
+benchOne:{...EX.benchDb,hlFor:t=>({pecL:.3+.7*t,deltL:.5*t,upperL:.6*t}),
+  pose(t){const J=EX.benchDb.pose(t),c=J.chest;J.g=[J.g[0]];grip(J,"R",[J.shR[0]+20,44,-15],[0,-1,-1]);return J}},
+pulldownClose:{...EX.pulldown,
+  pose(t,v){const J={};const lean=lerp(-10,-20,t);trunk(J,[-3,51,0],lean,lean*.6);legs(J,[34,9,16],8,[1,1,.15]);const S=J.shL,top=[J.chest[0]+8,S[1]+56],bot=[J.chest[0]+21,S[1]+4],one=v==="one";
+    const g=[];for(const z of (one?[1]:[1,-1]))g.push(grip(J,z>0?"L":"R",[lerp(top[0],bot[0],t),lerp(top[1],bot[1],t),(one?14:7)*z],[-.6,-1,.5*z]));
+    if(one){grip(J,"R",add(J.knR,[0,8,0]),[0,-1,-1])}J.g=g;J.bar=one?g[0]:mid2(g[0],g[1]);return J},
+  hlFor:(t,v)=>v==="one"?{latL:.25+.75*t,upperL:.4*t}:{latL:.25+.75*t,latR:.25+.75*t,upback:.5*t},
+  gear(P,J,v){const o=[],b=J.bar,top=add(b,[0,9,0]);if(v==="one")o.push(capsule(P,add(b,[0,0,-5]),add(b,[0,0,5]),1.6,1.6,"metal"));else for(const g of J.g)o.push(capsule(P,top,g,1.5,1.5,"metal"));
+    const cb=capsule(P,v==="one"?b:top,[4,164,0],.6,.6,"metal");cb.d=P(b).d-.5;o.push(cb);
+    const k=J.knL,pad=box(P,k[0]-7,k[0]+5,k[1]+6.5,k[1]+13,-19,19,"pad");for(const f of pad)f.d=P(k).d+30;o.push(...pad);return o}},
+pullAssist:{...EX.pullup,cam:{yaw:-35,pitch:6,s:.82,cx:100,cy:202},noShadow:0,
+  pose(t){const J=EX.pullup.pose(t),pc=J.pelvis;for(const z of [1,-1]){const k=z>0?"L":"R",H=J["hp"+k];J["kn"+k]=add(H,[4,-44,0]);J["an"+k]=add(J["kn"+k],[-43,-2,0]);J["ft"+k]=[-1,0,0]}return J},
+  gear(P,J){const o=EX.pullup.gear(P,J),K=J.knL;o.push(...box(P,K[0]-26,K[0]+6,K[1]-10,K[1]-5,-16,16,"pad"));o.push(capsule(P,[K[0]-10,K[1]-10,0],[K[0]-10,20,0],1.8,1.8,"metal"));return o},
+  floor(P){return [...flr(P,-70,60),...EX.pullup.floor(P)]}},
+rowKb:{...EX.rowDb,gear(P,J){return kettlebell(P,add(J.G,[0,2,0]),[])}},
+renegade:{cam:{yaw:-22,pitch:14,s:.98,cx:104,cy:178},
+  tl:[[.5,0,"High plank on the dumbbells, feet wide"],[1.0,1,"Row one to the hip, hips square"],[.3,1,"Pause"],[1.0,0,"Lower it back down"]],
+  hlFor:t=>({latL:.3+.7*t,abs:.6,upperL:.3*t}),
+  pose(t){const J={},A=[-60,13,16],b=rad(25),pc=add([A[0],A[1],0],[87*Math.cos(b),87*Math.sin(b),0]);trunk(J,pc,65,57);
+    for(const z of [1,-1]){const k=z>0?"L":"R",An=[A[0],A[1],16*z];J["an"+k]=An;J["kn"+k]=ik(J["hp"+k],An,L.thigh,L.shin,[0,-1,0])[0];J["fp"+k]=[add(An,[-2,2,0]),add(An,[7,-10,0])]}
+    const hx=A[0]+133*Math.cos(b)+2;J.gR=grip(J,"R",[hx,12,24*-1],[-1,.2,-.9]);J.gL=grip(J,"L",lerp3([hx,12,24],add(add(J.pelvis,mul(J.up,24)),add(mul(J.fwd,12),[0,0,22])),t),[-.4,1,.4]);return J},
+  gear(P,J){const o=[];dumbbell(P,J.gR,[1,0,0],o);dumbbell(P,J.gL,[1,0,0],o);return o},floor(P){return flr(P,-80,80)}},
+legPressOne:{...EX.legPress,hlFor:t=>({thighR:.3+.7*t,glute:.2+.6*t}),
+  pose(t){const J=EX.legPress.pose(t);J.knL=add(J.hpL,[26,30,6]);J.anL=add(J.knL,[18,-38,4]);J.ftL=[1,0,0];return J}},
+legExtOne:{...EX.legExt,hlFor:t=>({thighR:.3+.7*t}),
+  pose(t){const J=EX.legExt.pose(t),K=J.knL,a=rad(8);J.anL=add(K,[43*Math.sin(a),-43*Math.cos(a),0]);J.ftL=[Math.cos(a),Math.sin(a),0];return J}},
+thrustOne:{...EX.thrust,hlFor:t=>({glute:.3+.7*t,thighR:.35*t}),
+  pose(t){const J=EX.thrust.pose(t),d=norm(sub(J.knR,J.hpR));J.knL=add(J.hpL,mul(d,44));J.anL=add(J.knL,mul(d,43));J.ftL=norm([-d[1],d[0],0]);return J}},
+benchSmith:{...EX.bench,floor(P){const a=EX.bench.pose(0).bar,b=EX.bench.pose(1).bar,x=(a[0]+b[0])/2;return [...FLAT(P),...box(P,x-3,x+3,0,175,58,64,"bench"),...box(P,x-3,x+3,0,175,-64,-58,"bench")]}},
+inclineSmith:{...EX.incline,floor(P,J,v){const a=EX.incline.pose(0,"bb").bar,b=EX.incline.pose(1,"bb").bar,x=(a[0]+b[0])/2;return [...EX.incline.floor(P,J,v),...box(P,x-3,x+3,0,175,58,64,"bench"),...box(P,x-3,x+3,0,175,-64,-58,"bench")]}},
+decline:{...EX.bench,cam:{yaw:-60,pitch:20,s:.9,cx:98,cy:166,dy:1},
+  pose(t){const J={};trunk(J,[20,64,0],-104,-114);for(const z of [1,-1]){const k=z>0?"L":"R";J["an"+k]=[58,46,13*z];J["ft"+k]=[1,.3,0];J["kn"+k]=ik(J["hp"+k],J["an"+k],L.thigh,L.shin,[.3,1,0])[0]}
+    const c=J.chest,top=[J.shL[0]+2,J.shL[1]+60],bot=[c[0]+15,c[1]+15.5],e=Math.pow(t,.85);const g=[];for(const z of [1,-1])g.push(grip(J,z>0?"L":"R",[lerp(top[0],bot[0],e),lerp(top[1],bot[1],t),30*z],[.7,-1,1.3*z]));J.bar=mid2(g[0],g[1]);return J},
+  floor(P){const u=norm([1,.25,0]),n=[-u[1],u[0],0];return [...flr(P,-80,80),...obox(P,[0,46,0],u,n,[0,0,1],58,3,13,"pad"),...box(P,-40,-34,0,36,-9,9,"bench"),...box(P,36,42,0,52,-9,9,"bench"),...box(P,54,64,40,48,-16,16,"pad")]}},
+pushPress:{...EX.ohp,tl:[[.6,0,"Bar on the shoulders"],[.35,.1,"Dip the knees"],[.5,1,"Drive with the legs and press"],[.4,1,"Lock out"],[1.4,0,"Lower to the shoulders"]],
+  hlFor:t=>({deltL:.4+.6*t,deltR:.4+.6*t,upperL:.6*t,upperR:.6*t,thighL:.6*(t<.3?1:0),thighR:.6*(t<.3?1:0)}),
+  pose(t){const d=t<.1?t/.1:Math.max(0,1-(t-.1)/.15),pr=Math.max(0,(t-.1)/.9),J=EX.ohp.pose(pr);xform(J,v=>v,[0,-9*d,0]);legs(J,[0,9,14],8,[1,0,.3]);return J}},
+curtsy:{...EX.lunge,
+  pose(t){const J={};trunk(J,[lerp(-2,-6,t),lerp(88,54,t),0],lerp(3,10,t),0);
+    const A=[20,9,-6];J.anR=A;J.ftR=toe(6,-1);J.knR=ik(J.hpR,A,L.thigh,L.shin,[1,.4,0])[0];
+    const B=[-34,17,-30];J.anL=B;J.ftL=norm([1,-.5,.3]);J.knL=ik(J.hpL,B,L.thigh,L.shin,[1,-1.5,0])[0];handsOnHips(J);return J}},
+curlSeated:{...EX.curl,
+  pose(t,v){const J={};trunk(J,[-8,52,0],2,2);legs(J,[36,9,16],8,[1,1,.15]);const ph=rad(lerp(12,135,t)),d=[Math.sin(ph),-Math.cos(ph),0];J.g=[];
+    for(const z of [1,-1]){const k=z>0?"L":"R",E=add(J["sh"+k],[3,-31,3*z]),W=add(E,mul(d,27));J["el"+k]=E;J["wr"+k]=W;J.g.push(add(W,mul(d,6)))}J.d=d;return J},
+  floor(P){return [...flr(P),...box(P,-28,22,40,46,-15,15,"pad"),...box(P,-14,8,0,40,-12,12,"bench")]}},
+zercher:{...EX.frontSquat,
+  pose(t){const J={};trunk(J,[lerp(-3,-14,t),lerp(95,42,t),0],lerp(4,24,t),lerp(2,10,t));legs(J,[0,9,16],18,[1,0,.45]);
+    J.bar=add(add(J.chest,mul(J.fwd,15)),mul(J.up,-22));for(const z of [1,-1]){const k=z>0?"L":"R",E=add(J.bar,[0,1,13*z]);J["el"+k]=E;J["wr"+k]=add(add(J.chest,mul(J.fwd,16)),add(mul(J.up,-3),[0,0,4*z]))}return J}},
+gobletKb:{...EX.goblet,gear(P,J){return kettlebell(P,add(J.G,[0,4,0]),[])}},
+sumoDb:{...EX.goblet,
+  pose(t){const J={};trunk(J,[lerp(-2,-7,t),lerp(95,52,t),0],lerp(4,14,t),4);legs(J,[0,9,30],35,[.4,0,1]);const S0=mid2(J.shL,J.shR);J.G=[S0[0]+5,S0[1]-60,0];
+    for(const z of [1,-1])grip(J,z>0?"L":"R",add(J.G,[0,0,4*z]),[-1,0,.2*z]);return J},
+  gear(P,J){return dumbbell(P,add(J.G,[0,-6,0]),[0,1,0],[])}},
+plateRaise:{...EX.frontRaise,
+  pose(t){const J={};stand(J,3);const S0=mid2(J.shL,J.shR),d=norm(lerp3([.12,-1,0],[1,.05,0],t)),C=add(S0,mul(d,60));J.C=C;for(const z of [1,-1])grip(J,z>0?"L":"R",add(C,[0,0,11*z]),[0,-.3,1*z]);return J},
+  gear(P,J){return [disc(P,J.C,[1,0,0],17,3,"plate")]}},
+boxSquatBw:{...EX.bwSquat,pose(t){return EX.bwSquat.pose(t*.86)},floor(P){return [...flr(P),...box(P,-48,-10,0,38,-20,20,"pad")]}},
+cableFlyLow:{...EX.cableFly,tl:[[.6,0,"Hands low and wide"],[1.1,1,"Scoop up and together"],[.4,1,"Squeeze the upper chest"],[1.7,0,"Lower slowly"]],
+  pose(t){const J={};stand(J,6,4);J.g=[];for(const z of [1,-1]){const k=z>0?"L":"R",S=J["sh"+k],d=norm(lerp3([-.05,-.7,1],[.85,.3,-.25],t));J.g.push(grip(J,k,add(S,[55*d[0],55*d[1],55*d[2]*z]),[-.3,-.5,.8*z]))}return J},
+  gear(P,J){const o=[];for(const [i,g] of J.g.entries()){const z=i?-1:1;o.push(ball(P,g,2.6,"metal"));const c=capsule(P,g,[-10,14,70*z],.6,.6,"metal");c.d=P(g).d-.2;o.push(c)}return o}},
+ohExtCable:{...EX.ohExt,
+  gear(P,J){const o=[],r=J.G;for(const g of J.g)o.push(capsule(P,add(r,[-4,-6,0]),g,1.5,1.5,"metal"));const c=capsule(P,add(r,[-4,-6,0]),[-62,150,0],.6,.6,"metal");c.d=P(r).d-.3;o.push(c);return o},
+  floor(P){return [...flr(P,-80,60),...box(P,-72,-62,0,190,-7,7,"bench")]}}
+});
 const ORDER={};
 function frame(name,t,v){const X=EX[name],P=cam(X.cam),build=t=>{const J=X.pose(t,v);return{J,items:[...body(P,J,X.hlFor(t,v)),...X.gear(P,J,v)]}};
   const ok=name+"|"+(v||"");if(!ORDER[ok]){const mid=build(.5).items;ORDER[ok]=mid.map((o,i)=>[o.d,i]).sort((a,b)=>a[0]-b[0]).map(x=>x[1])}
@@ -755,42 +896,42 @@ function timeline(name,clock){const tl=EX[name].tl,tot=tl.reduce((s,x)=>s+x[0],0
 return{frame,timeline,EX};
 })();
 // which demos use the new drawing (fits = names the drawing really shows, e.g. dumbbells not a Smith machine)
-const ND_MAP={"ex:squat":{k:"squat",fits:n=>!/pendulum|v-squat|belt|machine|box|hack/i.test(n)},
-  "ex:ohpSeated":{k:"press",fits:n=>/dumbbell/i.test(n)&&!/standing|single|one-arm/i.test(n)},
+const ND_MAP={"ex:squat":{k:n=>/box/i.test(n)?"boxSquat":/pendulum|v-squat|hack/i.test(n)?"hack":/belt/i.test(n)?"beltSquat":"squat",fits:n=>!/smith/i.test(n)},
+  "ex:ohpSeated":{k:n=>/smith|machine/i.test(n)?"pressSmith":/z press/i.test(n)?"zPress":/standing|single|one-arm/i.test(n)?"pressStand":"press",fits:n=>!/arnold|kettlebell/i.test(n),v:n=>/machine/i.test(n)&&!/smith/i.test(n)?"machine":/single|one-arm/i.test(n)?"one":""},
   "hip flexor stretch":{k:"hip",fits:()=>true},
-  "ex:bench":{k:"bench",fits:n=>!/smith|pin|dumbbell|machine|incline|decline/i.test(n)},
-  "ex:deadlift":{k:"deadlift",fits:n=>!/kettlebell|trap|hex|sumo|deficit|dumbbell|single/i.test(n)},
-  "ex:rdl":{k:"rdl",fits:n=>!/b-stance|kettlebell|single|one-leg|cable|pull-through/i.test(n),v:n=>/dumbbell/i.test(n)?"db":""},
-  "ex:ohp":{k:"ohp",fits:n=>/overhead press|military press|barbell (shoulder )?press/i.test(n)&&!/dumbbell|kettlebell|seated|push press|single/i.test(n)},
+  "ex:bench":{k:n=>/smith/i.test(n)?"benchSmith":"bench",fits:n=>!/pin|dumbbell|incline|decline/i.test(n)&&(!/machine/i.test(n)||/smith/i.test(n))},
+  "ex:deadlift":{k:n=>/sumo/i.test(n)?"sumo":/trap|hex/i.test(n)?"trap":/kettlebell/i.test(n)?"kbDead":"deadlift",fits:n=>!/single|dumbbell/i.test(n)},
+  "ex:rdl":{k:n=>/single|one-leg/i.test(n)?"rdlOne":/b-stance/i.test(n)?"rdlB":/kettlebell/i.test(n)?"kbRdl":"rdl",fits:n=>!/cable|pull-through/i.test(n),v:n=>/dumbbell/i.test(n)?"db":""},
+  "ex:ohp":{k:n=>/push press/i.test(n)?"pushPress":"ohp",fits:n=>/overhead press|military press|barbell (shoulder )?press|push press/i.test(n)&&!/dumbbell|kettlebell|seated|single/i.test(n)},
   "ex:row":{k:"row",fits:n=>/barbell row|pendlay|yates|bent[- ]over row/i.test(n)&&!/dumbbell|single|one-arm|seal|meadows|t-bar|landmine|chest/i.test(n)},
-  "ex:pulldown":{k:"pulldown",fits:n=>/pulldown|pull-down/i.test(n)&&!/single|one-arm|neutral|close|straight|v-bar/i.test(n)},
-  "ex:lunge":{k:"lunge",fits:n=>!/curtsy|lateral|side|cossack/i.test(n),v:n=>/dumbbell/i.test(n)?"db":/barbell/i.test(n)?"bb":""},
-  "ex:hipThrust":{k:"thrust",fits:n=>!/single|one-leg|b-stance|machine|smith|band/i.test(n)},
-  "ex:benchDb":{k:"benchDb",fits:n=>!/single|one-arm|floor|decline/i.test(n)},
+  "ex:pulldown":{k:n=>/single|one-arm|neutral|close|v-bar/i.test(n)?"pulldownClose":"pulldown",fits:n=>/pulldown|pull-down/i.test(n)&&!/straight/i.test(n),v:n=>/single|one-arm/i.test(n)?"one":""},
+  "ex:lunge":{k:n=>/curtsy/i.test(n)?"curtsy":"lunge",fits:n=>!/lateral|side|cossack/i.test(n),v:n=>/dumbbell/i.test(n)?"db":/barbell/i.test(n)?"bb":""},
+  "ex:hipThrust":{k:n=>/single|one-leg/i.test(n)?"thrustOne":"thrust",fits:n=>!/b-stance|machine|smith|band/i.test(n)},
+  "ex:benchDb":{k:n=>/floor/i.test(n)?"floorPress":/single|one-arm/i.test(n)?"benchOne":"benchDb",fits:n=>!/decline/i.test(n)},
   "ex:inclineDb":{k:"incline",fits:n=>!/single|one-arm/i.test(n)},
-  "ex:incline":{k:"incline",fits:n=>!/smith|machine/i.test(n),v:()=>"bb"},
-  "ex:pullup":{k:"pullup",fits:n=>!/archer|typewriter|assisted|machine|band|rope|climb/i.test(n),v:n=>/scapular/i.test(n)?"scap":""},
+  "ex:incline":{k:n=>/smith/i.test(n)?"inclineSmith":"incline",fits:n=>!/machine/i.test(n)||/smith/i.test(n),v:()=>"bb"},
+  "ex:pullup":{k:n=>/assisted/i.test(n)?"pullAssist":"pullup",fits:n=>!/archer|typewriter|band|rope|climb/i.test(n),v:n=>/scapular/i.test(n)?"scap":""},
   "ex:cableRow":{k:"cableRow",fits:n=>!/single|one-arm|machine/i.test(n)},
-  "ex:lateral":{k:"lateral",fits:n=>(/dumbbell/i.test(n)||/^lateral raises?$/i.test(n.trim()))&&!/seated|lean|behind|single|one-arm/i.test(n)},
-  "ex:curl":{k:"curl",fits:n=>!/zottman|cross-body|waiter|seated|incline|concentration|spider|preacher|single|one-arm/i.test(n),v:n=>/hammer/i.test(n)?"hammer":""},
+  "ex:lateral":{k:n=>/seated/i.test(n)?"latSeated":/cable/i.test(n)?"latCable":"lateral",fits:n=>!/lean-away|behind|machine|lu raise/i.test(n)},
+  "ex:curl":{k:n=>/seated/i.test(n)?"curlSeated":"curl",fits:n=>!/cross-body|waiter|incline|concentration|spider|preacher|single|one-arm/i.test(n),v:n=>/hammer/i.test(n)?"hammer":""},
   "ex:curlBar":{k:"curl",fits:n=>!/drag/i.test(n),v:()=>"bb"},
   "ex:pushdown":{k:"pushdown",fits:n=>!/single|one-arm|kickback/i.test(n),v:n=>/rope/i.test(n)?"rope":""},
-  "ex:legPress":{k:"legPress",fits:n=>!/single|one-leg|calf/i.test(n)},
-  "ex:legExt":{k:"legExt",fits:n=>!/single|one-leg/i.test(n)},
+  "ex:legPress":{k:n=>/single|one-leg/i.test(n)?"legPressOne":"legPress",fits:n=>!/calf/i.test(n)},
+  "ex:legExt":{k:n=>/single|one-leg/i.test(n)?"legExtOne":"legExt",fits:()=>true},
   "ex:legCurlSeated":{k:"legCurl",fits:n=>/seated/i.test(n)&&!/single|one-leg/i.test(n)},
-  "ex:gobletSquat":{k:"goblet",fits:n=>!/sumo|landmine/i.test(n)},
-  "ex:frontSquat":{k:"frontSquat",fits:n=>!/zercher|kettlebell/i.test(n)},
+  "ex:gobletSquat":{k:n=>/sumo/i.test(n)?"sumoDb":"goblet",fits:n=>!/landmine/i.test(n)},
+  "ex:frontSquat":{k:n=>/zercher/i.test(n)?"zercher":/kettlebell/i.test(n)?"gobletKb":"frontSquat",fits:()=>true},
   "ex:bulgarian":{k:"bulgarian",fits:()=>true},
   "ex:splitSquat":{k:"lunge",fits:n=>!/smith/i.test(n),v:n=>/dumbbell/i.test(n)?"db":/barbell/i.test(n)?"bb":""},
-  "ex:rowDb":{k:"rowDb",fits:n=>!/renegade|kettlebell/i.test(n)},
+  "ex:rowDb":{k:n=>/kettlebell/i.test(n)?"rowKb":/renegade/i.test(n)?"renegade":"rowDb",fits:()=>true},
   "ex:cableFly":{k:"cableFly",fits:n=>!/single|one-arm|incline/i.test(n)},
   "ex:fly":{k:"fly",fits:n=>!/machine|pec deck/i.test(n),v:n=>/incline/i.test(n)?"inc":""},
   "ex:facePull":{k:"facePull",fits:()=>true,v:n=>/band/i.test(n)?"band":""},
   "ex:revFly":{k:"revFly",fits:n=>!/cable|pec deck|machine/i.test(n)},
-  "ex:frontRaise":{k:"frontRaise",fits:n=>!/cable|plate|incline|y-raise/i.test(n)},
+  "ex:frontRaise":{k:n=>/plate/i.test(n)?"plateRaise":"frontRaise",fits:n=>!/cable|incline|y-raise/i.test(n)},
   "ex:shrug":{k:"shrug",fits:()=>true,v:n=>/barbell/i.test(n)?"bb":""},
   "ex:skull":{k:"skull",fits:n=>!/jm press|tate/i.test(n),v:n=>/dumbbell/i.test(n)?"db":""},
-  "ex:ohExt":{k:"ohExt",fits:n=>!/cable/i.test(n),v:n=>/ez|french/i.test(n)?"bb":""},
+  "ex:ohExt":{k:n=>/cable/i.test(n)?"ohExtCable":"ohExt",fits:()=>true,v:n=>/ez|french/i.test(n)?"bb":""},
   "ex:preacher":{k:"preacher",fits:n=>!/machine|cable|spider/i.test(n)},
   "ex:calfRaise":{k:"calf",fits:n=>!/donkey|tibialis|smith|seated|leg press|single/i.test(n),v:n=>/dumbbell/i.test(n)?"db":""},
   "ex:pushup":{k:"pushup",fits:n=>!/ring|archer|explosive/i.test(n),v:n=>/knee/i.test(n)?"knee":/close|diamond/i.test(n)?"close":""},
@@ -803,7 +944,7 @@ const ND_MAP={"ex:squat":{k:"squat",fits:n=>!/pendulum|v-squat|belt|machine|box|
   "ex:sidePlank":{k:"sidePlank",fits:n=>!/copenhagen/i.test(n)},
   "ex:bridge":{k:"bridge",fits:n=>!/frog|march/i.test(n),v:n=>/barbell/i.test(n)?"bb":""},
   "ex:bridge1":{k:"bridge",fits:()=>true,v:()=>"one"},
-  "ex:bwSquat":{k:"bwSquat",fits:n=>/^(bodyweight squat|air squat|squat)s?$/i.test(n.trim())},
+  "ex:bwSquat":{k:n=>/box/i.test(n)?"boxSquatBw":"bwSquat",fits:n=>/^(bodyweight squat|air squat|squat)s?$/i.test(n.trim())||/box squat \(bodyweight\)/i.test(n)},
   "ex:stepUp":{k:"stepUp",fits:n=>!/stair/i.test(n),v:n=>/dumbbell/i.test(n)?"db":""},
   "ex:ausRow":{k:"ausRow",fits:n=>!/ring/i.test(n)},
   "ex:deadBug":{k:"deadBug",fits:()=>true},
@@ -840,8 +981,12 @@ const ND_MAP={"ex:squat":{k:"squat",fits:n=>!/pendulum|v-squat|belt|machine|box|
   "inchworm":{k:"inchworm",fits:()=>true},
   "band pull-apart":{k:"facePull",fits:()=>true,v:()=>"band"},
   "scapular push-up":{k:"pushup",fits:()=>true,v:()=>"scap"},
-  "scapular pull-up":{k:"pullup",fits:()=>true,v:()=>"scap"}};
-const ND_STILL={squat:.8,press:.75,hip:1,bench:.5,deadlift:.15,rdl:.85,ohp:.6,row:.85,pulldown:.85,lunge:.9,thrust:1,benchDb:.5,incline:.5,pullup:.9,cableRow:.9,lateral:.85,curl:.8,pushdown:.7,legPress:.6,legExt:.85,legCurl:.8,goblet:.85,frontSquat:.85,bulgarian:.9,rowDb:.9,cableFly:.8,fly:.8,facePull:.85,revFly:.85,frontRaise:.85,shrug:.8,skull:.8,ohExt:.8,preacher:.75,calf:.9,pushup:.9,dips:.9,benchDip:.9,plank:1,sidePlank:1,bridge:1,bwSquat:.85,stepUp:.6,ausRow:.9,deadBug:.9,birdDog:1,climbers:0,superman:1,wallSit:1,hollow:1,catCow:1,thread:1,wgs:1,hipCircles:.1,deepSquat:1,armCircles:.2,childPose:1,quadStretch:1,hamStretch:1,pigeon:1,calfStretch:1,chestStretch:1,crossBody:1,latStretch:1,neckSide:1,wrist:1,chinTuck:1,shoulderRolls:.2,seatedTwist:1,standingHf:1,fold:1,legsWall:.5,legSwing:.8,inchworm:.7};
+  "scapular pull-up":{k:"pullup",fits:()=>true,v:()=>"scap"},
+  "ex:rackPull":{k:"rackPull",fits:()=>true},
+  "ex:stiffLeg":{k:"rdl",fits:()=>true},
+  "ex:decline":{k:"decline",fits:n=>!/dumbbell/i.test(n)},
+  "ex:cableFlyLow":{k:"cableFlyLow",fits:()=>true}};
+const ND_STILL={squat:.8,press:.75,hip:1,bench:.5,deadlift:.15,rdl:.85,ohp:.6,row:.85,pulldown:.85,lunge:.9,thrust:1,benchDb:.5,incline:.5,pullup:.9,cableRow:.9,lateral:.85,curl:.8,pushdown:.7,legPress:.6,legExt:.85,legCurl:.8,goblet:.85,frontSquat:.85,bulgarian:.9,rowDb:.9,cableFly:.8,fly:.8,facePull:.85,revFly:.85,frontRaise:.85,shrug:.8,skull:.8,ohExt:.8,preacher:.75,calf:.9,pushup:.9,dips:.9,benchDip:.9,plank:1,sidePlank:1,bridge:1,bwSquat:.85,stepUp:.6,ausRow:.9,deadBug:.9,birdDog:1,climbers:0,superman:1,wallSit:1,hollow:1,catCow:1,thread:1,wgs:1,hipCircles:.1,deepSquat:1,armCircles:.2,childPose:1,quadStretch:1,hamStretch:1,pigeon:1,calfStretch:1,chestStretch:1,crossBody:1,latStretch:1,neckSide:1,wrist:1,chinTuck:1,shoulderRolls:.2,seatedTwist:1,standingHf:1,fold:1,legsWall:.5,legSwing:.8,inchworm:.7,pressStand:.75,pressSmith:.75,zPress:.6,latSeated:.85,latCable:.85,boxSquat:.85,hack:.8,beltSquat:.85,sumo:.15,trap:.15,kbDead:.15,rackPull:.1,rdlOne:.85,rdlB:.85,kbRdl:.85,floorPress:.5,benchOne:.5,pulldownClose:.85,pullAssist:.9,rowKb:.9,renegade:.9,legPressOne:.6,legExtOne:.85,thrustOne:1,benchSmith:.5,inclineSmith:.5,decline:.5,pushPress:.6,curtsy:.9,curlSeated:.8,zercher:.85,gobletKb:.85,sumoDb:.85,plateRaise:.85,boxSquatBw:.85,cableFlyLow:.8,ohExtCable:.8};
 let ndRun=false,ndLast=0;const ndT0=performance.now(),ndReduce=window.matchMedia?window.matchMedia("(prefers-reduced-motion: reduce)"):{matches:false};
 function ndTick(now){const els=document.querySelectorAll("svg[data-nd]");if(!els.length){ndRun=false;return}
   if(now-ndLast>=32){ndLast=now;const c=(now-ndT0)/1000,vh=window.innerHeight||800;let drawn=0;
