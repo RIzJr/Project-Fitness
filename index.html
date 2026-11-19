@@ -1136,6 +1136,8 @@ function readinessForm(r){if(r&&r.sleepH==null&&S.hkSleep&&r.date===todayKey()){
   ${RQ.map(([k,l,lo,hi])=>`<div class="field"><span class="label">${l}</span><div class="scale" role="group" aria-label="${l}">${[1,2,3,4,5].map(n=>`<button data-act="rdS" data-k="${k}" data-n="${n}" aria-pressed="${r[k]===n}">${n}</button>`).join("")}</div><div class="anchors"><span>1 · ${lo}</span><span>${hi} · 5</span></div></div>`).join("")}
   <div class="hq"><span class="small"><b>Any pain?</b> Not normal training soreness, but pain that worries you.</span><div class="yn">${["no","yes"].map(v=>`<button data-act="rdPain" data-v="${v}" aria-pressed="${(r.pain?"yes":r.pain===false?"no":"")===v}">${v==="yes"?"Yes":"No"}</button>`).join("")}</div></div>
   <button class="btn primary" style="align-self:flex-start" data-act="rdSave">Save today's check</button>`}
+// Tapping a score or Yes/No only updates the buttons in place, so the page or check-in sheet does not re-render and jump back to the top.
+function rdMark(el){const g=el&&el.parentNode;if(!g){render();return}for(const b of g.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b===el))}
 function readinessTrend(){const pts=[];for(let i=13;i>=0;i--){const k=addDays(todayKey(),-i),r=S.docs["ready_"+k];pts.push({week:k,score:r?readinessScore(r):null})}
   return pts.some(x=>x.score!=null)?chartSVG(pts,[{key:"score",label:"Readiness",color:"var(--accent)"}],{min:0,max:100,label:"Readiness over 14 days"}):""}
 function painCard(pn){const days=Math.floor((new Date(todayKey())-new Date(pn.date))/864e5),last=(pn.log&&pn.log.length?pn.log[pn.log.length-1].score:pn.score),flags=(pn.flags||[]).length;
@@ -1212,7 +1214,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-19-8";
+const APP_VERSION="2026-11-19-9";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -4563,8 +4565,8 @@ document.addEventListener("click",e=>{
     case "partAdd":{const L=S.draftWorkout[ds.part];L.push({name:ds.v,detail:"",done:false});S.draftWorkout._auto=false;render();document.getElementById(ds.part+(ds.v?"d":"n")+(L.length-1))?.focus();break}
     case "deloadEvery":{const st=clone(settings());st.deload={every:+ds.v,start:(st.deload&&st.deload.start)||weekStart()};save("settings",st);toast("Deload every "+ds.v+" weeks");break}
     case "deloadReset":{const st=clone(settings());st.deload={...(st.deload||{every:6}),start:weekStart()};save("settings",st);toast("New cycle starts this week");break}
-    case "rdS":S.rdDraft[ds.k]=+ds.n;render();break;
-    case "rdPain":S.rdDraft.pain=ds.v==="yes";render();break;
+    case "rdS":S.rdDraft[ds.k]=+ds.n;rdMark(b);break;
+    case "rdPain":S.rdDraft.pain=ds.v==="yes";rdMark(b);break;
     case "rdEdit":S.rdEdit=true;S.rdDraft=clone(S.docs["ready_"+todayKey()]);render();break;
     case "rdSave":{const d=S.rdDraft;if(!(+d.sleepH>0)||RQ.some(([k])=>!d[k])){toast("Fill in sleep hours and all five scores");break}if(d.pain==null){toast("Answer the pain question");break}
       const k=todayKey();d.date=k;d.type="readiness";d.sleepH=+d.sleepH;S.rdEdit=false;S.rdDraft=null;if(d.pain&&!ofType("pain").some(x=>x.status!=="resolved"))S.painDraft={area:"Knee",side:"Left",score:4,kind:"",worse:"",flags:[]};if(S.rdPop){S.rdPop="done";S.painDraft=null}save("ready_"+k,d);if(S.rdPop)break;toast(S.painDraft?"Saved. Tell us about the pain below":"Readiness saved");break}
