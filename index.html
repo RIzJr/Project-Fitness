@@ -435,6 +435,21 @@ details summary{cursor:pointer;color:var(--muted)}
 .set .done{height:38px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--muted);font-size:18px;font-weight:700;line-height:1}
 .set .done[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 /* rest timer */
+.cfocus .cfbody{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:6px 6px 12px;-webkit-overflow-scrolling:touch}
+.cftime{font-family:var(--display);font-size:76px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.cfocus.paused .cftime{opacity:.55}
+.cfocus .prog{width:86%;max-width:380px;height:6px;border-radius:99px;background:var(--sunk);overflow:hidden}.cfocus .prog i{display:block;height:100%;background:var(--accent)}
+.cfhr{display:flex;align-items:baseline;gap:8px}.cfhr .hrdot{font-size:30px}.cfhr b{font-family:var(--display);font-size:60px;line-height:1;font-variant-numeric:tabular-nums}
+.cfcoach{font-weight:800;min-height:1.3em}
+.cfstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:400px}.cfstats>div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 6px;display:flex;flex-direction:column;gap:2px;min-width:0}.cfstats b{font-size:20px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cfz{width:100%;max-width:400px}.cflegend{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center}.cflegend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px}
+.cfcue{max-width:380px;opacity:.8;margin:0}.cfdemo{background:var(--surface)}
+.cfctl{gap:10px}.cfctl .btn{flex:1}
+.btn.big{padding:14px 18px;font-size:17px;border-radius:14px}
+.cfsheet{position:absolute;left:12px;right:12px;bottom:max(12px,var(--sab));z-index:3;box-shadow:0 10px 40px rgba(0,0,0,.25);border-radius:18px;max-height:80%;overflow:auto}
+.cfmini{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(70px + var(--sab));max-width:536px;margin:0 auto;z-index:6;display:flex;align-items:center;gap:10px;background:var(--fg);color:var(--bg);border:0;border-radius:14px;padding:12px 14px;font:inherit;box-shadow:0 6px 24px rgba(0,0,0,.18);text-align:left}
+.cfmini .hrdot{color:#FF4D4D;animation:cfpulse 1.2s ease-in-out infinite}.cfmini #cfMiniT{font-variant-numeric:tabular-nums}.cfmini .cfopen{margin-left:auto;font-weight:800}
+@keyframes cfpulse{50%{opacity:.35}}@media (prefers-reduced-motion:reduce){.cfmini .hrdot{animation:none}}
 .restbar{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(70px + var(--sab));max-width:536px;margin:0 auto;background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;z-index:6;box-shadow:0 6px 24px rgba(0,0,0,.18)}
 .restbar .t{font-family:var(--display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;min-width:84px}
 .restbar .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.75;font-weight:600}
@@ -1214,7 +1229,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-19-9";
+const APP_VERSION="2026-11-19-10";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1240,6 +1255,7 @@ const hrDevKey=w=>"pf-hrdev:"+PROF.active+":"+w;
 const hrParse=v=>{const h=String(v||"").replace(/[^0-9a-f]/gi,"");if(h.length<4)return null;const b=[];for(let i=0;i<h.length;i+=2)b.push(parseInt(h.substr(i,2),16));return b[0]&1?b[1]|(b[2]<<8):b[1]};
 function hrOnValue(ev){const bpm=hrParse(ev&&ev.value);if(!bpm||bpm<25||bpm>240)return;HRL.bpm=bpm;HRL.at=Date.now();HRL.state="on";const dw=S.draftWorkout;
   if(dw&&HRL.who===hrWho()){dw.hrLog=dw.hrLog||[];const t=Math.round((Date.now()-(dw.started||Date.now()))/1000),L=dw.hrLog;if(!L.length||t-L[L.length-1][0]>=5)L.push([t,bpm])}
+  if(S.cLive&&HRL.who==="me")cfLog(bpm,"ble");
   HRL.ls.push([Date.now(),bpm]);while(HRL.ls.length&&HRL.ls[0][0]<Date.now()-90000)HRL.ls.shift();hrPaint()}
 // update the numbers in place every beat, without re-rendering the whole screen
 function hrPaint(){const n=hrNow(),max=hrMaxFor(S.draftWorkout&&S.draftWorkout.forClient),z=n?hrZone(n.bpm,max):null,col=z?ZONES[z-1][2]:"var(--muted)";
@@ -1355,9 +1371,9 @@ async function hkLiveTick(){const H=NPlug("Health");if(!H)return;const now=Date.
     if(x){HKL.bpm=Math.round(+x.value);HKL.at=Date.parse(x.endDate||x.startDate);HKL.src=String(x.sourceName||"")}else HKL.bpm=null}catch(e){}
   hrPaint()}
 const bleOn=()=>HRL.state==="on"&&HRL.who===hrWho();
-function hrNow(){if(bleOn()&&HRL.bpm)return {bpm:HRL.bpm,src:"ble"};const dw=S.draftWorkout;if(dw&&!dw.forClient&&hkOn()&&HKL.bpm&&Date.now()-HKL.at<=120000)return {bpm:HKL.bpm,src:"health",age:Date.now()-HKL.at};return null}
+function hrNow(){if(bleOn()&&HRL.bpm)return {bpm:HRL.bpm,src:"ble"};const dw=S.draftWorkout;if((dw&&!dw.forClient||S.cLive)&&hkOn()&&HKL.bpm&&Date.now()-HKL.at<=120000)return {bpm:HKL.bpm,src:"health",age:Date.now()-HKL.at};return null}
 if(NATIVE){setInterval(()=>{if(document.hidden||!hkOn())return;const now=Date.now(),dw=S.draftWorkout;
-    if(playerOn()&&dw&&!dw.forClient&&!bleOn()&&now-HKL.chk>15000){HKL.chk=now;hkLiveTick()}
+    if((playerOn()&&dw&&!dw.forClient||S.cLive)&&!bleOn()&&now-HKL.chk>15000){HKL.chk=now;hkLiveTick()}
     if(hkShown()&&!S.hkSyncing&&now-((S.hkFresh||{}).chk||0)>60000)hkCheckNow()},5000);
   document.addEventListener("visibilitychange",()=>{if(document.hidden||!hkOn())return;HKL.chk=0;hkFresh().then(()=>{hkFreshPaint();const f=S.hkFresh;if(f&&f.at>(S.hkSeen||0))hkPull(true);else hkPull()})})}
 // sync status: shown on the Apple Health page, the watch guide and Recover
@@ -1452,20 +1468,21 @@ const woZ=w=>(w.hr&&typeof w.hr==="object"&&w.hr.z)||w.hrZ||null;
 const woStrain=w=>{const z=woZ(w);return z&&z.some(x=>x>0)?strainOf(zTrimp(z)):null};
 const woHR=w=>w.hr&&typeof w.hr==="object"?(w.hr.avg?{avg:w.hr.avg,max:w.hr.max||null}:null):+w.hr?{avg:+w.hr,max:+w.hrMax||null}:null;
 const sessionsOn=d=>[...ofType("workout"),...ofType("cardio")].filter(w=>w.date===d);
+const liveZ=w=>w.hr&&w.hr.src==="live"&&w.hr.z?w.hr.z:w.type==="cardio"&&w.hrSrc==="ble"&&w.hrZ?w.hrZ:null;
 const trimpEst=w=>{const m=+w.mins||0,r=+w.rpe;return m*(w.type==="cardio"?(r?Math.max(1,Math.min(5,r/2)):2.5):2)};
 function dayStrain(d,pts,max){const z=[0,0,0,0,0],add=a=>(a||[]).forEach((s,i)=>z[i]+=+s||0),ses=sessionsOn(d);let est=0,any=pts.length>=10;
-  const live=ses.filter(w=>w.hr&&w.hr.src==="live"&&w.hr.z).map(w=>({w,win:hkWin(w)})).filter(x=>x.win),inLive=t=>live.some(x=>t>=x.win[0]&&t<=x.win[1]);
-  const zs=hrZoneSecs(pts.filter(x=>!inLive(x[0])),max,600,true);add(zs);const lt=(zs.light||0)/60*0.1;live.forEach(x=>{add(x.w.hr.z);any=true});
+  const live=ses.filter(w=>liveZ(w)).map(w=>({w,win:hkWin(w)})).filter(x=>x.win),inLive=t=>live.some(x=>t>=x.win[0]&&t<=x.win[1]);
+  const zs=hrZoneSecs(pts.filter(x=>!inLive(x[0])),max,600,true);add(zs);const lt=(zs.light||0)/60*0.1;live.forEach(x=>{add(liveZ(x.w));any=true});
   ses.forEach(w=>{if(live.some(x=>x.w===w))return;const win=hkWin(w),cov=win?pts.filter(x=>x[0]>=win[0]&&x[0]<=win[1]).length:0;if(cov<3&&+w.mins){est+=trimpEst(w);any=true}});
   return any?{strain:strainOf(zTrimp(z)+est+lt),z:z.map(Math.round),est:est>0}:null}
 // heart rate during each recent session, from the watch's samples in Apple Health (watches often sync later, so it retries for 2 days).
 // Sessions recorded with live heart rate keep their own, more detailed data.
-const hkWin=w=>{const mins=Math.max(1,+w.mins||1);let end=w.ended?+w.ended:w.started?+w.started+mins*60000:w.type==="cardio"&&/^cardio_\d+/.test(w.id)?+w.id.slice(7):null;if(!end)return null;const start=w.started&&w.ended?+w.started:end-mins*60000;return [start,end]};
-async function hkWorkoutsHR(H){const since=addDays(todayKey(),-2),max=hrMaxFor(null),L=[...ofType("workout"),...ofType("cardio")].filter(w=>w.date>=since&&!w.hrAt&&(w.hrTry||0)<6&&!(w.hr&&w.hr.src==="live"));
+const hkWin=w=>{const mins=Math.max(1,+w.mins||1);let end=w.ended?+w.ended:w.started?+w.started+mins*60000:w.type==="cardio"&&/^cardio_\d+/.test(w.id)&&hkLocalDate(+w.id.slice(7))===w.date?+w.id.slice(7):null;if(!end)return null;const start=w.started&&w.ended?+w.started:end-mins*60000;return [start,end]};
+async function hkWorkoutsHR(H){const since=addDays(todayKey(),-2),max=hrMaxFor(null),L=[...ofType("workout"),...ofType("cardio")].filter(w=>w.date>=since&&!w.hrAt&&(w.hrTry||0)<6&&!(w.hr&&w.hr.src==="live")&&w.hrSrc!=="ble");
   for(const w of L){const win=hkWin(w);if(!win)continue;try{const r=await H.readSamples({dataType:"heartRate",startDate:new Date(win[0]).toISOString(),endDate:new Date(win[1]).toISOString(),limit:3000,ascending:true});
     const pts=((r&&r.samples)||[]).map(x=>[Date.parse(x.startDate),+x.value]).filter(x=>x[1]>30&&x[1]<230).sort((a,b)=>a[0]-b[0]),v=pts.map(x=>x[1]),cur=S.docs[w.id];if(!cur)continue;
     if(v.length>=3){const avg=Math.round(v.reduce((a,b)=>a+b,0)/v.length),mx=Math.max(...v),z=max?hrZoneSecs(pts,max,120):null,n={...cur,hr:{avg,max:mx,n:v.length,...(z?{z,src:"health",maxHR:max}:{})},hrAt:Date.now()};
-      if(w.type==="cardio"){n.hr=+cur.hr||avg;n.hrMax=mx;if(z)n.hrZ=z}save(w.id,n)}
+      if(w.type==="cardio"){n.hr=cur.hrSrc==="poll"||!+cur.hr?avg:+cur.hr;n.hrMax=mx;if(z)n.hrZ=z;if(cur.hrSrc==="poll")n.hrSrc="health"}save(w.id,n)}
     else save(w.id,{...cur,hrTry:(cur.hrTry||0)+1})}catch(e){}}}
 // recovery: today's sleep, resting heart rate and HRV against your own last 2 weeks, plus yesterday's training and your morning check-in
 const median=a=>{a=a.filter(x=>x!=null&&!isNaN(x)).sort((x,y)=>x-y);return a.length?a[Math.floor((a.length-1)/2)]:null};
@@ -1639,7 +1656,7 @@ function recoveryReport(){if(!hasWatchData())return null;const out=[];for(let i=
 function watchReport(){const H=(S.docs.hkdays||{}).days;if(!H)return null;const from=addDays(todayKey(),-HK_DAYS),days={};
   Object.keys(H).filter(d=>d>=from).sort().forEach(d=>{const x={...H[d]};delete x.sx;delete x.z;const R=recoveryFor(d);if(R&&!R.building)x.rec=R.score;if(Object.keys(x).length)days[d]=x});
   const ses=[...ofType("workout"),...ofType("cardio")].filter(w=>w.date>=from&&woHR(w)).sort((a,b)=>a.date<b.date?1:-1).slice(0,40).map(w=>{const h=woHR(w),z=woZ(w);
-    return {date:w.date,name:w.name||w.activity||kindName(w.kind),mins:+w.mins||null,avg:h.avg||null,max:h.max||null,...(z?{z,strain:woStrain(w)}:{}),...(w.coachLogged?{coach:1}:{}),...(w.hr&&w.hr.src==="live"?{live:1}:{})}});
+    return {date:w.date,name:w.name||w.activity||kindName(w.kind),mins:+w.mins||null,avg:h.avg||null,max:h.max||null,...(z?{z,strain:woStrain(w)}:{}),...(w.coachLogged?{coach:1}:{}),...(w.hr&&w.hr.src==="live"||w.hrSrc==="ble"?{live:1}:{})}});
   return {days,sessions:ses,maxHR:hrMaxFor(null)}}
 const WATCHES=[["apple","Apple Watch"],["garmin","Garmin"],["whoop","WHOOP"],["oura","Oura"],["fitbit","Fitbit / Google"],["polar","Polar"],["other","Other"]];
 const WATCH_STEPS={
@@ -1725,7 +1742,7 @@ function persistDraft(){const dw=S.draftWorkout;
   else if(S.docs.active&&!persistDraft._clearing){persistDraft._clearing=true;persistDraft._j=null;persistDraft._sync=0;setTimeout(()=>{if(!S.draftWorkout&&S.docs.active)remove("active");persistDraft._clearing=false},0)}
   try{const k="pf-draft:"+PROF.active;if(dw)localStorage.setItem(k,JSON.stringify(dw));else localStorage.removeItem(k)}catch(e){}
   scheduleReminders()}
-function restoreDraft(){try{const d=JSON.parse(localStorage.getItem("pf-draft:"+PROF.active)||"null");if(d&&d.exercises){S.draftWorkout=d;S.tab="train"}}catch(e){}}
+function restoreDraft(){cfRestore();try{const d=JSON.parse(localStorage.getItem("pf-draft:"+PROF.active)||"null");if(d&&d.exercises){S.draftWorkout=d;S.tab="train"}}catch(e){}}
 
 
 /* ---------- You: check-in, body and (coach) clients ---------- */
@@ -1961,6 +1978,7 @@ function quickSheet(){const items=[["food","Log food","Search, scan or quick-add
 const playerOn=()=>!!(S.draftWorkout&&S.tab==="train"&&!S.woList&&!S.lock&&!S.onboard);
 function wpSteps(dw){const st=[];if((dw.warmup||[]).length)st.push({t:"warmup"});dw.exercises.forEach((e,ei)=>st.push({t:"ex",ei}));if((dw.cooldown||[]).length)st.push({t:"cooldown"});st.push({t:"finish"});return st}
 function wpStart(){const dw=S.draftWorkout;if(!dw)return;S._wpScroll={};S._wpKey=null;S.hold=null;S.cdRun=null;S.cdAdd=false;S.wpOpen=null;S.wuDemo=null;S.wuAdd=false;S.rampOpen=true;S.wu=null;if(!dw.started)dw.started=Date.now();S.wp={step:0};S.woList=false;S.tab="train";wakeOn()}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.cLive&&S.cFocus)wakeOn()});
 let wakeLock=null;async function wakeOn(){try{if("wakeLock" in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>{wakeLock=null})}}catch(e){}}
 function wakeOff(){try{wakeLock&&wakeLock.release()}catch(e){}wakeLock=null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&playerOn())wakeOn()});
@@ -2212,7 +2230,7 @@ function rampPanel(dw,ex){const r=rampSets(dw,ex),done=ex.wu||[],open=S.rampOpen
     ${open?r.sets.map(([n,d],j)=>`<button class="wp-sub" data-act="rampTick" data-k="${j}" aria-pressed="${done.includes(j)}"><span class="wp-tick">${done.includes(j)?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span><span><b>${esc(n)}</b> <span class="muted">· ${esc(d)}</span></span></button>`).join("")+`<span class="small muted">Optional. Light sets to groove the movement; they don't count towards your working sets.</span>`:""}</section>`}
 
 /* ---------- cardio ---------- */
-const CARDIO=["Run","Walk","Cycle","Row","Swim","Cross-trainer","Stairs","HIIT","Sport","Other"];
+const CARDIO=["Run","Walk","Incline walk","Cycle","Row","Swim","Cross-trainer","Stairs","HIIT","Sport","Other"];
 const effortWord=n=>n<=3?"Easy":n<=6?"Moderate":n<=8?"Hard":"Max";
 // UK guideline: 150 min moderate or 75 min vigorous a week; vigorous minutes count double
 const actMins=c=>(+c.mins||0)*((+c.rpe||5)>=7?2:1);
@@ -2223,7 +2241,8 @@ function renderCardio(){const all=ofType("cardio"),ws=weekStart(),wk=all.filter(
     <div class="spread"><div><div class="count" style="text-align:left">${am}<small> / 150</small></div><div class="small muted">activity minutes (vigorous count double)</div></div><div class="small" style="text-align:right">${wk.length} session${wk.length===1?"":"s"}<br>${mins} min${km?` · ${fmtN(r1(km))} km`:""}</div></div>
     <div class="bar" style="--c:var(--veg)"><i style="width:${Math.min(100,am/150*100)}%"></i></div>
     <span class="small muted">The UK guideline is 150 minutes of moderate activity (or 75 vigorous) a week. Moderate: you can talk but not sing. Vigorous: only a few words at a time.</span></section>
-  <section class="panel"><h2>Log cardio</h2>
+  ${cfStartPanel(d)}
+  <section class="panel"><h2>Log a past session</h2>
     <div class="chiprow" role="group" aria-label="Activity">${CARDIO.map(a=>`<button class="qchip${d.activity===a?" on":""}" data-act="cAct" data-v="${a}" aria-pressed="${d.activity===a}">${a}</button>`).join("")}</div>
     <div class="grid2"><label class="field"><span class="label">Minutes</span><input id="c_mins" type="number" inputmode="numeric" step="any" value="${esc(d.mins)}" data-act="cF" data-k="mins"></label>
       <label class="field"><span class="label">Date</span><input id="c_date" type="date" value="${d.date}" data-act="cF" data-k="date"></label>
@@ -2233,9 +2252,82 @@ function renderCardio(){const all=ofType("cardio"),ws=weekStart(),wk=all.filter(
       <div class="anchors"><span>1 · Very easy</span><span>All out · 10</span></div></div>
     <label class="field"><span class="label">Notes</span><input id="c_notes" value="${esc(d.notes)}" data-act="cF" data-k="notes" placeholder="optional, e.g. intervals 6 × 400m"></label>
     <button class="btn primary" style="align-self:flex-start" data-act="cSave">Save cardio</button></section>
-  <section class="panel"><h2>History</h2><div class="hist">${all.slice(0,S.cAll?all.length:15).map(c=>`<div class="item"><div class="spread"><b>${esc(c.activity)} · ${c.mins} min${+c.km?` · ${fmtN(+c.km)} km`:""}</b><button class="x" data-act="cDel" data-id="${c.id}" aria-label="Delete">×</button></div>
-      <div class="small muted">${fmtDay(c.date)} · effort ${c.rpe}/10 (${effortWord(+c.rpe).toLowerCase()})${paceTxt(c)?" · "+paceTxt(c):""}${+c.hr?` · ${c.hr} bpm`:""}${c.notes?" · "+esc(c.notes):""}</div></div>`).join("")||'<p class="muted small" style="margin:0">No cardio logged yet.</p>'}</div>
+  <section class="panel"><h2>History</h2><div class="hist">${all.slice(0,S.cAll?all.length:15).map(c=>`<div class="item"><div class="spread"><b>${esc(cfName(c))} · ${c.mins} min${+c.km?` · ${fmtN(+c.km)} km`:""}</b><button class="x" data-act="cDel" data-id="${c.id}" aria-label="Delete">×</button></div>
+      <div class="small muted">${fmtDay(c.date)} · effort ${c.rpe}/10 (${effortWord(+c.rpe).toLowerCase()})${paceTxt(c)?" · "+paceTxt(c):""}${+c.hr?` · ♥ avg ${c.hr}${+c.hrMax?" · max "+c.hrMax:""} bpm`:""}${c.notes?" · "+esc(c.notes):""}</div>${c.hrZ?zbar(c.hrZ):""}</div>`).join("")||'<p class="muted small" style="margin:0">No cardio logged yet.</p>'}</div>
     ${all.length>15?`<button class="btn ghost" style="align-self:flex-start" data-act="cAll">${S.cAll?"Show fewer":"Show all "+all.length}</button>`:""}</section></div>`}
+
+/* ---------- live cardio session + focus mode ----------
+   Start a session from Train › Cardio: a full-screen focus view with a big timer, live heart rate (Bluetooth monitor, or the watch via Apple Health),
+   zone guidance, avg/max so far and an animated demo. Ending it gives a summary and saves a cardio doc with avg/max heart rate and time in zones. */
+const CF_CUES={Run:"Relaxed shoulders, quick light steps landing under your hips.",Walk:"Stand tall, swing the arms from the shoulders, push off through the toes.","Incline walk":"Brisk pace on an incline. Stand tall and keep your hands off the rails.",Cycle:"Smooth circles, knee slightly bent at the bottom of each stroke.",Row:"Legs, then lean back, then arms. Arms, body, then legs on the way forward.","Cross-trainer":"Stand tall, push and pull with the arms, drive through the heels.",Stairs:"Whole foot on each step, light hands on the rails only for balance.",Swim:"Long, relaxed strokes. Breathe out under the water.",HIIT:"Hard in the efforts, easy in the rests. Quality over quantity.",Sport:"Enjoy it, and keep sipping water.",Other:"Keep an effort you could hold for the whole session."};
+const CF_PLACED=["Run","Walk"],CF_GOALS=[[0,"Free"],[2,"Easy · zone 2"],[3,"Steady · zone 3"],[4,"Hard · zone 4"]],CF_MINS=[0,20,30,45,60];
+const cfName=c=>c.activity+(CF_PLACED.includes(c.activity)&&c.place==="Treadmill"?" · treadmill":"");
+const cfDemo=c=>{const a=c.activity,tm=c.place==="Treadmill";return a==="Run"?(tm?"Treadmill run":"Outdoor run"):a==="Walk"?(tm?"Treadmill walk":"Outdoor walk"):a==="Incline walk"?"Treadmill incline walk":a==="Cycle"?"Exercise bike":a==="Row"?"Rowing machine":a==="Stairs"?"Stair climber":null};
+const cfKey=()=>"pf-clive:"+PROF.active;
+const cfSecs=c=>Math.max(0,Math.round(((c.acc||0)+(c.pausedAt?0:Date.now()-c.resumed))/1000));
+const hms=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,"0");return h?h+":"+String(m).padStart(2,"0")+":"+x:m+":"+x};
+function cfPersist(){const c=S.cLive;try{if(c)localStorage.setItem(cfKey(),JSON.stringify(c));else localStorage.removeItem(cfKey())}catch(e){}}
+function cfRestore(){try{const c=JSON.parse(localStorage.getItem(cfKey())||"null");if(c&&c.started&&Date.now()-c.started<12*3600e3){S.cLive=c;cfTimer()}else if(c)localStorage.removeItem(cfKey())}catch(e){}}
+// a heart-rate sample every 2 s of active time (not while paused); src "ble" = chest strap / broadcast, "poll" = latest Apple Health reading
+function cfLog(bpm,src){const c=S.cLive;if(!c||c.pausedAt||c.end||!(bpm>25&&bpm<240))return;const t=cfSecs(c),L=c.hrLog=c.hrLog||[];if(L.length&&t-L[L.length-1][0]<2)return;L.push([t,Math.round(bpm)]);c.src=c.src==="ble"||src==="ble"?"ble":"poll"}
+const cfMax=()=>hrMaxFor(null);
+// effort suggestion from average heart rate (as % of max), so the RPE starts somewhere sensible
+const cfRpeFor=(avg,max)=>{const z=hrZone(avg,max);return z?[3,4,6,8,9][z-1]:5};
+function cfCoach(bpm,goal,max){const z=bpm&&max?hrZone(bpm,max):null;if(!goal||!z)return {t:"",c:""};
+  if(z<goal)return {t:"Pick it up a little to reach zone "+goal,c:ZONES[1][2]};if(z>goal)return {t:"Ease off a touch, back to zone "+goal,c:ZONES[3][2]};return {t:"In zone "+goal+" ✓ hold this",c:ZONES[2][2]}}
+function cfStart(){const d=S.cDraft||{},now=Date.now();S.cLive={activity:d.activity||"Run",place:d.place||"Outdoors",goal:+d.goal||0,mins:+d.goalMins||0,started:now,resumed:now,acc:0,pausedAt:null,hrLog:[]};
+  S.cFocus=true;cfPersist();wakeOn();buzz(60);if(NATIVE&&hkOn()){HKL.chk=0;hkLiveTick()}render();cfTimer()}
+function cfTimer(){clearInterval(cfTimer._i);cfTimer._i=setInterval(cfTick,1000)}
+function cfTick(){const c=S.cLive;if(!c){clearInterval(cfTimer._i);return}const n=hrNow();if(n&&n.src==="health"&&HKL.at!==c.hkAt){c.hkAt=HKL.at;cfLog(n.bpm,"poll")}
+  const secs=cfSecs(c),set=(id,v)=>{const el=document.getElementById(id);if(el&&el.textContent!==String(v))el.textContent=v};
+  set("cfTime",hms(secs));set("cfMiniT",hms(secs));
+  if(c.mins){const b=document.getElementById("cfBar");if(b)b.style.width=Math.min(100,secs/(c.mins*60)*100).toFixed(1)+"%";set("cfLeft",secs>=c.mins*60?"Time goal reached 🎉":hms(c.mins*60-secs)+" to your "+c.mins+" min goal");
+    if(secs>=c.mins*60&&!c.goalHit){c.goalHit=true;buzz(150);if(restCfg().sound)beep();toast("Time goal reached")}}
+  const st=hrSummary(c.hrLog,cfMax());set("cfAvg",st?st.avg:"--");set("cfMax",st?Math.max(st.max,c.pausedAt||!n?0:n.bpm):"--");
+  const zb=document.getElementById("cfZ");if(zb&&st&&secs%5===0)zb.innerHTML=zbar(st.z);
+  const co=document.getElementById("cfCoach");if(co){const k=cfCoach(n&&n.bpm,c.goal,cfMax());co.textContent=k.t;co.style.color=k.c}
+  set("cfSrc",n?(n.src==="ble"?(HRL.dev&&HRL.dev.name)||"Monitor":"Watch"):"None");
+  if(secs%15===0)cfPersist()}
+function cfStartPanel(d){const c=S.cLive,max=cfMax();
+  if(c)return `<section class="panel cfnow"><div class="spread"><div><span class="label">Session in progress</span><h2 style="margin:2px 0 0">${esc(cfName(c))} · <span id="cfMiniT">${hms(cfSecs(c))}</span></h2></div><button class="btn primary" data-act="cfOpen">Open</button></div></section>`;
+  const hrLine=NATIVE?(bleOn()?`♥ Heart rate from ${esc(HRL.dev.name)}`:hkOn()?"♥ Heart rate from your watch via Apple Health. Start a workout on the watch for readings every few seconds, or connect a chest strap in focus mode.":"♥ Connect a chest strap or broadcast from your watch in focus mode for live heart rate."):"Live heart rate works in the iPhone app. You can type your average heart rate when you finish.";
+  return `<section class="panel"><h2>Start a session</h2><span class="small muted" style="margin-top:-4px">Focus mode: a big timer, live heart rate and zone guidance. Average and max heart rate are saved with the session.</span>
+    <div class="chiprow" role="group" aria-label="Activity">${CARDIO.map(a=>`<button class="qchip${d.activity===a?" on":""}" data-act="cAct" data-v="${a}" aria-pressed="${d.activity===a}">${a}</button>`).join("")}</div>
+    ${CF_PLACED.includes(d.activity)?`<div class="chiprow" role="group" aria-label="Where">${["Outdoors","Treadmill"].map(p=>`<button class="qchip${(d.place||"Outdoors")===p?" on":""}" data-act="cPlace" data-v="${p}" aria-pressed="${(d.place||"Outdoors")===p}">${p}</button>`).join("")}</div>`:""}
+    <div class="field"><span class="label">Heart-rate target</span><div class="chiprow" role="group" aria-label="Heart-rate target">${CF_GOALS.map(([g,l])=>`<button class="qchip${(+d.goal||0)===g?" on":""}" data-act="cGoal" data-v="${g}" aria-pressed="${(+d.goal||0)===g}">${l}</button>`).join("")}</div>
+      ${+d.goal&&!max?`<div class="row" style="gap:8px;align-items:flex-end"><label class="field" style="flex:1"><span class="label">Your age (sets your zones)</span><input id="hrAgeIn" type="number" inputmode="numeric" placeholder="e.g. 30"></label><button class="btn" data-act="hrAgeSave">Set zones</button></div>`:+d.goal?`<span class="small muted">Zone ${+d.goal}: ${Math.round(ZONES[+d.goal-1][0]*max)}–${Math.round((ZONES[+d.goal]?ZONES[+d.goal][0]:1)*max)-1} bpm (max ${max}). ${+d.goal===2?"You can talk in full sentences.":+d.goal===3?"You can talk in short sentences.":"Only a few words at a time."}</span>`:""}</div>
+    <div class="field"><span class="label">Time goal</span><div class="chiprow" role="group" aria-label="Time goal">${CF_MINS.map(m=>`<button class="qchip${(+d.goalMins||0)===m?" on":""}" data-act="cMins" data-v="${m}" aria-pressed="${(+d.goalMins||0)===m}">${m?m+" min":"None"}</button>`).join("")}</div></div>
+    <span class="small muted">${hrLine}</span>
+    <button class="btn primary big" style="align-self:stretch" data-act="cfStart">Start ${esc(d.activity||"Run").toLowerCase()} in focus mode</button></section>`}
+function cardioFocus(){const c=S.cLive;if(!c)return"";if(c.end)return cfSummary();const max=cfMax(),dn=cfDemo(c),secs=cfSecs(c),st=hrSummary(c.hrLog,max),n=hrNow(),k=cfCoach(n&&n.bpm,c.goal,max);
+  return `<div class="viewer runner cfocus${c.pausedAt?" paused":""}" role="dialog" aria-label="${esc(cfName(c))}, focus mode"><div class="vbar"><b>${esc(cfName(c))}</b><span class="small">${c.pausedAt?"Paused":c.goal?"Target zone "+c.goal:"Focus mode"}</span><button class="btn" data-act="cfMin">Minimise</button></div>
+    <div class="cfbody">${dn&&anyDemoKey(dn)?`<div class="demo-wrap cfdemo">${demoSVG(dn,150,!!c.pausedAt)}</div>`:""}
+      <div class="cftime" id="cfTime" aria-live="off">${hms(secs)}</div>
+      ${c.mins?`<div class="prog"><i id="cfBar" style="width:${Math.min(100,secs/(c.mins*60)*100).toFixed(1)}%"></i></div><span class="small muted" id="cfLeft"></span>`:""}
+      <div class="cfhr"><span class="hrdot">♥</span><b class="hrlive">${n?n.bpm:"--"}</b><span class="small">bpm</span></div>
+      <span class="small hrzone">${n&&max&&hrZone(n.bpm,max)?"Zone "+hrZone(n.bpm,max)+" · "+ZONES[hrZone(n.bpm,max)-1][1]:""}</span>
+      <div id="cfCoach" class="cfcoach" style="color:${k.c}">${k.t}</div>
+      <div class="cfstats"><div><span class="label">Avg</span><b id="cfAvg">${st?st.avg:"--"}</b></div><div><span class="label">Max</span><b id="cfMax">${st?st.max:"--"}</b></div><div><span class="label">Heart rate</span><b id="cfSrc" class="small">${n?(n.src==="ble"?esc((HRL.dev&&HRL.dev.name)||"Monitor"):"Watch"):"None"}</b></div></div>
+      <div id="cfZ" class="cfz">${st?zbar(st.z):""}</div>
+      ${NATIVE&&!bleOn()?`<button class="btn" data-act="hrOpen">${n?"Use a chest strap instead":"Connect heart rate"}</button>`:!NATIVE?`<span class="small muted">Live heart rate works in the iPhone app.</span>`:""}
+      <p class="small cfcue">${esc(CF_CUES[c.activity]||"")}</p></div>
+    <div class="vbar cfctl"><button class="btn big" data-act="cfPause">${c.pausedAt?"Resume":"Pause"}</button><button class="btn primary big" data-act="cfEnd">End</button></div>
+    ${S.hrSheet?`<div class="cfsheet">${hrSheet()}</div>`:""}</div>`}
+function cfSummary(){const c=S.cLive,E=c.end,max=cfMax(),st=hrSummary(c.hrLog,max),mins=Math.max(1,Math.round(E.secs/60)),dist=!["HIIT","Sport"].includes(c.activity);
+  const tiles=[["Time",hms(E.secs)],["Avg heart rate",st?st.avg+" bpm":"–"],["Max heart rate",st?st.max+" bpm":"–"]];
+  return `<div class="viewer runner cfocus" role="dialog" aria-label="Session summary"><div class="vbar"><b>${esc(cfName(c))} done</b><button class="btn" data-act="cfBack">‹ Keep going</button></div>
+    <div class="cfbody cfsum"><div class="cfstats">${tiles.map(([l,v])=>`<div><span class="label">${l}</span><b>${v}</b></div>`).join("")}</div>
+      ${st?`<div class="cfz">${zbar(st.z)}</div><div class="cflegend small">${ZONES.map(([,l,col],i)=>st.z[i]?`<span><i style="background:${col}"></i>${l} ${hms(st.z[i])}</span>`:"").join("")}</div>`
+        :`<span class="small muted">${NATIVE&&hkOn()?"No live heart rate this time. If your watch recorded it, the average is added once it syncs to Apple Health.":"No heart rate recorded. Type your average below if your watch shows it."}</span>`}
+      <div class="grid2" style="width:100%;max-width:400px">${dist?`<label class="field"><span class="label">Distance (km)</span><input id="cf_km" type="number" inputmode="decimal" step="any" value="${esc(E.km||"")}" data-act="cfF" data-k="km" placeholder="optional"></label>`:""}
+        ${st?"":`<label class="field"><span class="label">Avg heart rate</span><input id="cf_hr" type="number" inputmode="numeric" value="${esc(E.hr||"")}" data-act="cfF" data-k="hr" placeholder="optional"></label>`}</div>
+      <div class="field" style="width:100%;max-width:400px"><span class="label" id="cfRpeL">Effort: ${E.rpe}/10 · ${effortWord(E.rpe)}</span><div class="scale" style="grid-template-columns:repeat(10,1fr)" role="group" aria-label="Effort">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-act="cfRpe" data-n="${n}" aria-pressed="${E.rpe===n}">${n}</button>`).join("")}</div>
+        <div class="anchors"><span>1 · Very easy</span><span>All out · 10</span></div></div>
+      <label class="field" style="width:100%;max-width:400px"><span class="label">Notes</span><input id="cf_notes" value="${esc(E.notes||"")}" data-act="cfF" data-k="notes" placeholder="optional, e.g. felt strong, 6 × 1 min hard"></label></div>
+    <div class="vbar cfctl"><button class="btn" data-act="cfDiscard">${S.cfDisc?"Tap again to discard":"Discard"}</button><button class="btn primary big" data-act="cfSave">Save ${mins} min</button></div></div>`}
+function cfMini(){let el=document.getElementById("cfmini");const c=S.cLive,on=c&&!S.cFocus&&!S.routine&&!playerOn();if(!on){if(el)el.hidden=true;return}
+  if(!el){el=document.createElement("button");el.id="cfmini";el.className="cfmini";el.dataset.act="cfOpen";document.body.appendChild(el)}
+  el.hidden=false;el.setAttribute("aria-label","Open "+cfName(c)+" focus mode");el.innerHTML=`<span class="hrdot">●</span><b>${esc(cfName(c))}</b><span id="cfMiniT">${hms(cfSecs(c))}</span>${c.pausedAt?"<span>paused</span>":""}<span class="cfopen">Open ›</span>`}
 
 /* ---------- exercise library + per-exercise history ---------- */
 const EX_LIB={
@@ -2414,8 +2506,8 @@ function render(){bumpDocs();
     S._wpScroll=S._wpScroll||{};if(op&&S._wpKey)S._wpScroll[S._wpKey]=op.scrollTop;
     vr.innerHTML=workoutPlayer();const np=vr.querySelector(".player"),key=wpScreenKey();S._wpKey=key;
     if(np){wpWrapFoot(np);np.scrollTop=S._wpScroll[key]||0;if(fk){const el=np.querySelector(fk);if(el){el.focus({preventScroll:true});try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}wpPinFoot()}
-    document.getElementById("restbar").hidden=true;return}
-  document.getElementById("viewerRoot").innerHTML=S.tab==="you"&&S.youView==="body"?photoViewer():S.routine?routineRunner():"";
+    document.getElementById("restbar").hidden=true;cfMini();return}
+  document.getElementById("viewerRoot").innerHTML=S.tab==="you"&&S.youView==="body"?photoViewer():S.routine?routineRunner():S.cLive&&S.cFocus?cardioFocus():"";cfMini();if(S.cLive&&S.cFocus)setTimeout(hrPaint,0);
   renderTabs();
   const app=document.getElementById("app");
   const fe=document.activeElement, fid=fe&&fe.id, sel=fe&&fe.selectionStart;
@@ -4642,6 +4734,21 @@ document.addEventListener("click",e=>{
     case "trainView":S.trainView=ds.v;render();break;
     case "woAll":S.woAll=!S.woAll;render();break;
     case "cAct":S.cDraft.activity=ds.v;render();break;
+    case "cPlace":S.cDraft.place=ds.v;render();break;
+    case "cGoal":S.cDraft.goal=+ds.v;render();break;
+    case "cMins":S.cDraft.goalMins=+ds.v;render();break;
+    case "cfStart":if(S.cLive){S.cFocus=true;render();break}cfStart();break;
+    case "cfOpen":S.cFocus=true;wakeOn();render();break;
+    case "cfMin":S.cFocus=false;S.hrSheet=false;render();toast("Still recording. Tap the bar to come back");break;
+    case "cfPause":{const c=S.cLive,now=Date.now();if(c.pausedAt){c.resumed=now;c.pausedAt=null}else{c.acc=(c.acc||0)+now-c.resumed;c.pausedAt=now}cfPersist();buzz(40);render();break}
+    case "cfEnd":{const c=S.cLive,now=Date.now();if(!c.pausedAt){c.acc=(c.acc||0)+now-c.resumed;c.pausedAt=now}const st=hrSummary(c.hrLog,cfMax());c.end={secs:cfSecs(c),ended:now,rpe:st?cfRpeFor(st.avg,cfMax()):5,km:"",hr:"",notes:""};S.cfDisc=false;S.hrSheet=false;cfPersist();buzz(80);render();break}
+    case "cfBack":{const c=S.cLive;delete c.end;c.resumed=Date.now();c.pausedAt=null;cfPersist();render();break}
+    case "cfRpe":S.cLive.end.rpe=+ds.n;rdMark(b);{const l=document.getElementById("cfRpeL");if(l)l.textContent=`Effort: ${+ds.n}/10 · ${effortWord(+ds.n)}`}break;
+    case "cfDiscard":if(!S.cfDisc){S.cfDisc=true;render();break}S.cfDisc=false;S.cLive=null;S.cFocus=false;cfPersist();clearInterval(cfTimer._i);wakeOff();render();toast("Session discarded");break;
+    case "cfSave":{const c=S.cLive,E=c.end,max=cfMax(),st=hrSummary(c.hrLog,max),mins=Math.max(1,Math.round(E.secs/60)),cid="cardio_"+E.ended;
+      const doc={type:"cardio",date:hkLocalDate(c.started),activity:c.activity,...(CF_PLACED.includes(c.activity)?{place:c.place}:{}),mins,km:+E.km||0,hr:st?st.avg:(+E.hr||0),rpe:E.rpe,notes:E.notes||"",started:c.started,ended:E.ended,live:true};
+      if(st){doc.hrMax=st.max;doc.hrZ=st.z;doc.hrLog=hrThin(c.hrLog);doc.hrSrc=c.src||"poll";if(doc.hrSrc==="ble")doc.hrAt=Date.now()}
+      save(cid,doc);hkSaveWorkout(cid);S.cLive=null;S.cFocus=false;cfPersist();clearInterval(cfTimer._i);wakeOff();S.tab="train";S.trainView="cardio";render();window.scrollTo(0,0);toast(cfName(doc)+" saved"+(st?` · avg ${st.avg} bpm`:""));break}
     case "cRpe":S.cDraft.rpe=+ds.n;render();break;
     case "cAll":S.cAll=!S.cAll;render();break;
     case "cSave":{const d=S.cDraft;if(!(+d.mins>0)){toast("Add how many minutes");document.getElementById("c_mins")?.focus();break}
@@ -4770,6 +4877,7 @@ document.addEventListener("input",e=>{const t=e.target,ds=t.dataset;
     const sc=scaleFood(f.base,qty);["protein","carbs","fat","kcal"].forEach(k=>{document.getElementById("ef_"+k).value=sc[k]})}
   if(ds.act==="setKg")S.draftWorkout.exercises[+ds.ei].sets[+ds.si].kg=t.value;
   if(ds.act==="rdF")S.rdDraft[ds.k]=t.value;
+  if(ds.act==="cfF"&&S.cLive&&S.cLive.end)S.cLive.end[ds.k]=t.value;
   if(ds.act==="pdF")S.painDraft[ds.k]=t.value;
   if(ds.act==="setVal")S.draftWorkout.exercises[+ds.ei].sets[+ds.si][ds.f]=t.value;
   if(ds.act==="partName"){S.draftWorkout[ds.part][+ds.i].name=t.value;S.draftWorkout._auto=false}

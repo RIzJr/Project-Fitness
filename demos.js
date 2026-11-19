@@ -1168,9 +1168,9 @@ bike:{cam:{yaw:-30,pitch:8,s:.9,cx:96,cy:190},loop:1,
 walk:{cam:{yaw:-20,pitch:9,s:.9,cx:96,cy:192},loop:1,
   tl:[[.55,1,"Tall posture, relaxed arms"],[.55,1,"Even strides"]],
   hlFor:()=>({thighL:.4,thighR:.4,shinL:.3,shinR:.3}),
-  pose(t,v){const J={},run=v==="run",inc=v==="incline",ph=t*2,g=inc?Math.tan(rad(8)):0,fy=x=>17+x*g;trunk(J,[0,110,0],run?10:inc?8:3,run?8:inc?6:2);
+  pose(t,v){v=v||"";const J={},run=/run/.test(v),inc=/incline/.test(v),ph=t*2,g=inc?Math.tan(rad(8)):0,out=/out/.test(v),fy=x=>(out?0:17)+x*g;trunk(J,[0,110,0],run?10:inc?8:3,run?8:inc?6:2);
     stride(J,ph,{A:run?30:inc?22:20,K:run?95:54,run,fy});armSwing(J,ph,run?34:inc?20:16,run?88:18);return J},
-  gear(){return[]},floor(P,J,v){if(v!=="incline")return TREAD(P);const a=rad(8),u=[Math.cos(a),Math.sin(a),0],n=[-Math.sin(a),Math.cos(a),0];
+  gear(){return[]},floor(P,J,v){v=v||"";if(/out/.test(v))return flr(P,-90,90);if(!/incline/.test(v))return TREAD(P);const a=rad(8),u=[Math.cos(a),Math.sin(a),0],n=[-Math.sin(a),Math.cos(a),0];
     return [...flr(P,-80,80),...obox(P,[-5,8,0],u,n,[0,0,1],66,8,26,"bench"),...obox(P,[-5,16.5,0],u,n,[0,0,1],62,.6,20,"mat"),...box(P,50,56,22,128,22,28,"bench"),...box(P,50,56,22,128,-28,-22,"bench"),...box(P,46,60,120,126,-28,28,"bench")]}},
 
 sled:{cam:{yaw:-24,pitch:10,s:.86,cx:84,cy:190},loop:1,
@@ -1581,7 +1581,7 @@ const ND_MAP={"ex:squat":{k:n=>/box/i.test(n)?"boxSquat":/pendulum|v-squat|hack/
   "ex:burpee":{k:"burpee",fits:()=>true},
   "ex:rower":{k:"rower",fits:()=>true},
   "ex:bike":{k:"bike",fits:()=>true},
-  "ex:walk":{k:"walk",fits:()=>true,v:n=>/run|sprint|jog/i.test(n)?"run":/incline|hill/i.test(n)?"incline":""},
+  "ex:walk":{k:"walk",fits:()=>true,v:n=>(/run|sprint|jog/i.test(n)?"run":/incline|hill/i.test(n)?"incline":"walk")+(/outdoor/i.test(n)?" out":"")},
   "ex:sledPush":{k:"sled",fits:()=>true},
   "ex:sledPull":{k:"sled",fits:()=>true,v:()=>"pull"},
   "ex:ropes":{k:"ropes",fits:()=>true},
@@ -1845,7 +1845,7 @@ const EX_PAT={"Paused bench press":"bench","Larsen press":"bench","Spoto press":
   "Romanian deadlift":"rdl","Stiff-leg deadlift":"stiffLeg","Lying leg curl":"legCurlLying","Seated leg curl":"legCurlSeated","Nordic curl":"nordic","Good morning":"goodMorning","Hip thrust":"hipThrust","Glute bridge":"bridge","Cable kickback":"kickback","Hip abduction machine":"abductor","Kettlebell swing":"kbSwing",
   "Standing calf raise":"calfRaise","Seated calf raise":"calfSeated","Leg press calf raise":"calfRaise",
   "Plank":"plank","Side plank":"sidePlank","Hanging leg raise":"hangRaise","Cable crunch":"cableCrunch","Ab wheel rollout":"abWheel","Dead bug":"deadBug","Pallof press":"pallof","Russian twist":"twist","Decline sit-up":"declineSitup",
-  "Farmer's carry":"carry","Sled push":"sledPush","Rowing machine":"rower","Assault bike":"bike","Treadmill incline walk":"walk","Battle ropes":"ropes","Burpees":"burpee",
+  "Farmer's carry":"carry","Sled push":"sledPush","Rowing machine":"rower","Assault bike":"bike","Treadmill incline walk":"walk","Treadmill walk":"walk","Treadmill run":"walk","Outdoor walk":"walk","Outdoor run":"walk","Exercise bike":"bike","Battle ropes":"ropes","Burpees":"burpee",
   "Incline push-up":"pushupIncline","Decline push-up":"pushupDecline","Diamond push-up":"pushup","Pike push-up":"pike","Bodyweight squat":"bwSquat","Jump squat":"jumpSquat","Split squat":"splitSquat","Wall sit":"wallSit","Single-leg glute bridge":"bridge1","Calf raise":"calfRaise","Hollow hold":"hollow","Bird dog":"birdDog","Superman":"superman","Mountain climbers":"climbers","Jumping jacks":"jacks","High knees":"highKnees",
   "Kettlebell clean":"kbClean","Kettlebell snatch":"kbSnatch","Turkish get-up":"getUp","Thruster":"thruster","Wall ball":"wallBall","Box jump":"boxJump","Lateral lunge":"latLunge","Landmine press":"landminePress","Landmine row":"row","Single-arm dumbbell row":"rowDb","Medicine ball slam":"slam","Woodchop":"woodchop","Suitcase carry":"suitcase","Sandbag carry":"sandbag","Bear crawl":"bear","Sled pull":"sledPull",
   "Australian row":"ausRow","Muscle-up":"muscleUp","Dead hang":"deadHang","Front lever hold":"frontLever","Dips":"dip","Archer push-up":"pushup","Pseudo planche push-up":"planche","Handstand push-up":"hspu","Handstand hold":"handstand","Planche lean":"planche","L-sit":"lsit","Hollow body hold":"hollow","Toes-to-bar":"t2b","Dragon flag":"dragonFlag","Pistol squat":"pistol","Shrimp squat":"shrimp"};
