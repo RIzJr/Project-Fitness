@@ -18,5 +18,10 @@
         "list"
       ]
     }
+  },
+  "android": {
+    "backgroundColor": "#000000",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
   }
 }

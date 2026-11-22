@@ -2,13 +2,15 @@
   "name": "project-fitness",
   "version": "1.0.0",
   "private": true,
-  "description": "Project Fitness: the web app plus its iPhone wrapper (Capacitor). The web app itself needs no build; this is only for the App Store version.",
+  "description": "Project Fitness: the web app plus its iPhone and Android wrappers (Capacitor). The web app itself needs no build; this is only for the App Store and Google Play versions.",
   "scripts": {
     "build": "node scripts/build-www.mjs",
-    "ios": "npm run build && npx cap sync ios"
+    "ios": "npm run build && npx cap sync ios",
+    "android": "npm run build && npx cap sync android"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "8.3.0",
+    "@capacitor/android": "8.6.0",
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.6.0",
     "@capacitor/haptics": "8.0.2",

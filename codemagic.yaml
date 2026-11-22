@@ -1,4 +1,5 @@
-# Codemagic: builds the iPhone app in the cloud (on a Mac) and uploads it to TestFlight.
+# Codemagic: builds the iPhone app (to TestFlight) and the Android app (to Google Play) in the cloud.
+# Android set-up: see ANDROID.md.
 # Set-up once in codemagic.io (see APP-STORE.md):
 #   1. Team integrations > Developer Portal: add the App Store Connect API key and name it  PF ASC key
 #   2. Code signing identities: Generate certificate (Apple Distribution), then Fetch profiles (App Store, com.rizjr.projectfitness)
@@ -46,3 +47,54 @@ workflows:
         beta_groups:
           - Test
         submit_to_app_store: false
+
+  # ---------- Android ----------
+  # Both Android workflows run the same build steps (YAML anchors).
+  android-bundle:
+    name: Android app bundle (first upload)
+    # Builds a signed .aab without sending it anywhere. Use it once, for the very first upload,
+    # which Google Play only accepts by hand in Play Console (see ANDROID.md, step 4).
+    instance_type: mac_mini_m2
+    max_build_duration: 40
+    environment:
+      android_signing:
+        - PF upload key
+      node: 22
+      java: 21
+    scripts: &android_scripts
+      - name: Install
+        script: npm ci
+      - name: Copy the web app into the Android project
+        script: npm run build && npx cap sync android
+      - name: Android SDK location
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Version code (latest on Google Play + 1)
+        script: |
+          LATEST=$(google-play get-latest-build-number --package-name "com.rizjr.projectfitness" 2>/dev/null || echo "")
+          if [ -n "$LATEST" ]; then echo "PF_VERSION_CODE=$((LATEST + 1))" >> $CM_ENV; else echo "PF_VERSION_CODE=$BUILD_NUMBER" >> $CM_ENV; fi
+      - name: Build the app bundle
+        script: cd android && chmod +x gradlew && ./gradlew bundleRelease
+    artifacts: &android_artifacts
+      - android/app/build/outputs/**/*.aab
+
+  android-play:
+    name: Android to Google Play
+    # Every build goes to the Internal testing track. Testers are added in Play Console (see ANDROID.md).
+    instance_type: mac_mini_m2
+    max_build_duration: 40
+    environment:
+      android_signing:
+        - PF upload key
+      groups:
+        - google_play
+      node: 22
+      java: 21
+    scripts: *android_scripts
+    artifacts: *android_artifacts
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        # while the app is still a draft in Play Console (before its first review), releases must be drafts too;
+        # once Google has approved the app, change this to false so builds reach testers straight away
+        submit_as_draft: true
