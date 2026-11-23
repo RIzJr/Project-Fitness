@@ -5,7 +5,7 @@ const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));await p.go
 if(await p.locator('[data-act=gateLocal]').count())await p.click('[data-act=gateLocal]');
 if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][data-k=name]').fill('Riz');await p.click('[data-act=obSkip]')}
 await p.click('[data-tab=train]');await p.click('[data-act=progOpenTrain]');
-for(const f of ['json','csv']){const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('[data-act=progImport]')]);await fc.setFiles('/mnt/user-data/outputs/siham-upper-lower-programme.'+f);await p.waitForTimeout(300);console.log(f,'import:',await p.innerText('#toast'));
+for(const f of ['json','csv']){const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('[data-act=progImport]')]);await fc.setFiles('tests/fixtures/siham-upper-lower-programme.'+f);await p.waitForTimeout(300);console.log(f,'import:',await p.innerText('#toast'));
  console.log(' tempo/rest/why fields:',await p.locator('[data-act=pgRx][data-k=tempo]').evaluateAll(a=>a.slice(0,3).map(x=>x.value).join(',')),await p.locator('[data-act=pgRx][data-k=rest]').evaluateAll(a=>a.slice(0,3).map(x=>x.value).join(',')));
  await p.click('[data-act=pgSave]');await p.waitForTimeout(200);}
 await p.click('[data-act=libAdd][data-k=ul-build-tone]');await p.waitForTimeout(200);

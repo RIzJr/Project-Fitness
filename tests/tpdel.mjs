@@ -18,7 +18,7 @@ const B=await device(await A.evaluate(()=>localStorage.getItem('MOCKDB')));await
 await B.click('[data-act=setPage][data-v=cloud]');await B.fill('#lk_code',code);await B.click('#linkForm button');await B.waitForTimeout(1500);
 await sync(B,A);await A.click('[data-tab=you]');await A.click('[data-act=youView][data-v=clients]').catch(()=>{});await A.waitForTimeout(1500);
 await A.click('[data-act=progOpen]');await A.waitForTimeout(100);
-const [fc]=await Promise.all([A.waitForEvent('filechooser'),A.click('[data-act=progImport]')]);await fc.setFiles('/mnt/user-data/outputs/siham-upper-lower-programme.json');await A.waitForTimeout(400);
+const [fc]=await Promise.all([A.waitForEvent('filechooser'),A.click('[data-act=progImport]')]);await fc.setFiles('tests/fixtures/siham-upper-lower-programme.json');await A.waitForTimeout(400);
 console.log('toast:',await A.innerText('#toast'));
 console.log('editor days:',(await A.locator('[data-act=pgDay]').allInnerTexts()).join(', '),'| preview:',await A.locator('text=progresses').innerText().catch(()=>'-'));
 await A.screenshot({path:'tests/shots/prog-editor.png',fullPage:true});

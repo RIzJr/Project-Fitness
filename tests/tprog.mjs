@@ -18,7 +18,7 @@ const B=await device(await A.evaluate(()=>localStorage.getItem('MOCKDB')));await
 await B.click('[data-act=setPage][data-v=cloud]');await B.fill('#lk_code',code);await B.click('#linkForm button');await B.waitForTimeout(1500);
 await sync(B,A);await A.click('[data-tab=you]');await A.click('[data-act=youView][data-v=clients]').catch(()=>{});await A.waitForTimeout(1500);
 await A.click('[data-act=progOpen]');await A.waitForTimeout(100);
-const [fc]=await Promise.all([A.waitForEvent('filechooser'),A.click('[data-act=progImport]')]);await fc.setFiles('/mnt/user-data/outputs/siham-upper-lower-programme.json');await A.waitForTimeout(400);
+const [fc]=await Promise.all([A.waitForEvent('filechooser'),A.click('[data-act=progImport]')]);await fc.setFiles('tests/fixtures/siham-upper-lower-programme.json');await A.waitForTimeout(400);
 console.log('toast:',await A.innerText('#toast'));
 console.log('editor days:',(await A.locator('[data-act=pgDay]').allInnerTexts()).join(', '),'| preview:',await A.locator('text=progresses').innerText().catch(()=>'-'));
 await A.screenshot({path:'tests/shots/prog-editor.png',fullPage:true});
@@ -29,5 +29,5 @@ await A.screenshot({path:'tests/shots/prog-assign.png',fullPage:true});
 await A.click('[data-act=assignGo]');await A.waitForTimeout(1200);console.log('toast:',await A.innerText('#toast'));
 const db=JSON.parse(await A.evaluate(()=>localStorage.getItem('MOCKDB')));console.log('plans rows on server:',db.plans.length,'| wk1 upper A:',JSON.stringify(db.plans.map(r=>r.data).filter(d=>d.week===1)[0].exercises[0].rx),'| wk6:',JSON.stringify(db.plans.map(r=>r.data).filter(d=>d.week===6)[0].exercises[0].rx),'| dates',db.plans.map(r=>r.data.date).sort().slice(0,4).join(','));
 await sync(A,B);await B.click('[data-tab=train]');await B.waitForTimeout(300);
-console.log('Siham train:',(await B.locator('section.panel:has(h2:text("From your coach"))').innerText()).replace(/\n/g,' | ').slice(0,300));
+console.log('Siham train:',(await B.locator('section.panel:has(h2:text("Planned for you"))').innerText()).replace(/\n/g,' | ').slice(0,300));
 console.log('errors',errs);await b.close();

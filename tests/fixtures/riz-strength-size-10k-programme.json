@@ -1,0 +1,377 @@
+{
+ "kind": "programme",
+ "name": "Riz · Strength, size & sub-40 10k",
+ "weeks": 8,
+ "prog": "double",
+ "deload": true,
+ "rirRamp": true,
+ "why": "Hybrid block: 4 lifting days (Upper/Lower × strength and volume) plus 2 quality runs. Upper/Lower lets each muscle be trained twice a week, the frequency research supports for hypertrophy, while keeping the heavy lower-body day away from the interval run to limit interference between strength and endurance training. Strength days use 4–6 reps at 2 reps in reserve (high mechanical tension, low fatigue); volume days use 8–15 reps for extra hypertrophy stimulus. Weekly sets: chest ~14, back ~13, quads ~11, hamstrings ~9, shoulders ~8 side/rear plus pressing, which sits in the productive range for an intermediate lifter, with legs kept moderate because running adds lower-body fatigue. Double progression (reps through the range, then +2.5 kg upper / +5 kg lower) with effort ramping up over the block and a week-8 deload. Running: one VO2max interval session (1 km reps starting at your current 5k pace, about 4:15/km, speeding up to 4:00/km) and one long easy run, the two sessions with the biggest pay-off for a 10k when running only twice a week. Session order Mon–Sat: Upper Strength, Lower Strength, Upper Volume, Intervals, Lower Volume, Long run, so the hard run never follows heavy squats.",
+ "note": "Tempo = seconds down · pause · up · pause. Keep the rest times on main lifts. Order matters: intervals sit 48 h after heavy squats. If you feel fresh, add an optional 30-min easy run on Sunday from week 3. Week 8: deload plus a 5k time trial to set next block's paces.",
+ "days": [
+  {
+   "name": "Upper Strength",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Barbell bench press",
+     "sets": "4",
+     "reps": "4-6",
+     "kg": "95",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "3-1-1-0",
+     "rest": "180",
+     "note": "Main lift. Builds to 100 kg × 4 by week 7",
+     "why": "Highest-load horizontal press: heavy loads build the strength (and confidence) you need for 100 kg. The 1-second pause on the chest removes the stretch-reflex bounce so the pecs and triceps do the work, and matches competition-style control. 3 min rest keeps quality high on every set."
+    },
+    {
+     "name": "Pull-up",
+     "sets": "4",
+     "reps": "5-8",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "150",
+     "note": "Add weight with a belt once you hit 8 on all sets",
+     "why": "Vertical pull with the lats loaded through a full range from a long, stretched position. Balances the pressing volume and builds the upper back that stabilises a heavy bench."
+    },
+    {
+     "name": "Overhead press",
+     "sets": "3",
+     "reps": "6-8",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-0",
+     "rest": "120",
+     "note": "",
+     "why": "Front delts and triceps carry over directly to bench lockout; standing also trains trunk stiffness. Kept at 3 sets to manage shoulder fatigue alongside bench volume."
+    },
+    {
+     "name": "Chest-supported row",
+     "sets": "3",
+     "reps": "8-10",
+     "rir": "2",
+     "inc": "2",
+     "tempo": "2-0-1-1",
+     "rest": "90",
+     "note": "Chest on an incline bench, pause at the top",
+     "why": "Chest support removes lower-back fatigue (you squat and RDL tomorrow and run on Saturday), giving a better stimulus-to-fatigue ratio than barbell rows. The pause at the top targets mid-traps and rhomboids, which keep the shoulder blades set on the bench."
+    },
+    {
+     "name": "Close-grip bench press",
+     "sets": "2",
+     "reps": "8-10",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-0",
+     "rest": "120",
+     "note": "Hands just inside shoulder width",
+     "why": "A narrower grip shifts load towards the triceps, the usual sticking point near lockout. Two sets keep it as targeted accessory work rather than extra chest fatigue."
+    },
+    {
+     "name": "Face pull",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "60",
+     "note": "Pull towards your eyes, thumbs back. Superset with hammer curls",
+     "why": "Rear delts and external rotators: balances all the pressing and keeps the shoulders healthy under heavy loads. A low-fatigue, high-rep exercise, so it can be taken close to failure."
+    },
+    {
+     "name": "Hammer curl",
+     "sets": "2",
+     "reps": "10-12",
+     "rir": "1",
+     "inc": "1",
+     "tempo": "2-0-1-0",
+     "rest": "60",
+     "note": "Superset with face pulls",
+     "why": "Brachialis and brachioradialis add arm thickness; brings direct biceps work to 5 sets a week for your hypertrophy goal without lengthening the session (superset)."
+    }
+   ]
+  },
+  {
+   "name": "Lower Strength",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Back squat",
+     "sets": "4",
+     "reps": "4-6",
+     "kg": "112.5",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "3-1-1-0",
+     "rest": "180",
+     "note": "Main lift. Builds to 122.5 kg × 4 by week 7",
+     "why": "Most loadable lower-body lift: quads, glutes and adductors under high mechanical tension. The controlled 3-second descent and pause build strength out of the hole without needing near-maximal loads, and placing it two days before the interval run gives the legs time to recover."
+    },
+    {
+     "name": "Romanian deadlift",
+     "sets": "3",
+     "reps": "6-8",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "3-0-1-0",
+     "rest": "120",
+     "note": "Hips back, bar close, stop at the hamstring stretch",
+     "why": "Trains the hamstrings and glutes at long muscle lengths, where research shows strong hypertrophy, with less spinal and recovery cost than conventional deadlifts. Strong hamstrings also support running mechanics."
+    },
+    {
+     "name": "Bulgarian split squat",
+     "sets": "2",
+     "reps": "8-10",
+     "rir": "2",
+     "inc": "2",
+     "tempo": "2-0-1-0",
+     "rest": "90",
+     "note": "Reps per leg",
+     "why": "Single-leg strength and stability that carries over to running stride, and fixes left/right imbalances. Only 2 sets, because it's very fatiguing."
+    },
+    {
+     "name": "Standing calf raise",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "2-2-1-1",
+     "rest": "60",
+     "note": "2-second pause in the stretch at the bottom",
+     "why": "Calves and Achilles take the most load when running. Pausing in the stretched position increases hypertrophy and tendon stiffness, which helps running economy and protects against Achilles problems."
+    },
+    {
+     "name": "Hanging leg raise",
+     "sets": "3",
+     "reps": "8-12",
+     "rir": "2",
+     "tempo": "2-0-1-0",
+     "rest": "60",
+     "note": "No swinging",
+     "why": "Trunk flexion with the hip flexors: a stiffer trunk transfers force better under the bar and when running."
+    }
+   ]
+  },
+  {
+   "name": "Upper Volume",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Barbell bench press",
+     "sets": "3",
+     "reps": "8-12",
+     "kg": "80",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-1-1-0",
+     "rest": "120",
+     "note": "Volume day: same lift, lighter, more reps",
+     "why": "Practising the main lift twice a week improves skill (motor learning) and adds chest hypertrophy volume at a load that doesn't affect Monday's heavy day."
+    },
+    {
+     "name": "Incline dumbbell press",
+     "sets": "3",
+     "reps": "8-12",
+     "rir": "2",
+     "inc": "2",
+     "tempo": "3-0-1-0",
+     "rest": "90",
+     "note": "Bench at about 30°",
+     "why": "Upper chest (clavicular head) and a deeper stretch than a barbell allows. Dumbbells let each arm move along its own path, easing shoulder stress."
+    },
+    {
+     "name": "Lat pulldown",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "90",
+     "note": "",
+     "why": "Vertical pull at moderate reps; easier to progress in small steps than pull-ups for volume work."
+    },
+    {
+     "name": "Seated cable row",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "90",
+     "note": "Let the shoulder blades travel forward on each rep",
+     "why": "Horizontal pull with constant cable tension and a full stretch at the front of each rep: upper back thickness to support the bench."
+    },
+    {
+     "name": "Cable fly",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "3-1-1-0",
+     "rest": "60",
+     "note": "Pause in the stretch",
+     "why": "Cables keep tension at the stretched position, where the pecs grow well, with very little triceps or shoulder fatigue."
+    },
+    {
+     "name": "Cable lateral raise",
+     "sets": "3",
+     "reps": "12-20",
+     "rir": "1",
+     "inc": "1",
+     "tempo": "2-0-1-0",
+     "rest": "60",
+     "note": "Cable from behind you, lead with the elbow",
+     "why": "Side delts are only lightly worked by pressing; direct work builds shoulder width. A cable keeps tension at the bottom, where dumbbells offer none."
+    },
+    {
+     "name": "Overhead cable extension",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "3-0-1-0",
+     "rest": "60",
+     "note": "Superset with curls to save time",
+     "why": "Overhead puts the triceps long head at full stretch, which research shows grows more than pushdowns. The long head is two-thirds of arm size and drives lockout."
+    },
+    {
+     "name": "Incline dumbbell curl",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "1",
+     "inc": "1",
+     "tempo": "3-0-1-0",
+     "rest": "60",
+     "note": "",
+     "why": "Arms behind the body stretch the biceps long head, the position that gives the most hypertrophy."
+    }
+   ]
+  },
+  {
+   "name": "Intervals run",
+   "kind": "functional",
+   "exercises": [
+    {
+     "name": "Easy jog warm-up",
+     "sets": "1",
+     "secs": "600",
+     "rest": "60",
+     "note": "Then 4 × 20 s strides",
+     "why": "Raises muscle temperature and primes the nervous system so the first rep is at target pace, not a shock."
+    },
+    {
+     "name": "1 km interval",
+     "sets": "5",
+     "secs": "255",
+     "rest": "90",
+     "addEvery": "2",
+     "maxSets": "8",
+     "note": "Start at 4:15/km (about your current 5k pace). Every 2 weeks: one more rep, and 5 s/km quicker if the last rep felt controlled (aim 4:00/km by week 7). 90 s easy jog between",
+     "why": "VO2max intervals work best at roughly current 5k pace. Starting at 4:15/km (not goal pace) keeps every rep repeatable; pace and reps rise together towards 4:00/km, your sub-40 race pace."
+    },
+    {
+     "name": "Easy jog cool-down",
+     "sets": "1",
+     "secs": "600",
+     "rest": "0",
+     "note": "",
+     "why": "Clears fatigue and adds easy aerobic volume at almost no recovery cost."
+    }
+   ]
+  },
+  {
+   "name": "Lower Volume",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Leg press",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "3-0-1-0",
+     "rest": "120",
+     "note": "Moderate: you run long tomorrow",
+     "why": "Quad volume with almost no spinal or balance demand, so plenty of stimulus for little fatigue the day before the long run."
+    },
+    {
+     "name": "Hip thrust",
+     "sets": "3",
+     "reps": "8-12",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "2-1-1-1",
+     "rest": "90",
+     "note": "Squeeze hard at the top",
+     "why": "Glutes are loaded hardest at full hip extension, the same position you drive through when sprinting and running uphill."
+    },
+    {
+     "name": "Seated leg curl",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "3-0-1-0",
+     "rest": "60",
+     "note": "",
+     "why": "Seated puts the hamstrings at a longer length than lying curls, and research shows more hypertrophy from it. It complements the RDL by training knee flexion."
+    },
+    {
+     "name": "Leg extension",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "2-1-1-0",
+     "rest": "60",
+     "note": "Pause at the top",
+     "why": "Isolates the rectus femoris and the quads near full knee extension, the part of the range squats underload. Low fatigue."
+    },
+    {
+     "name": "Seated calf raise",
+     "sets": "3",
+     "reps": "12-15",
+     "rir": "1",
+     "inc": "2.5",
+     "tempo": "2-2-1-1",
+     "rest": "60",
+     "note": "",
+     "why": "Bent-knee calf raises target the soleus, the main calf muscle for running endurance."
+    },
+    {
+     "name": "Plank",
+     "sets": "3",
+     "secs": "45",
+     "rest": "60",
+     "note": "Squeeze glutes and abs",
+     "why": "Anti-extension core endurance, which holds your posture late in a run when fatigue sets in."
+    }
+   ]
+  },
+  {
+   "name": "Long run",
+   "kind": "functional",
+   "exercises": [
+    {
+     "name": "Easy long run",
+     "sets": "1",
+     "secs": "3600",
+     "rest": "0",
+     "secsInc": "300",
+     "secsMax": "4500",
+     "note": "5:00–5:20/km, conversational. From week 3, run the last 10 min at 4:30/km (current 10k pace), 4:20/km from week 5",
+     "why": "Easy running builds mitochondria, capillaries and fat use at little recovery cost: the aerobic engine a 10k depends on. It adds 5 min a week up to 75 min."
+    },
+    {
+     "name": "Strides",
+     "sets": "6",
+     "secs": "20",
+     "rest": "40",
+     "note": "Fast but relaxed, walk back between",
+     "why": "Short fast efforts improve running mechanics and economy without adding fatigue."
+    }
+   ]
+  }
+ ]
+}
