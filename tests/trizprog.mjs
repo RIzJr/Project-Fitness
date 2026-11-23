@@ -5,7 +5,7 @@ const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));await p.go
 if(await p.locator('[data-act=gateLocal]').count())await p.click('[data-act=gateLocal]');
 if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][data-k=name]').fill('Riz');await p.click('[data-act=obSkip]')}
 await p.click('[data-tab=train]');await p.click('[data-act=progOpenTrain]');
-const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('[data-act=progImport]')]);await fc.setFiles('/mnt/user-data/outputs/riz-strength-size-10k-programme.json');await p.waitForTimeout(300);
+const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('[data-act=progImport]')]);await fc.setFiles('tests/fixtures/riz-strength-size-10k-programme.json');await p.waitForTimeout(300);
 console.log(await p.innerText('#toast'));await p.click('[data-act=pgSave]');await p.click('[data-act=assignNew]');await p.selectOption('[data-act=asF][data-k=clientUid]','me');await p.waitForTimeout(100);
 console.log('days:',(await p.locator('[data-act=asDay][aria-pressed=true]').evaluateAll(n=>n.map(x=>x.dataset.i+':'+x.dataset.v))).join(' '));
 await p.click('[data-act=assignGo]');await p.waitForTimeout(300);console.log(await p.innerText('#toast'));

@@ -9,3 +9,5 @@ http://localhost:8767, runs each test, and writes logs and screenshots to `tests
 
 Some older tests were written for earlier versions of a screen; if one fails, check whether the app is wrong or the test is out of date before changing the app.
 These can't cover the real iPhone: Apple Health data, Bluetooth heart-rate monitors, notifications and haptics need a TestFlight build.
+
+`fixtures/` holds the programme files the programme tests import (built from the app's own programme library: Siham's upper/lower plan as JSON and CSV, Riz's strength, size and 10k plan, and an older copy for the "update to latest version" test).

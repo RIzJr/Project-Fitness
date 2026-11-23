@@ -7,7 +7,7 @@ if(await p.locator('[data-act=obSkip]').count()){await p.locator('[data-act=ob][
 const docs=async()=>Object.values(await p.evaluate(()=>{for(const k of Object.keys(localStorage))if(k.startsWith('hpc-docs:'))return JSON.parse(localStorage.getItem(k))}));
 const sched=async()=>(await docs()).filter(d=>d.type==='mplan').sort((a,b)=>a.date<b.date?-1:1).slice(0,7).map(d=>d.date.slice(5)+' '+d.name.split(' ·')[0]).join(' | ');
 await p.click('[data-tab=train]');await p.click('[data-act=progOpenTrain]');
-const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('[data-act=progImport]')]);await fc.setFiles('/tmp/claude-0/-home-claude/378cc395-20d5-56b4-9104-1fc428cea4c0/scratchpad/t/old.json');await p.waitForTimeout(300);await p.click('[data-act=pgSave]');await p.waitForTimeout(200);
+const [fc]=await Promise.all([p.waitForEvent('filechooser'),p.click('[data-act=progImport]')]);await fc.setFiles('tests/fixtures/old-programme.json');await p.waitForTimeout(300);await p.click('[data-act=pgSave]');await p.waitForTimeout(200);
 await p.click('[data-act=assignNew]');await p.selectOption('[data-act=asF][data-k=clientUid]','me');await p.click('[data-act=assignGo]');await p.waitForTimeout(300);
 console.log('OLD:',await sched());
 const pan=p.locator('section.panel:has(h2:text("Your programme"))');console.log('card:',(await pan.innerText()).replace(/\n/g,' | '));

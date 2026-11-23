@@ -1,0 +1,317 @@
+{
+ "kind": "programme",
+ "name": "Siham · Upper/Lower build & tone",
+ "weeks": 6,
+ "prog": "double",
+ "deload": true,
+ "rirRamp": true,
+ "why": "Beginner block built only from machines, cables and bodyweight. Machines guide the path of each lift, so Siham can push close to the target effort safely while she learns to feel the right muscles working, and cables keep tension through the whole range. Upper/Lower over 4 days trains every muscle twice a week, the frequency research supports for muscle gain. Volume starts moderate (about 8–13 hard sets per muscle a week), with extra glute and back work for shape and posture. Reps sit at 10–15 with 2–3 reps in reserve, which builds muscle well for beginners while technique beds in. A slow 2–3 second lowering on every rep adds time under tension and control. Double progression: reach the top of the rep range on every set, then go up one pin (2.5 kg, or 5 kg on leg press and hip thrust). Week 6 is a lighter deload. Free-weight compounds (squats, deadlifts, presses) come in the next block once she's confident.",
+ "note": "Lower slowly (tempo: seconds down · pause · up · pause). Go up one pin when every set hits the top of the rep range. Never train to failure yet.",
+ "days": [
+  {
+   "name": "Upper A",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Machine chest press",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "3-0-1-0",
+     "rest": "90",
+     "note": "Handles level with mid-chest, shoulder blades back against the pad",
+     "why": "Guided pressing path builds chest, front shoulders and triceps without needing to balance a bar."
+    },
+    {
+     "name": "Lat pulldown",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "90",
+     "note": "Pull to the top of the chest, squeeze 1 second",
+     "why": "Builds the lats and upper back for a stronger, more upright posture. The machine version scales to any strength level."
+    },
+    {
+     "name": "Machine shoulder press",
+     "sets": "2",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-0",
+     "rest": "90",
+     "note": "Stop just short of locking out",
+     "why": "Shoulder shape and pressing strength, with the seat and back pad keeping the lower back safe."
+    },
+    {
+     "name": "Seated cable row",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "75",
+     "note": "Chest tall, elbows back past the ribs",
+     "why": "Mid-back and rear shoulders. Balances the pressing and improves posture."
+    },
+    {
+     "name": "Cable lateral raise",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "1",
+     "tempo": "2-0-1-0",
+     "rest": "60",
+     "note": "Light: lead with the elbow",
+     "why": "Side shoulders give a toned upper-body shape. The cable keeps tension right at the bottom."
+    },
+    {
+     "name": "Rope pushdown",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "60",
+     "note": "Elbows pinned to your sides",
+     "why": "Tones the back of the arms (triceps) with an easy-to-learn movement."
+    },
+    {
+     "name": "Cable curl",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "60",
+     "note": "No swinging",
+     "why": "Biceps, with steady cable tension from bottom to top."
+    }
+   ]
+  },
+  {
+   "name": "Lower A",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Leg press",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "3-0-1-0",
+     "rest": "90",
+     "note": "Feet shoulder-width, lower until knees reach about 90°",
+     "why": "Main leg builder: quads and glutes under real load, with the back supported. A safe first step before squats."
+    },
+    {
+     "name": "Hip thrust machine",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "2-1-1-1",
+     "rest": "90",
+     "note": "Glute-drive machine. No machine: glute bridge with a 2 s squeeze",
+     "why": "Glutes work hardest at full hip extension, where this machine loads them, for shape and hip strength."
+    },
+    {
+     "name": "Seated leg curl",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "3-0-1-0",
+     "rest": "60",
+     "note": "",
+     "why": "Hamstrings trained from a stretched position (seated), which builds them better than lying curls."
+    },
+    {
+     "name": "Leg extension",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-1-1-0",
+     "rest": "60",
+     "note": "1 s squeeze at the top",
+     "why": "Quads near full knee extension, the part of the range the leg press underloads. Easy on the back."
+    },
+    {
+     "name": "Hip abduction machine",
+     "sets": "2",
+     "reps": "15-20",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-1-1-0",
+     "rest": "60",
+     "note": "Lean slightly forward to feel the outer glutes",
+     "why": "Upper/outer glutes (gluteus medius): rounder glute shape and steadier knees and hips."
+    },
+    {
+     "name": "Dead bug",
+     "sets": "2",
+     "reps": "8-10",
+     "tempo": "3-0-1-0",
+     "rest": "45",
+     "note": "Reps per side, lower back pressed into the floor",
+     "why": "Teaches the deep core to brace while the limbs move, the base for every lift later on."
+    }
+   ]
+  },
+  {
+   "name": "Upper B",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Assisted pull-up machine",
+     "sets": "3",
+     "reps": "8-10",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "3-0-1-0",
+     "rest": "90",
+     "note": "Less assistance (lighter counterweight) = harder",
+     "why": "Learns the full pull-up pattern for back and arms. Progress by reducing the assistance."
+    },
+    {
+     "name": "Incline push-up",
+     "sets": "3",
+     "reps": "8-12",
+     "rir": "2",
+     "tempo": "3-0-1-0",
+     "rest": "75",
+     "note": "Hands on a bench or Smith bar; lower the height to progress",
+     "why": "Bodyweight chest, shoulders and triceps that also trains the core to hold a straight line."
+    },
+    {
+     "name": "Machine row",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "75",
+     "note": "Chest on the pad",
+     "why": "Upper back with the chest supported: all back, no lower-back strain."
+    },
+    {
+     "name": "Pec deck",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "3-1-1-0",
+     "rest": "60",
+     "note": "Soft elbows, pause in the stretch",
+     "why": "Chest isolation with a stretch under load, which helps build and lift the chest."
+    },
+    {
+     "name": "Cable lateral raise",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "1",
+     "tempo": "2-0-1-0",
+     "rest": "60",
+     "note": "",
+     "why": "Second weekly dose for the side shoulders."
+    },
+    {
+     "name": "Face pull",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "2-0-1-1",
+     "rest": "60",
+     "note": "Pull towards your eyes, thumbs back",
+     "why": "Rear shoulders and upper back for posture and healthy shoulders."
+    },
+    {
+     "name": "Overhead cable extension",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "3-0-1-0",
+     "rest": "60",
+     "note": "Superset with face pulls",
+     "why": "Stretches the long head of the triceps overhead, which tones the back of the arm best."
+    }
+   ]
+  },
+  {
+   "name": "Lower B",
+   "kind": "gym",
+   "exercises": [
+    {
+     "name": "Leg press",
+     "sets": "3",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "3-0-1-0",
+     "rest": "90",
+     "note": "Feet high and wide on the plate",
+     "why": "Feet high shifts work towards the glutes and hamstrings, so the leg press does a different job from day A."
+    },
+    {
+     "name": "Back extension",
+     "sets": "3",
+     "reps": "10-15",
+     "rir": "2",
+     "tempo": "2-1-1-0",
+     "rest": "75",
+     "note": "Round the upper back slightly and squeeze the glutes to rise",
+     "why": "Glutes, hamstrings and lower back with bodyweight. A safe way to learn the hip hinge before deadlifts."
+    },
+    {
+     "name": "Hip thrust machine",
+     "sets": "3",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "5",
+     "tempo": "2-1-1-1",
+     "rest": "90",
+     "note": "",
+     "why": "Second weekly glute session at full hip extension."
+    },
+    {
+     "name": "Lying leg curl",
+     "sets": "2",
+     "reps": "10-12",
+     "rir": "2",
+     "inc": "2.5",
+     "tempo": "3-0-1-0",
+     "rest": "60",
+     "note": "",
+     "why": "Hamstrings from a different angle, for balanced back-of-thigh development."
+    },
+    {
+     "name": "Cable kickback",
+     "sets": "2",
+     "reps": "12-15",
+     "rir": "2",
+     "inc": "1",
+     "tempo": "2-1-1-0",
+     "rest": "60",
+     "note": "Reps per leg, small lean forward",
+     "why": "Isolates the glutes with constant cable tension, to shape them."
+    },
+    {
+     "name": "Plank",
+     "sets": "2",
+     "secs": "30",
+     "rest": "45",
+     "secsInc": "5",
+     "secsMax": "60",
+     "note": "Squeeze glutes and abs, +5 s a week",
+     "why": "Core endurance and posture."
+    }
+   ]
+  }
+ ]
+}
