@@ -45,6 +45,8 @@ Google Play keeps the real app signing key ("Play App Signing"). If you ever los
    - **Data safety**: collects health and fitness info (sleep, heart rate, weight, workouts), personal info (name, email), app activity. Encrypted in transit; users can request deletion; not shared with third parties except Anthropic for Pulse replies when the user turns Pulse on; not used for advertising.
    - **Health apps** / **Health Connect permissions** declaration: say which Health Connect data you read and why (below).
    - **Category**: Health & Fitness. Contact email: your support email.
+   - **Data safety**: the full answers are in `store/LISTING.md`. Delete-account URL: `https://rizjr.github.io/Project-Fitness/delete-account.html`.
+4. **Main store listing** (Grow users › Store presence › Main store listing): app name, short and full description from `store/LISTING.md`; app icon `store/google-play/icon-512.png`; feature graphic `store/google-play/feature-graphic.png`; phone screenshots `store/google-play/1-today.png` … `6-goals.png`.
 
 Health Connect reasons (one line each is enough):
 

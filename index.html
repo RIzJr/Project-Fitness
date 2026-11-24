@@ -271,6 +271,7 @@ nav.tabs button{font-size:10.5px;letter-spacing:0;text-transform:none}
 .upnext{all:unset;cursor:pointer;box-sizing:border-box;background:var(--surface);border-radius:16px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .upnext .label{display:block}.upnext b{font-size:14.5px}.upnext .acc{color:var(--accent);font-weight:800;font-size:14px;flex:none}
 .quote{padding:14px 52px 14px 16px}.quote p{font-size:16px;line-height:1.35}
+.wpunf{border-color:var(--accent);display:flex;flex-direction:column;gap:6px;text-align:left}
 .wp-big{border:0;background:var(--accent);color:var(--accent-ink);border-radius:18px;min-height:64px;font-weight:850;font-stretch:112%;font-size:18px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
 .wp-big svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.6}
 .wp-big:disabled{opacity:.45}
@@ -465,6 +466,11 @@ details summary{cursor:pointer;color:var(--muted)}
 .hist .item{padding:10px 0;border-top:1px solid var(--line)}
 .hist .item:first-child{border-top:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2>*,.grid3>*{min-width:0}
+/* iPhone draws date/time boxes at a fixed native width that ignores the grid, so they spilled into the next column */
+input[type=date],input[type=time],input[type=datetime-local],input[type=month]{-webkit-appearance:none;appearance:none;display:block;max-width:100%;min-height:42px;text-align:left}
+input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left;margin:0}
+input[type=date]::-webkit-calendar-picker-indicator{opacity:.6}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
 .scale button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 0;font-weight:600;font-variant-numeric:tabular-nums}
@@ -1231,7 +1237,7 @@ function rtTick(){const R=S.routine;if(!R||R.done||R.paused)return;const rt=find
 
 /* ---------- automatic updates ---------- */
 // bumped on every release; the app compares it with the live copy and refreshes itself
-const APP_VERSION="2026-11-23-1";
+const APP_VERSION="2026-11-24-1";
 /* ---------- iPhone app (App Store version, built with Capacitor): native vibration and notifications ---------- */
 function nativeSafeArea(){try{const d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";document.documentElement.appendChild(d);const cs=getComputedStyle(d),t=parseFloat(cs.paddingTop)||0,b=parseFloat(cs.paddingBottom)||0;d.remove();
   const h=Math.max(screen.height,screen.width);if(t>0||h<812)return;const top={812:47,844:47,852:59,874:62,896:48,926:47,932:59,956:62}[h]||50;
@@ -1752,9 +1758,19 @@ async function nativeDaily(){if(!NATIVE||nPerm!=="granted"||S.lock||S.example)re
     if(R.gym.on){const p=ups.find(x=>x.date===day&&!x.anyDay),dow=new Date(day+"T12:00").getDay();if((p||gymDays().includes(dow))&&!(i===0&&(trained||S.draftWorkout))&&at(day,R.gym.time)>now){const m=gymMsg(day,p&&p.name,R.gym.time);L.push({id:N_ID.gym+i,title:m.title,body:m.body,at:at(day,R.gym.time),go:"train"})}}
     else if(R.plan.on){const p=ups.find(x=>x.date===day&&!x.anyDay);if(p&&!(i===0&&(trained||S.draftWorkout))&&at(day,R.plan.time)>now)L.push({id:N_ID.plan+i,title:"Today's session is ready 💪",body:(p.name||"Your coach's session")+" is waiting. Press Start and everything is set up.",at:at(day,R.plan.time),go:"train"})}}
   await nCancel(ids);await nSchedule(L)}
-{const kbIn=t=>t&&(t.tagName==="TEXTAREA"||t.tagName==="SELECT"||(t.tagName==="INPUT"&&!/^(checkbox|radio|range|button|submit|file|color)$/i.test(t.type)));let kbT=null;
-  document.addEventListener("focusin",e=>{if(kbIn(e.target)&&matchMedia("(pointer:coarse)").matches){clearTimeout(kbT);document.documentElement.classList.add("kb")}});
-  document.addEventListener("focusout",e=>{if(kbIn(e.target)){clearTimeout(kbT);kbT=setTimeout(()=>{if(!kbIn(document.activeElement))document.documentElement.classList.remove("kb")},120)}})}
+// Keyboard open = an editable field has focus AND the visible viewport is clearly shorter than usual. Then the tab bar, rest bar and toasts hide.
+// Checked on focus changes, viewport resizes and after every render: a re-render can remove the focused field without any focusout
+// (WebKit), and swiping the keyboard away keeps the focus, so focus alone used to leave the tab bar hidden ("bottom buttons disappear").
+const kbIn=t=>!!t&&t.isConnected!==false&&(t.tagName==="TEXTAREA"||t.tagName==="SELECT"||(t.tagName==="INPUT"&&!/^(checkbox|radio|range|button|submit|file|color|date|time|datetime-local|month)$/i.test(t.type)));
+let kbT=null,kbMaxH=0;
+function kbCheck(){const vv=window.visualViewport,h=vv?vv.height:window.innerHeight;if(h>kbMaxH)kbMaxH=h;
+  const open=matchMedia("(pointer:coarse)").matches&&kbIn(document.activeElement)&&(!vv||kbMaxH-h>120);
+  document.documentElement.classList.toggle("kb",!!open)}
+{const later=ms=>{clearTimeout(kbT);kbT=setTimeout(kbCheck,ms)};
+  document.addEventListener("focusin",()=>later(350));document.addEventListener("focusout",()=>later(120));
+  if(window.visualViewport)window.visualViewport.addEventListener("resize",()=>later(60));
+  window.addEventListener("orientationchange",()=>{kbMaxH=0;later(400)});
+  document.addEventListener("visibilitychange",()=>later(200))}
 setTimeout(()=>{try{sleepSync()}catch(e){}},3000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)try{sleepSync()}catch(e){}});
 if(NATIVE){document.documentElement.classList.add("native");nativeSafeArea();setTimeout(()=>hkPull(),2500);try{document.querySelector('meta[name="viewport"]').setAttribute("content","width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover")}catch(e){}document.addEventListener("visibilitychange",()=>{nativeBgSync();if(!document.hidden){nativeDaily();hkPull()}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)restDisarm();else if(S.rest&&!S.rest.fired){unlockAudio();restTimers();setTimeout(restArm,80)}});
@@ -2032,6 +2048,14 @@ function wpEnsureName(){const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=cu
   const q=((document.getElementById("wpPickQ")||{}).value||(S.pick&&S.pick.q)||"").trim();
   if(q){ex.name=q;S.wpRename=null;S.pick=null;return true}
   toast("Pick an exercise, or type your own in the search box");const el=document.getElementById("wpPickQ");if(el)el.focus();return false}
+// Finish screen: sets left unticked. Offer to go back and do them (opens the first exercise with sets left), to mark them done
+// (filled in like the next set would be), or to save without them (what Save does).
+function wpUnfinished(dw){const st=wpSteps(dw),left=dw.exercises.map((e,ei)=>({ei,name:e.name,n:e.sets.filter(x=>!x.done).length})).filter(x=>x.n&&x.name);if(!left.length)return"";
+  const n=left.reduce((a,x)=>a+x.n,0),go=st.findIndex(s=>s.t==="ex"&&s.ei===left[0].ei);
+  return `<section class="panel wpunf" role="group" aria-label="Unfinished sets"><b>${n} set${n>1?"s":""} not done yet</b>
+    <span class="small muted">${left.slice(0,4).map(x=>`${esc(x.name)} (${x.n})`).join(", ")}${left.length>4?` and ${left.length-4} more`:""}. Do you want to finish ${n>1?"them":"it"}?</span>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="wpGo" data-v="${go}">Finish ${n>1?"them":"it"} now</button><button class="btn" data-act="wpMarkAll">I did ${n>1?"them":"it"}, tick ${n>1?"all":"it"}</button></div>
+    <span class="small muted">Or save below and ${n>1?"they're":"it's"} left out.</span></section>`}
 function wpDoneSet(){if(!wpEnsureName())return;const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei],si=wpCurSet(ex),st=ex.sets[si];if(!st)return;
   st.done=true;if(st.kg==="")st.kg=0;S.wp.si=null;buzz(30);
   // more sets: rest; last set: move on (rest before the next exercise, straight to cool-down/finish otherwise)
@@ -2089,7 +2113,7 @@ function workoutPlayer(){const dw=S.draftWorkout,steps=wpSteps(dw);if(!S.wp)S.wp
         :`<span class="small muted" style="text-align:center">Tick the warm-ups you want to do and they'll run step by step: a timer for cardio, drills and ramp-up sets one at a time.</span><button class="wp-big" data-act="wpGo" data-v="${S.wp.step+1}">Start training</button>`})()
       :coolBottom(dw,L)}</div>`}
   if(cur.t==="finish"){const done=dw.exercises.map(e=>({...e,sets:e.sets.filter(x=>x.done)})).filter(e=>e.sets.length),sets=done.reduce((a,e)=>a+e.sets.length,0),vol=done.reduce((a,e)=>a+e.sets.reduce((b,x)=>b+(+x.kg||0)*(+x.reps||0),0),0),prs=findPRs({exercises:done}),typed=sets?0:dw.exercises.reduce((a,e)=>a+e.sets.filter(x=>exMode(e.name,e.mode)==="time"?+x.secs>0:x.reps!==""&&x.reps!=null&&+x.reps>0).length,0);
-    return `<div class="player">${head}<div class="wp-body"><span class="label">Workout complete</span><h1>Nice work</h1>
+    return `<div class="player">${head}<div class="wp-body">${(()=>{const u=sets?wpUnfinished(dw):"";return u?`<span class="label">Before you save</span><h1>Almost there</h1>${u}`:`<span class="label">Workout complete</span><h1>Nice work</h1>`})()}
       ${sumTiles({kind:dw.kind,mins:dw.started?Math.max(1,Math.round((Date.now()-dw.started)/60000)):0,exercises:done,warmup:dw.warmup,cooldown:dw.cooldown},prs)}${dw.forClient?`<label class="field"><span class="label">Note for ${esc(firstName(dw.forClient.name))} (optional)</span><textarea data-act="csNote" rows="2" placeholder="e.g. Squat depth better, go up 2.5 kg next time">${esc(dw.csNote||"")}</textarea>${dw.forClient.uid?`<span class="small muted">They see the session and this note in their app.</span>`:""}</label>`:kcalNote()}
       ${prs.length?`<section class="panel"><span class="label">New personal bests</span>${prs.map(x=>`<div><b>${esc(x.name)}</b> <span class="muted">${esc(x.txt)}</span></div>`).join("")}</section>`:""}
       ${sets?"":typed?`<p class="small muted">No sets ticked as done, so the ${typed} set${typed>1?"s":""} you filled in will be saved. Next time, tap Done set as you go.</p>`:`<p class="small muted">No sets logged. You can still save it (your warm-up and cool-down count), or go back and tap Done set after each set.</p>`}</div>
@@ -2546,7 +2570,7 @@ function render(){bumpDocs();
     vr.innerHTML=workoutPlayer();const np=vr.querySelector(".player"),key=wpScreenKey();S._wpKey=key;
     if(np){wpWrapFoot(np);np.scrollTop=S._wpScroll[key]||0;if(fk){const el=np.querySelector(fk);if(el){el.focus({preventScroll:true});try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}wpPinFoot()}
     document.getElementById("restbar").hidden=true;cfMini();return}
-  document.getElementById("viewerRoot").innerHTML=S.tab==="you"&&S.youView==="body"?photoViewer():S.routine?routineRunner():S.cLive&&S.cFocus?cardioFocus():"";cfMini();if(S.cLive&&S.cFocus)setTimeout(hrPaint,0);if(S.pwShow&&!document.querySelector(".pwwrap"))S.pwShow=false;
+  document.getElementById("viewerRoot").innerHTML=S.tab==="you"&&S.youView==="body"?photoViewer():S.routine?routineRunner():S.cLive&&S.cFocus?cardioFocus():"";cfMini();if(S.cLive&&S.cFocus)setTimeout(hrPaint,0);if(S.pwShow&&!document.querySelector(".pwwrap"))S.pwShow=false;if(document.documentElement.classList.contains("kb"))setTimeout(kbCheck,0);
   renderTabs();
   const app=document.getElementById("app");
   const fe=document.activeElement, fid=fe&&fe.id, sel=fe&&fe.selectionStart;
@@ -2995,7 +3019,7 @@ function setReminders(){const R=remCfg(),perm=NATIVE?(nPerm==="granted"?"granted
     ${R.sleep.on?sleepPanel():""}
     ${row("idle","Workout left running","If a session has no activity for",`<select data-act="remMins">${[20,30,45,60,90].map(n=>`<option value="${n}" ${R.idle.mins===n?"selected":""}>${n} min</option>`).join("")}</select>`)}
     <span class="small muted">You only get a reminder when it's needed: nothing logged yet, check not done, or the session not started. One per day each. If you leave a workout running, the app also asks when you come back whether to save it at the time you stopped.</span></section>`}
-const REST_DEF={secs:90,sound:true,tone:"bell",vibrate:true,notify:true};
+const REST_DEF={secs:90,sound:true,tone:"bell",vibrate:true,notify:true,music:"pause"};
 const restCfg=()=>({...REST_DEF,...(settings().rest||{})});
 // rest between sets: the exercise's own setting, else a default for the training style (gym uses the Settings value)
 const REST_KIND={bodyweight:60,functional:60,calisthenics:90};
@@ -3102,8 +3126,13 @@ let restArmed=null;
 function restDisarm(){if(restArmed&&restArmed.out){try{restArmed.out.disconnect()}catch(e){}}restArmed=null}
 function restArm(){restDisarm();const R=S.rest;if(!R||R.fired||document.hidden||!actx||actx.state!=="running")return;const d=(R.end-Date.now())/1000;if(d<.05)return;const out=restSound(d);if(out)restArmed={out,end:R.end,at:actx.currentTime+d}}
 function restTimers(){clearTimeout(restTimers._f);clearTimeout(restTimers._w);const R=S.rest;if(!R||R.fired)return;const ms=R.end-Date.now();
-  restTimers._w=setTimeout(()=>{unlockAudio();setTimeout(()=>{if(S.rest===R&&!(restArmed&&restArmed.end===R.end))restArm()},60)},Math.max(0,ms-1500));
+  restTimers._w=setTimeout(()=>{restMusic(R);unlockAudio();setTimeout(()=>{if(S.rest===R&&!(restArmed&&restArmed.end===R.end))restArm()},60)},Math.max(0,ms-1500));
   restTimers._f=setTimeout(tickRest,Math.max(0,ms))}
+// Your music when rest ends (settings.rest.music): "pause" pauses Spotify/Apple Music etc., "duck" lowers it while the bell rings,
+// "keep" leaves it alone. Native only (a website can't touch other apps' audio); runs 1.5 s before the end, while the app is open.
+function restMusic(R){const m=restCfg().music;if(!NATIVE||!m||m==="keep")return;const P=NPlug(ANDROID?"PFAndroid":"PFAudio");if(!P)return;
+  Promise.resolve(P.music({mode:m})).catch(()=>{}).then(()=>{try{actx&&actx.state!=="running"&&actx.resume()}catch(e){}});
+  if(m==="duck")setTimeout(()=>{Promise.resolve(P.music({mode:"mix"})).catch(()=>{})},Math.max(0,R.end-Date.now())+3500)}
 // at the end of rest: vibrate, then make sure the bell really rings. A booked bell only counts if the audio engine kept running up to its time;
 // if iOS paused the engine during the rest (a notification, Siri, another app's audio), the booking is dropped and the bell rings now instead.
 function restFire(R){const c=restCfg();if(c.vibrate)haptic();const A=restArmed;restArmed=null;
@@ -3160,6 +3189,8 @@ function setRest(){const c=restCfg(),perm=NATIVE?(nPerm==="granted"?"granted":nP
   <section class="panel"><h2>When rest ends</h2>
     <label class="habit"><input type="checkbox" data-act="restOpt" data-k="sound" ${c.sound?"checked":""}><span>Sound</span></label>
     ${c.sound?`<div class="row" style="gap:6px;padding-left:34px"><button class="qchip" data-act="restTone" data-v="bell" aria-pressed="${c.tone!=="beep"}">🔔 Boxing bell</button><button class="qchip" data-act="restTone" data-v="beep" aria-pressed="${c.tone==="beep"}">Beep</button><button class="btn ghost" data-act="restTest">▶ Play</button></div>`:""}
+    ${NATIVE?`<div class="field"><span class="label">Your music</span><div class="row" style="gap:6px" role="group" aria-label="Your music when rest ends">${[["pause","Pause it"],["duck","Lower it for the bell"],["keep","Keep playing"]].map(([v,l])=>`<button class="qchip" data-act="restMusic" data-v="${v}" aria-pressed="${(c.music||"pause")===v}">${l}</button>`).join("")}</div>
+      <span class="small muted">${(c.music||"pause")==="pause"?"Music from Spotify, Apple Music and other apps pauses as your rest ends, so you can focus on the set. Press play when you're ready.":(c.music==="duck"?"Your music gets quieter while the bell rings, then goes back to normal.":"Your music keeps playing and the bell rings over it.")} Works while the app is open.</span></div>`:""}
     <label class="habit"><input type="checkbox" data-act="restOpt" data-k="vibrate" ${c.vibrate?"checked":""}><span>Vibrate${NATIVE?"":` <span class="small muted">(Android phones)</span>`}</span></label>
     <label class="habit"><input type="checkbox" data-act="restOpt" data-k="notify" ${c.notify&&perm==="granted"?"checked":""} ${perm==="unsupported"||perm==="denied"?"disabled":""}><span>Notification</span></label>
     <span class="small muted">${perm==="denied"?"Notifications are blocked for this app. Turn them on in your phone's settings for this site or app, then come back."
@@ -3748,9 +3779,9 @@ function renderOnboard(){const O=S.onboard,d=O.d,N=6;
     <label class="field"><span class="label">What should we call you?</span><input id="ob_name" data-act="ob" data-k="name" value="${esc(d.name)}" placeholder="Your first name" autocomplete="given-name"></label>${nav("Let's go")}`;
   if(O.step===1)body=`<h1>Your goal</h1>${pick("goal",[["lose","Lose fat","Lean out steadily"],["gain","Build muscle","Add size and strength"],["maintain","Maintain","Stay where you are, feel better"],["perform","Performance","Train for a sport or event"]])}
     <div class="label" style="margin-top:8px">How active are you?</div>${pick("activity",ACT.map(([v,l])=>{const [a,b]=l.split(": ");return [v,a,b||""]}))}${nav()}`;
-  if(O.step===2)body=`<h1>About you</h1><p class="sub" style="font-size:14px">Used to suggest calories and macros. Stored only on this phone.</p>
+  if(O.step===2)body=`<h1>About you</h1><p class="sub" style="font-size:14px">Used to work out your calories and macros. You can change these any time in Settings.</p>
     <div class="grid2"><label class="field"><span class="label">Date of birth</span><input id="ob_dob" type="date" data-act="ob" data-k="dob" value="${esc(d.dob)}"></label>
-    <label class="field"><span class="label">Sex (for calorie maths)</span><select id="ob_sex" data-act="ob" data-k="sex"><option value="">Choose</option><option value="m" ${d.sex==="m"?"selected":""}>Male</option><option value="f" ${d.sex==="f"?"selected":""}>Female</option></select></label>
+    <label class="field"><span class="label">Sex</span><select id="ob_sex" data-act="ob" data-k="sex"><option value="">Choose</option><option value="m" ${d.sex==="m"?"selected":""}>Male</option><option value="f" ${d.sex==="f"?"selected":""}>Female</option></select></label>
     <label class="field"><span class="label">Height (cm)</span><input id="ob_height" type="number" step="any" inputmode="decimal" data-act="ob" data-k="height" value="${esc(d.height)}"></label>
     <label class="field"><span class="label">Weight (kg)</span><input id="ob_weight" type="number" step="any" inputmode="decimal" data-act="ob" data-k="weight" value="${esc(d.weight)}"></label></div>${nav("Next",true)}`;
   if(O.step===3)body=`<h1>Health check</h1>${healthForm(d.health||(d.health={}),"ob")}${nav("Next",true)}`;
@@ -4233,7 +4264,7 @@ function setProfile(){const p=S.docs.profile||{},me=activeProf(),v=k=>esc(p[k]??
     <div class="grid2"><label class="field"><span class="label">Email</span><input id="pf_email" type="email" value="${v("email")}" autocomplete="email"></label>
     <label class="field"><span class="label">Phone</span><input id="pf_phone" type="tel" value="${v("phone")}" autocomplete="tel"></label></div>
     <div class="grid2"><label class="field"><span class="label">Date of birth</span><input id="pf_dob" type="date" value="${v("dob")}"></label>
-    <label class="field"><span class="label">Sex (for calorie maths)</span>${sel("pf_sex",[["","Choose"],["m","Male"],["f","Female"]],p.sex)}</label></div>
+    <label class="field"><span class="label">Sex</span>${sel("pf_sex",[["","Choose"],["m","Male"],["f","Female"]],p.sex)}</label></div>
     <div class="grid2"><label class="field"><span class="label">Height (cm)</span><input id="pf_height" type="number" step="any" inputmode="decimal" value="${v("height")}"></label>
     <label class="field"><span class="label">Weight (kg)</span><input id="pf_weight" type="number" step="any" inputmode="decimal" value="${esc(latestWeight()??p.weight??"")}"></label></div>
     <label class="field"><span class="label">Goal</span>${sel("pf_goal",[["","Choose"],...Object.entries(GOALS)],p.goal)}</label>
@@ -4492,6 +4523,7 @@ document.addEventListener("click",e=>{
     case "hqSave":{const h=S.healthDraft;if(HEALTH_Q.some(([k])=>!h[k])){toast("Answer each question with yes or no");break}if(!h.consent){toast("Tick the box to agree to your answers being stored");break}
       S.healthDraft=null;const rec=healthRecord(h);save("profile",{...(S.docs.profile||{type:"profile",name:activeProf().name}),health:rec});toast(rec.flagged?"Saved. Please check with your GP before increasing exercise":"Saved. All clear");break}
     case "hkConnect":hkConnect();break;
+    case "restMusic":{const st=clone(settings());st.rest={...REST_DEF,...(st.rest||{}),music:ds.v};save("settings",st);break}
     case "restTone":{const st=clone(settings());st.rest={...REST_DEF,...(st.rest||{}),tone:ds.v};save("settings",st);unlockAudio();setTimeout(restSound,30);break}
     case "restTest":unlockAudio();setTimeout(restSound,30);break;
     case "slWind":case "slGoal":case "slWakeClear":{const st=clone(settings()),R=remCfg(),SL={...R.sleep};if(ds.act==="slWind")SL.wind=+ds.v;if(ds.act==="slWakeClear")SL.wake="";
@@ -4762,6 +4794,7 @@ document.addEventListener("click",e=>{
       ex.sets.slice(si+1).forEach(x=>{if(!x.done&&String(x[ds.f])===String(old))x[ds.f]=v});buzz(8);render();break}
     case "wpRir":{const cur=wpSteps(S.draftWorkout)[S.wp.step],ex=S.draftWorkout.exercises[cur.ei],st=ex.sets[wpCurSet(ex)];if(st){st.rir=String(st.rir)===ds.n?"":+ds.n;render()}break}
     case "wpDone":wpDoneSet();break;
+    case "wpMarkAll":{const dw=S.draftWorkout;if(!dw)break;let n=0;dw.exercises.forEach(e=>{if(!e.name)return;const mode=exMode(e.name,e.mode);e.sets.forEach((x,si)=>{if(x.done)return;wpPrefill(e,si,mode);if(x.kg===""||x.kg==null)x.kg=0;x.done=true;n++})});buzz(30);render();toast(n+" set"+(n===1?"":"s")+" ticked");break}
     case "wpRest":{const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=cur&&dw.exercises[cur.ei];if(!ex)break;ex.rest=Math.min(600,Math.max(15,restFor(dw,ex)+(+ds.d)));render();break}
     case "wpHold":{if(!wpEnsureName())break;const dw=S.draftWorkout,cur=wpSteps(dw)[S.wp.step],ex=dw.exercises[cur.ei],st=ex.sets[wpCurSet(ex)];if(!st||!(+st.secs>0))break;unlockAudio();stopRestQuiet();
       S.hold={end:Date.now()+st.secs*1000,total:+st.secs,start:Date.now()};clearInterval(holdTick._i);holdTick._i=setInterval(holdTick,250);render();break}

@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import HealthKit
+import AVFoundation
 
 // Saves finished sessions to Apple Health as workouts (the Health plugin reads data and saves weight,
 // but it can't save workouts). Called from index.html as Capacitor.Plugins.PFWorkout.
@@ -113,6 +114,46 @@ public class PFWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         case "cardio": return .mixedCardio
         case "other": return .other
         default: return .traditionalStrengthTraining
+        }
+    }
+}
+
+// Other apps' music when a rest ends (Settings › Rest timer › Your music). Called from index.html as Capacitor.Plugins.PFAudio,
+// 1.5 s before the bell: "pause" stops Spotify/Apple Music etc. (the app's audio briefly stops mixing, which interrupts them;
+// they stay paused until the person presses play), "duck" lowers them while the bell rings, "mix" puts everything back.
+@objc(PFAudioPlugin)
+public class PFAudioPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "PFAudioPlugin"
+    public let jsName = "PFAudio"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "music", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func music(_ call: CAPPluginCall) {
+        let mode = call.getString("mode") ?? "mix"
+        let s = AVAudioSession.sharedInstance()
+        DispatchQueue.main.async {
+            do {
+                switch mode {
+                case "pause":
+                    try? s.setActive(false)
+                    try s.setCategory(.playback, mode: .default, options: [])
+                    try s.setActive(true)
+                    // back to mixing, so music the person starts again plays alongside the bell next time
+                    try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                case "duck":
+                    try? s.setActive(false)
+                    try s.setCategory(.playback, mode: .default, options: [.mixWithOthers, .duckOthers])
+                    try s.setActive(true)
+                default:
+                    try? s.setActive(false, options: .notifyOthersOnDeactivation)
+                    try s.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                    try s.setActive(true)
+                }
+                call.resolve(["otherAudio": s.isOtherAudioPlaying])
+            } catch {
+                call.reject(error.localizedDescription)
+            }
         }
     }
 }

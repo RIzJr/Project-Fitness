@@ -10,7 +10,7 @@ Everything here can be done from a Windows PC in a web browser. The cloud Mac (C
 - A 1024 × 1024 app icon, plus support and privacy pages:
   - https://rizjr.github.io/Project-Fitness/support.html
   - https://rizjr.github.io/Project-Fitness/privacy.html
-- Five 6.9-inch screenshots (in your Downloads, folder `app-store-screenshots`).
+- Six 6.9-inch screenshots in `store/app-store/`, and all the listing text in `store/LISTING.md`.
 
 **App details used everywhere**
 - Bundle ID: `com.rizjr.projectfitness`. It must match exactly in every step below.
@@ -87,44 +87,9 @@ Do this once Apple confirms your membership by email.
 
 In App Store Connect, open the app and go to **Distribution**, then **iOS App 1.0**.
 
-**Screenshots (iPhone 6.9")**: upload the five images from the `app-store-screenshots` folder in this order: 1-today, 2-plan, 3-workout, 4-rest, 5-clients.
+**Screenshots (iPhone 6.9")**: upload the six images in `store/app-store/` in order (1-today … 6-goals). They're also on GitHub: github.com/RIzJr/Project-Fitness/tree/main/store/app-store.
 
-**Subtitle** (30 characters max)
-> Training, food & coaching
-
-**Promotional text** (170 characters max)
-> Your training plan, food log and coach in one app. Flexible plans for beginners: pick the days you can train and your sessions stay in order.
-
-**Description**
-> Project Fitness puts your training, food and coaching in one place, built by a UK personal trainer for real clients.
->
-> TRAIN WITH A PLAN
-> • Today shows the session that's next, with every exercise, set, rep and weight ready to go
-> • Step-by-step workout mode with demos, a rest timer that buzzes when it's time, and your last weights shown for every lift
-> • Flexible plans: pick the days you can make it each week and your sessions stay in order. No missed days, just a weekly target
-> • Warm-ups and cool-downs that run themselves, one stretch and one side at a time
->
-> EAT TO YOUR GOAL
-> • Quick food logging with a UK food list and barcode lookup
-> • Calories and protein at a glance, with targets set for your goal
-> • Daily habits like water, steps and sleep
->
-> SEE YOUR PROGRESS
-> • Goals with progress bars: a bodyweight, a lift, or sessions a week
-> • Weigh-in trends, personal bests and a weekly progress card to share
-> • Morning readiness check that adjusts the day's session when you're run down
->
-> COACH YOUR CLIENTS
-> • Assign multi-week programmes with the right weights for each week
-> • See who's on track and who needs a nudge at a glance
-> • Clients choose what to share: weekly summaries, never individual meals
->
-> Use it without an account and everything stays on your phone, or sign up to sync and link with your coach.
->
-> Project Fitness isn't medical advice. Check with your GP before starting a new exercise programme if you have a health condition.
-
-**Keywords** (100 characters max)
-> workout,gym,personal trainer,coach,calorie,macro,protein,strength,programme,tracker,habit,weight
+**Subtitle, promotional text, description, keywords**: copy them from `store/LISTING.md` (the same text is used on Google Play).
 
 **Other fields**
 - Support URL: `https://rizjr.github.io/Project-Fitness/support.html`
@@ -132,13 +97,13 @@ In App Store Connect, open the app and go to **Distribution**, then **iOS App 1.
 - Copyright: `2026 Rizalito Jr Mangilit`
 - Category: **Health & Fitness**
 - Price: **Free**, in all countries or just the UK, as you prefer
-- Age rating (Apple's questionnaire changed in 2025): answer **Health or Wellness Topics: Frequent** (training, nutrition, sleep and recovery are the whole app) and **Medical or Treatment Information: Infrequent** (the health check and "see your GP" notes, no treatment advice). **Messaging**: Yes (coach notes) and **User-Generated Content**: Yes (check-in notes). Everything else **None/No**, including Unrestricted Web Access (outside links open Safari). This should give **9+**. Because the app is designed for adults, you can choose a higher rating if you prefer; it doesn't change anything else.
+- Age rating: if Pulse (the AI chat) is live when you submit, choose **18+** (see `store/LISTING.md`). Otherwise (Apple's questionnaire changed in 2025): answer **Health or Wellness Topics: Frequent** (training, nutrition, sleep and recovery are the whole app) and **Medical or Treatment Information: Infrequent** (the health check and "see your GP" notes, no treatment advice). **Messaging**: Yes (coach notes) and **User-Generated Content**: Yes (check-in notes). Everything else **None/No**, including Unrestricted Web Access (outside links open Safari). This should give **9+**. Because the app is designed for adults, you can choose a higher rating if you prefer; it doesn't change anything else.
 
 **App Review Information**
 - Sign-in required: **No**. Reviewers can use the app without an account.
 - Contact: your name, phone number and email
 - Notes:
-  > Project Fitness can be used without an account: on the first screen tap "Continue without an account", then "Skip setup". To try a programme, open Train › Programmes, add a ready-made programme and assign it to "Myself" (choose Flexible order). Tap Start to open the workout player. Optional sign-up uses email and password and enables syncing and linking with a personal trainer. Account deletion is in Settings › Cloud account › Delete my account. Notifications are local (reminders and rest timer) and are only requested when the user turns them on.
+  > Project Fitness can be used without an account: on the first screen tap "Continue without an account", then "Skip setup". To try a programme, open Train › Programmes, add a ready-made programme and assign it to "Myself" (choose Flexible order). Tap Start to open the workout player. Optional sign-up uses email and password and enables syncing and linking with a personal trainer. Account deletion is in Settings › Cloud account › Delete my account. Notifications are local (reminders and rest timer) and are only requested when the user turns them on. Cardio (Train › Cardio › Start) opens a full-screen focus mode with a timer and heart rate. When a rest timer ends while the app is open, the app briefly takes the audio session so the person's music pauses for their next set; this is a setting (Settings › Rest timer › Your music) and the app has no background audio.
 
 ## Step 7. App Privacy questions
 
